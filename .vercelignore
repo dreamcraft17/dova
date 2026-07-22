@@ -1,0 +1,4 @@
+apps/backend/
+database/
+scripts/
+coverage/

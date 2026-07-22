@@ -1,0 +1,1 @@
+import { Layout } from '../components/Layout'; export default function About(){return <Layout><section className="form-page"><p className="eyebrow">ABOUT DOVA</p><h1>Building a better food supply chain.</h1><p>DOVA helps buyers and suppliers work together with clarity, trust, and fair access to the market.</p></section></Layout>}
