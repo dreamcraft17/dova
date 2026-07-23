@@ -44,7 +44,7 @@ The MVP is meant to prove that loop works — catalog, a few verified suppliers,
 Sign-up, login, and logout are in. Product browsing works (search, categories, product pages). Cart works. Checkout creates an order. There’s a confirmation step and order history in the customer area. Payment is connected end-to-end in the product; on the current demo it runs as a **simulated** payment so we don’t charge real money until Paystack is set up properly. Currency in the UI is **₦ (Naira)**.
 
 ### Suppliers
-Registration with document upload is in. New suppliers start as pending. Once an admin approves them, they get a **sidebar dashboard**: add/edit/remove products, adjust stock, and move orders through fulfillment (e.g. processing → shipped → delivered).
+Registration with document upload is in. The form explains accepted verification documents (CAC / Business Name Registration, government ID such as NIN/National ID/Driver’s Licence/Passport, or optional address proof — PDF/JPG/PNG, max 5 MB). New suppliers start as pending. Once an admin approves them, they get a **sidebar dashboard**: add/edit/remove products, adjust stock, and move orders through fulfillment (e.g. processing → shipped → delivered).
 
 ### Admins
 Admin login and a **sidebar dashboard** are in — platform overview, supplier approve/reject, and visibility into users, products, and orders.

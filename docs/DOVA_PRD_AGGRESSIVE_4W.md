@@ -120,7 +120,7 @@ Week 4 (Aug 11-17)   ├─ Track A: Integration & Testing
 - ✓ Stock decreases on purchase
 
 **Scope Cut:**
-- No detailed verification document review UI (simple upload)
+- No detailed verification document review UI (simple upload + on-form guidance for accepted types: CAC, government ID, optional address proof)
 - No bulk product import
 - No supplier analytics
 - No export features (admin)

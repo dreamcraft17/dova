@@ -81,12 +81,37 @@ export default function SupplierRegister() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
-          <label>Verification document (PDF/JPG/PNG, max 5 MB)</label>
+          <label>Verification document (PDF / JPG / PNG, max 5 MB)</label>
+          <p className="form-hint">
+            Upload <strong>one clear document</strong> that proves your business or identity.
+            Accepted examples:
+          </p>
+          <ul className="form-hint-list">
+            <li>
+              <strong>CAC / Business Name Registration</strong> (preferred for companies)
+            </li>
+            <li>
+              <strong>Valid government ID</strong> of the owner/contact — NIN slip, National ID,
+              Driver&apos;s Licence, or International Passport
+            </li>
+            <li>
+              Optional for farms: <strong>proof of farm/business address</strong> (e.g. utility
+              bill)
+            </li>
+          </ul>
+          <p className="form-hint">
+            Our admin team will review your upload before approving your supplier account.
+          </p>
           <input
             type="file"
             accept="application/pdf,image/jpeg,image/png"
             onChange={(e) => setFile(e.target.files?.[0])}
           />
+          {file && (
+            <p className="form-hint" style={{ marginTop: 8 }}>
+              Selected: {file.name}
+            </p>
+          )}
           <button type="submit">Register as Supplier</button>
           {error && <p className="error">{error}</p>}
           {done && <p>{done}</p>}

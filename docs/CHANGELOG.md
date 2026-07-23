@@ -2,6 +2,18 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.2.2] — 2026-07-23
+
+### Supplier registration UX
+- Added on-form guidance for verification documents (CAC / government ID / optional address proof; PDF/JPG/PNG max 5 MB).
+- Shows selected file name after choose.
+
+### Docs
+- Added `DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md` (stakeholder reply).
+- Progress, status, compliance, README, and bug fixes updated for document guidance.
+
+---
+
 ## [0.2.1] — 2026-07-23
 
 ### Mobile-first UI

@@ -55,7 +55,7 @@
 | Checkout & orders | Delivery form, create order, confirmation, order history |
 | Payment (test / demo mode) | Flow exists; local demos use **simulation** if Paystack keys are not set |
 | Supplier dashboard | Sidebar dashboard: products, stock, fulfillment |
-| Supplier registration | Upload documents; status starts as “pending approval” |
+| Supplier registration | Upload documents with **on-form guidance** (CAC, government ID, optional address proof); status starts as “pending approval” |
 | Admin dashboard | Sidebar: stats, approvals, users/products/orders |
 | Public pages & brand | Home (hero, How It Works, featured, supplier CTA, trust), About, Contact, full footer |
 | Mobile experience | Hamburger menu, stacked layouts, tables → cards on small screens |
@@ -95,6 +95,7 @@
 
 ### B. Supplier — Done
 1. Register as a supplier and upload supporting documents  
+   (CAC / government ID / optional address proof — shown on the form)  
 2. Wait in **pending** status until admin action  
 3. After approval: access supplier dashboard  
 4. Create, edit, and remove products  
@@ -182,6 +183,6 @@ Customers register through the sign-up page. Sample catalog (~**20 products**) a
 
 **Not complete yet:** launch readiness — shared staging, live payment verification, min-order rules, and Week 4 joint testing.
 
-**Related docs:** `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_SPEC_COMPLIANCE.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`.
+**Related docs:** `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_SPEC_COMPLIANCE.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`, `DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md`.
 
 ---

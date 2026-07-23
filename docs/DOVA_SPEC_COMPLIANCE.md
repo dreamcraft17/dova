@@ -56,7 +56,7 @@ Gaps are mainly **Week 4 launch bar**, some **SRS detail ACs**, **Contact DB per
 
 | FR | Status | Notes |
 |----|--------|-------|
-| W3.1 Supplier registration | Partial | Upload + pending; email send optional |
+| W3.1 Supplier registration | Done* | Upload + pending; form lists accepted docs (CAC / ID / address). Email send still optional |
 | W3.2 Supplier dashboard | Done | Sidebar shell matching Startup |
 | W3.3 Product CRUD | Partial | CRUD yes; **image URL only — no file upload/resize** |
 | W3.4 Stock management | Done | Adjustments; stock decreases on purchase |
@@ -130,4 +130,4 @@ Gaps are mainly **Week 4 launch bar**, some **SRS detail ACs**, **Contact DB per
 - **Spec/launch complete:** not yet — Contact save, staging, Paystack proof, min order, E2E.  
 - **UI:** Startup design + mobile-first treated as **done** for MVP polish.
 
-See `CHANGELOG.md` (0.2.0 / 0.2.1) and `BUG_FIXES.md`.
+See `CHANGELOG.md` (0.2.0–0.2.2) and `BUG_FIXES.md`.

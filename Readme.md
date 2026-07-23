@@ -103,7 +103,7 @@ DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_U
 |------|----------------|
 | Storefront | `/`, `/products`, `/products/[id]`, `/about`, `/contact` |
 | Commerce | `/cart`, `/checkout`, Paystack verify |
-| Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` |
+| Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` (verification doc guidance on form) |
 | Customer | `/customer`, `/customer/orders/[id]` |
 | Supplier | `/supplier` — sidebar: products, add/edit, orders |
 | Admin | `/admin` — users, suppliers, products, orders |
@@ -130,6 +130,7 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, develop
 | [Spec compliance](./docs/DOVA_SPEC_COMPLIANCE.md) | Engineering — PRD/SRS/SDD vs code |
 | [VPS deploy steps](./docs/DOVA_VPS_DEPLOY.md) | DevOps — single-server deploy |
 | [Paystack + min order reply](./docs/DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md) | Stakeholder draft |
+| [Supplier verification docs reply](./docs/DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md) | Stakeholder draft — which documents to upload |
 | [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
 | PRD / SRS / SDD | `docs/DOVA_PRD_*`, `DOVA_SRS_*`, `DOVA_SDD_*` |
 | Tech stack | [DOVA_TECH_STACK_MONOREPO.md](./docs/DOVA_TECH_STACK_MONOREPO.md) |

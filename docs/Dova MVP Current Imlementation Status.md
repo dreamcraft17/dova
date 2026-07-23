@@ -54,6 +54,7 @@
 | Cart & checkout | Full purchase path; mobile-friendly |
 | Payment (test mode) | Simulation locally; Paystack when keys set |
 | Supplier & admin dashboards | Sidebar layouts matching Startup design |
+| Supplier verification docs | Form explains accepted types: CAC, government ID, optional address proof |
 | Public pages | Full branded home + About + Contact + footer |
 | Mobile | Hamburger menu; layouts optimized for small screens |
 
@@ -83,7 +84,7 @@
 1. Register → browse → product → cart → checkout → pay → dashboard  
 
 ### B. Supplier
-1. Register + docs → admin approves → products → fulfill orders  
+1. Register + docs (CAC / ID / address listed on form) → admin approves → products → fulfill orders  
 
 ### C. Admin
 1. Login → approve suppliers → review stats / orders  
@@ -186,4 +187,4 @@ Not yet: E2E on public staging, production load tests.
 
 ---
 
-**Related:** `DOVA MVP PROGRESS UPDATE.md`, `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`.
+**Related:** `DOVA MVP PROGRESS UPDATE.md`, `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`, `DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md`.

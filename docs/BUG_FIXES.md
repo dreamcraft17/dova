@@ -16,6 +16,7 @@ Known issues found during MVP / design port work, and their status.
 | BF-008 | UX | Product cards lacked trust signals from mockup (origin/stars) | Added supplier/origin meta + star row + verified badge on detail. |
 | BF-009 | CSS | Product card padding collided with dashboard form cards after theme rewrite | Split `.card` padding rules vs `.card.product-card` / grid cards. |
 | BF-015 | UI | Not mobile-first (desktop CSS + weak HP nav) | Hamburger drawer, mobile-first CSS, cart/table/dashboard polish. |
+| BF-016 | UX | Suppliers unclear which verification document to upload | On-form hint: CAC, government ID, optional address proof (+ stakeholder reply doc). |
 
 ## Open / known
 

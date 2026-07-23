@@ -551,7 +551,11 @@ Response: full order details
 
 **Requirements:**
 - Form: business name, contact name, email, phone, password
-- Document upload (verification)
+- Document upload (verification) — **accepted types (MVP guidance on form):**
+  - CAC / Business Name Registration (preferred for companies)
+  - Valid government ID (NIN slip, National ID, Driver’s Licence, or International Passport)
+  - Optional for farms: proof of farm/business address
+- Format: PDF/JPG/PNG, max 5MB; one document is enough for MVP
 - Submit → status 'pending'
 - Confirmation message + reference number
 - Email to applicant: "Under review"
@@ -559,6 +563,7 @@ Response: full order details
 **Acceptance Criteria:**
 - [ ] Form accepts supplier info
 - [ ] Document uploads (max 5MB, PDF/JPG/PNG)
+- [ ] Form (or help text) lists accepted document types for verification
 - [ ] Application stored with 'pending' status
 - [ ] Confirmation message shown
 - [ ] Email sent to applicant

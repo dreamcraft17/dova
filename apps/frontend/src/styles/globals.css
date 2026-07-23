@@ -1376,6 +1376,39 @@ form .button {
   color: var(--muted);
 }
 
+.form-hint {
+  margin: 6px 0 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  font-weight: 400;
+  text-align: left;
+}
+
+.form-hint-list {
+  margin: 0 0 12px;
+  padding: 12px 12px 12px 28px;
+  background: var(--mint);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.form-hint-list li {
+  margin-bottom: 6px;
+}
+
+.form-hint-list li:last-child {
+  margin-bottom: 0;
+}
+
+.supplier-card .form-hint,
+.supplier-card .form-hint-list {
+  text-align: left;
+}
+
 /* ========== DASHBOARD (mobile-first) ========== */
 .dashboard {
   display: flex;
