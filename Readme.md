@@ -1,62 +1,142 @@
-# DOVA MVP
+# DOVA
 
-Monorepo implementation berdasarkan PRD, SDD, SRS, dan tech-stack docs di `docs/`.
+Agricultural marketplace MVP connecting buyers with verified suppliers.  
+Monorepo: NestJS API + Next.js storefront + shared types.
 
-## Documentation
+**Stack:** Node.js · NestJS · Next.js · PostgreSQL / Redis (optional) · Paystack (NGN)  
+**UI:** Design ported from the DOVA-Startup mockups (green / gold brand).
 
-| Document | Audience |
-|---------|-------------|
-| [MVP progress update (non-technical)](./docs/DOVA%20MVP%20PROGRESS%20UPDATE.md) | Business, Ops, Sales, Leadership |
-| [MVP status report (non-technical)](./docs/DOVA_MVP_STATUS_NON_TECHNICAL.md) | Longer status brief |
-| [Week 1 update (non-technical)](./docs/DOVA_WEEK1_NON_TECHNICAL_UPDATE.md) | Short team coordination |
-| [Week 1 current update (technical)](./docs/DOVA_WEEK1_CURRENT_UPDATE.md) | Engineering |
-| [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
-| PRD / SRS / SDD | `docs/DOVA_PRD_AGGRESSIVE_4W.md`, `DOVA_SRS_*`, `DOVA_SDD_*` |
+---
 
-## Quick start
+## Quick start (local, no Docker)
 
 ```bash
 npm install
-npm run dev
-```
-
-Frontend: http://localhost:3001 · API: http://localhost:3000/api/v1/health
-
-## Week 1 foundation
-
-```bash
 cp .env.example .env
 cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.local.example apps/frontend/.env.local
-npm run build
-npm run test:backend
+npm run dev
 ```
 
-Unit test commands:
+| Service   | URL |
+|-----------|-----|
+| Frontend  | http://localhost:3001 |
+| API health| http://localhost:3000/api/v1/health |
+
+Default local mode uses **in-memory** data (`USE_IN_MEMORY=true`) so you can run UI + API without PostgreSQL/Redis.
+
+### Demo accounts
+
+| Role     | Email                 | Password      |
+|----------|-----------------------|---------------|
+| Admin    | `admin@dova.local`    | `admin1234`   |
+| Supplier | `supplier@dova.local` | `supplier1234`|
+
+Register a customer from `/auth/register`, or apply as supplier at `/auth/supplier-register`.
+
+---
+
+## Repository layout
+
+```
+dova/
+├── apps/
+│   ├── backend/          # NestJS API (:3000)
+│   └── frontend/         # Next.js storefront (:3001)
+├── shared/               # Shared TypeScript types
+├── database/migrations/  # SQL schema
+├── scripts/              # migrate + seed
+└── docs/                 # PRD, SRS, SDD, status, changelog
+```
+
+---
+
+## Environment
+
+**Root / backend** (see `.env.example`, `apps/backend/.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `USE_IN_MEMORY` | `true` = local demo without DB |
+| `DATABASE_URL` | PostgreSQL (required when in-memory is off) |
+| `REDIS_URL` | Redis (sessions/cache in full mode) |
+| `JWT_SECRET` | Auth signing secret |
+| `FRONTEND_URL` | CORS / redirects (`http://localhost:3001`) |
+| `PAYSTACK_SECRET_KEY` | Live/test Paystack; empty → mock payment in dev |
+| `PAYSTACK_CURRENCY` | `NGN` |
+| `ADMIN_PASSWORD` | Seed/bootstrap admin password |
+
+**Frontend** (`apps/frontend/.env.local`):
+
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_API_URL` | e.g. `http://localhost:3000/api/v1` |
+| `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Optional public key |
+
+---
+
+## Common commands
 
 ```bash
+npm run dev              # API + frontend together
+npm run build            # shared → backend → frontend
+npm run typecheck
+npm run test             # unit + backend tests
 npm run test:unit
 npm run test:coverage
-```
+npm run test:backend
 
-Unit tests mencakup auth, validasi, refresh/revocation token, role authorization, product/cart/order behavior, dan shared constants.
-
-Database schema dan seed kategori ada di `database/migrations/001_init.sql`. CI GitHub Actions tersedia di `.github/workflows/ci.yml` dan tidak menggunakan Docker.
-
-Untuk database nyata:
-
-```bash
+# Real database (USE_IN_MEMORY=false)
 npm run db:migrate
 npm run db:seed
+npm run db:seed:week3
 ```
 
-Frontend deployment ditargetkan ke Vercel melalui `vercel.json`. Backend berjalan pada runtime Node.js terpisah dan menggunakan PostgreSQL/Redis managed melalui `DATABASE_URL`/`REDIS_URL`. Migration database dapat dijalankan manual melalui workflow `.github/workflows/database-migrate.yml` dengan GitHub secret `DATABASE_URL`.
+CI: `.github/workflows/ci.yml`  
+DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_URL` secret)
 
-Untuk development tanpa database lokal, set `USE_IN_MEMORY=true`. Untuk persistence penuh, gunakan PostgreSQL dan Redis managed/external; repository ini tidak membutuhkan Docker.
+---
 
-Week 2 payment memakai Paystack jika `PAYSTACK_SECRET_KEY` tersedia; tanpa key di development, payment menggunakan mock flow lokal dan tidak memproses uang sungguhan.
+## Product surface
 
-Demo users: `admin@dova.local / admin1234`, `supplier@dova.local / supplier1234`.
+| Area | Routes / notes |
+|------|----------------|
+| Storefront | `/`, `/products`, `/products/[id]`, `/about`, `/contact` |
+| Commerce | `/cart`, `/checkout`, Paystack verify |
+| Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` |
+| Customer | `/customer`, `/customer/orders/[id]` |
+| Supplier | `/supplier` — sidebar: products, add/edit, orders |
+| Admin | `/admin` — users, suppliers, products, orders |
 
-Database schema produksi/local tersedia di `database/migrations/001_init.sql`; baseline development memakai in-memory repository agar UI dapat langsung dijalankan tanpa PostgreSQL. Set `DATABASE_URL`, Redis, dan `PAYSTACK_SECRET_KEY` sebelum menghubungkan adapter produksi.
-# dova
+Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, development uses a **mock** flow (no real charges).
+
+---
+
+## Deployment
+
+- Frontend: Vercel (`vercel.json`). See [DOVA_VERCEL_DEPLOYMENT_OVERRIDE.md](./docs/DOVA_VERCEL_DEPLOYMENT_OVERRIDE.md).
+- Backend: separate Node.js host with managed PostgreSQL / Redis.
+- No Docker required for this MVP path.
+
+---
+
+## Documentation
+
+| Doc | Audience |
+|-----|----------|
+| [CHANGELOG](./docs/CHANGELOG.md) | Engineering — release history |
+| [BUG_FIXES](./docs/BUG_FIXES.md) | Engineering — fixed / open issues |
+| [MVP progress update](./docs/DOVA%20MVP%20PROGRESS%20UPDATE.md) | Business / ops |
+| [Spec compliance](./docs/DOVA_SPEC_COMPLIANCE.md) | Engineering — PRD/SRS/SDD vs code |
+| [Paystack + min order reply](./docs/DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md) | Stakeholder draft |
+| [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
+| PRD / SRS / SDD | `docs/DOVA_PRD_*`, `DOVA_SRS_*`, `DOVA_SDD_*` |
+| Tech stack | [DOVA_TECH_STACK_MONOREPO.md](./docs/DOVA_TECH_STACK_MONOREPO.md) |
+
+---
+
+## Notes
+
+- Currency UI is **₦ (NGN)** to match Paystack / Nigeria market.
+- Storefront UI follows the **DOVA-Startup** design reference (brand, home, auth cards, dashboards).
+- Open product gaps (min order value, image upload polish, etc.) are tracked in [BUG_FIXES.md](./docs/BUG_FIXES.md).
