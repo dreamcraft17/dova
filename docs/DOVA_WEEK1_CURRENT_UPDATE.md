@@ -1,5 +1,9 @@
 # DOVA — Week 1 Current Update
 
+> **Note (23 Jul 2026):** For the latest overall status (including Startup UI + mobile-first), use  
+> [`DOVA MVP PROGRESS UPDATE.md`](./DOVA%20MVP%20PROGRESS%20UPDATE.md), [`DOVA_SPEC_COMPLIANCE.md`](./DOVA_SPEC_COMPLIANCE.md), and [`CHANGELOG.md`](./CHANGELOG.md).  
+> This file remains the Week 1 foundation snapshot.
+
 **Update by:** Dozer  
 **Author:** Dozer  
 **Date:** 2026-07-22  

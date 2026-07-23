@@ -36,14 +36,14 @@ export default function Customer() {
                 <tbody>
                   {orders.map((o) => (
                     <tr key={o.id}>
-                      <td>{o.orderNumber}</td>
-                      <td>{new Date(o.createdAt).toLocaleDateString('en-NG')}</td>
-                      <td>{o.items.length}</td>
-                      <td>₦ {o.totalAmount.toLocaleString('en-NG')}</td>
-                      <td>
+                      <td data-label="Order">{o.orderNumber}</td>
+                      <td data-label="Date">{new Date(o.createdAt).toLocaleDateString('en-NG')}</td>
+                      <td data-label="Items">{o.items.length}</td>
+                      <td data-label="Total">₦ {o.totalAmount.toLocaleString('en-NG')}</td>
+                      <td data-label="Status">
                         <span className="badge">{o.status}</span>
                       </td>
-                      <td>
+                      <td data-label="">
                         <Link className="button small" href={`/customer/orders/${o.id}`}>
                           View
                         </Link>

@@ -2,6 +2,22 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.2.1] — 2026-07-23
+
+### Mobile-first UI
+- Viewport meta + theme-color.
+- Hamburger drawer navigation (mobile); desktop nav from 900px up.
+- Layouts rewritten mobile-first (hero, grids, cart, checkout, dashboards).
+- Tables collapse to labeled cards under 640px.
+- Touch targets (~44px), overflow clipping, sticky cart icon in header.
+
+### Docs
+- Progress / status / compliance docs refreshed for Startup UI + mobile-first (23 Jul afternoon).
+- Added `DOVA_VPS_DEPLOY.md` for single-server deploy steps.
+- `BUG_FIXES.md` restored BF-009 and recorded BF-015.
+
+---
+
 ## [0.2.0] — 2026-07-23
 
 ### Design — DOVA-Startup UI port

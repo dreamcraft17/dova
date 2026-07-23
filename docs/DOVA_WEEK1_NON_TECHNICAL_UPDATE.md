@@ -1,5 +1,9 @@
 # DOVA — Week 1 Team Update
 
+> **Note (23 Jul 2026):** Latest team-facing progress is in  
+> [`DOVA_MVP_PROGRESS_UPDATE.md`](./DOVA_MVP_PROGRESS_UPDATE.md) and  
+> [`Dova MVP Current Imlementation Status.md`](./Dova%20MVP%20Current%20Imlementation%20Status.md).
+
 **Update by:** Dozer  
 **Author:** Dozer  
 **Date:** 2026-07-22  

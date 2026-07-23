@@ -194,10 +194,10 @@ export default function Supplier() {
                   <tbody>
                     {products.slice(0, 8).map((p) => (
                       <tr key={p.id}>
-                        <td>{p.name}</td>
-                        <td>{p.categoryName}</td>
-                        <td>{p.stockQuantity}</td>
-                        <td>
+                        <td data-label="Product">{p.name}</td>
+                        <td data-label="Category">{p.categoryName}</td>
+                        <td data-label="Stock">{p.stockQuantity}</td>
+                        <td data-label="Status">
                           {p.stockQuantity < 20
                             ? 'Low Stock'
                             : p.isActive
@@ -235,11 +235,11 @@ export default function Supplier() {
                   <tbody>
                     {products.map((p) => (
                       <tr key={p.id}>
-                        <td>{p.name}</td>
-                        <td>₦ {p.price.toLocaleString('en-NG')}</td>
-                        <td>{p.stockQuantity}</td>
-                        <td>{p.isActive ? 'Active' : 'Hidden'}</td>
-                        <td>
+                        <td data-label="Product">{p.name}</td>
+                        <td data-label="Price">₦ {p.price.toLocaleString('en-NG')}</td>
+                        <td data-label="Stock">{p.stockQuantity}</td>
+                        <td data-label="Status">{p.isActive ? 'Active' : 'Hidden'}</td>
+                        <td data-label="Actions">
                           <div className="product-actions">
                             <button className="button small" onClick={() => startEdit(p)}>
                               Edit
@@ -360,16 +360,16 @@ export default function Supplier() {
                     <tbody>
                       {orders.map((o) => (
                         <tr key={o.itemId}>
-                          <td>{o.orderNumber}</td>
-                          <td>
+                          <td data-label="Order">{o.orderNumber}</td>
+                          <td data-label="Customer">
                             {o.customerName}
                             <br />
                             <small className="muted">{o.deliveryAddress}</small>
                           </td>
-                          <td>{o.productName}</td>
-                          <td>{o.quantity}</td>
-                          <td>₦ {o.subtotal.toLocaleString('en-NG')}</td>
-                          <td>
+                          <td data-label="Product">{o.productName}</td>
+                          <td data-label="Qty">{o.quantity}</td>
+                          <td data-label="Total">₦ {o.subtotal.toLocaleString('en-NG')}</td>
+                          <td data-label="Status">
                             {o.status === 'delivered' ? (
                               <span className="badge">{o.status}</span>
                             ) : (

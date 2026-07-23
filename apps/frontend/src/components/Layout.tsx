@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -12,10 +13,73 @@ export function Layout({
 }) {
   const { user, logout } = useAuth();
   const { count } = useCart();
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
   const dash =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
 
+  useEffect(() => {
+    const close = () => setMenuOpen(false);
+    router.events.on('routeChangeStart', close);
+    return () => router.events.off('routeChangeStart', close);
+  }, [router.events]);
+
+  useEffect(() => {
+    document.body.classList.toggle('menu-open', menuOpen);
+    return () => document.body.classList.remove('menu-open');
+  }, [menuOpen]);
+
   if (chrome === 'none') return <>{children}</>;
+
+  const navLinks = (
+    <>
+      <Link href="/" onClick={() => setMenuOpen(false)}>
+        Home
+      </Link>
+      <Link href="/products" onClick={() => setMenuOpen(false)}>
+        Products
+      </Link>
+      <Link href="/about" onClick={() => setMenuOpen(false)}>
+        About Us
+      </Link>
+      <Link href="/contact" onClick={() => setMenuOpen(false)}>
+        Contact Us
+      </Link>
+      <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
+        Cart{count > 0 && <sup className="cart-count">{count}</sup>}
+      </Link>
+      {user ? (
+        <>
+          <Link href={dash} onClick={() => setMenuOpen(false)} className="nav-account">
+            {user.fullName}
+          </Link>
+          <button
+            type="button"
+            className="button small"
+            onClick={() => {
+              setMenuOpen(false);
+              void logout();
+            }}
+          >
+            Logout
+          </button>
+        </>
+      ) : (
+        <>
+          <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
+            Login
+          </Link>
+          <Link
+            href="/auth/register"
+            className="button small"
+            onClick={() => setMenuOpen(false)}
+          >
+            Register
+          </Link>
+        </>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -24,39 +88,41 @@ export function Layout({
           <img src="/images/logo.jpg" alt="DOVA" />
           DOVA
         </Link>
-        <nav>
-          <Link href="/" className="nav-hide">
-            Home
+
+        <div className="header-actions">
+          <Link href="/cart" className="header-cart-btn" aria-label="Cart">
+            🛒{count > 0 && <sup className="cart-count">{count}</sup>}
           </Link>
-          <Link href="/products">Products</Link>
-          <Link href="/about" className="nav-hide">
-            About Us
-          </Link>
-          <Link href="/contact" className="nav-hide">
-            Contact Us
-          </Link>
-          <Link href="/cart">
-            Cart{count > 0 && <sup className="cart-count">{count}</sup>}
-          </Link>
-          {user ? (
-            <span className="header-auth">
-              <Link href={dash}>{user.fullName}</Link>
-              <button className="button small" onClick={() => void logout()}>
-                Logout
-              </button>
-            </span>
-          ) : (
-            <span className="header-auth">
-              <Link href="/auth/login" className="nav-hide">
-                Login
-              </Link>
-              <Link href="/auth/register" className="button small">
-                Register
-              </Link>
-            </span>
-          )}
-        </nav>
+          <button
+            type="button"
+            className={`menu-toggle${menuOpen ? ' is-open' : ''}`}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
+
+        <nav className="nav-desktop">{navLinks}</nav>
       </header>
+
+      <div
+        className={`nav-backdrop${menuOpen ? ' is-open' : ''}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden={!menuOpen}
+      />
+      <nav className={`nav-drawer${menuOpen ? ' is-open' : ''}`} aria-hidden={!menuOpen}>
+        <div className="nav-drawer-head">
+          <strong>Menu</strong>
+          <button type="button" className="nav-drawer-close" onClick={() => setMenuOpen(false)}>
+            ✕
+          </button>
+        </div>
+        {navLinks}
+      </nav>
 
       <main>{children}</main>
 

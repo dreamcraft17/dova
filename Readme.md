@@ -128,10 +128,12 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, develop
 | [BUG_FIXES](./docs/BUG_FIXES.md) | Engineering — fixed / open issues |
 | [MVP progress update](./docs/DOVA%20MVP%20PROGRESS%20UPDATE.md) | Business / ops |
 | [Spec compliance](./docs/DOVA_SPEC_COMPLIANCE.md) | Engineering — PRD/SRS/SDD vs code |
+| [VPS deploy steps](./docs/DOVA_VPS_DEPLOY.md) | DevOps — single-server deploy |
 | [Paystack + min order reply](./docs/DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md) | Stakeholder draft |
 | [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
 | PRD / SRS / SDD | `docs/DOVA_PRD_*`, `DOVA_SRS_*`, `DOVA_SDD_*` |
 | Tech stack | [DOVA_TECH_STACK_MONOREPO.md](./docs/DOVA_TECH_STACK_MONOREPO.md) |
+| Vercel override | [DOVA_VERCEL_DEPLOYMENT_OVERRIDE.md](./docs/DOVA_VERCEL_DEPLOYMENT_OVERRIDE.md) |
 
 ---
 

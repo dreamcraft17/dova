@@ -15,19 +15,20 @@ Known issues found during MVP / design port work, and their status.
 | BF-007 | UI | Site header/footer wrapped dashboards and broke Startup full-bleed look | `Layout` `chrome="none"` for admin/supplier dashboards. |
 | BF-008 | UX | Product cards lacked trust signals from mockup (origin/stars) | Added supplier/origin meta + star row + verified badge on detail. |
 | BF-009 | CSS | Product card padding collided with dashboard form cards after theme rewrite | Split `.card` padding rules vs `.card.product-card` / grid cards. |
+| BF-015 | UI | Not mobile-first (desktop CSS + weak HP nav) | Hamburger drawer, mobile-first CSS, cart/table/dashboard polish. |
 
-## Open / known (not fixed in this commit)
+## Open / known
 
 | ID | Area | Issue | Notes |
 |----|------|-------|-------|
-| BF-010 | Product | Minimum order value (pickup ₦3,000 / delivery ₦5,000) not implemented | See `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md` — needs Pickup vs Delivery choice. |
-| BF-011 | Product | Contact form may not fully persist to DB depending on env | Tracked in spec compliance / gap list. |
-| BF-012 | Product | Supplier product image upload still URL-based (no file upload UI) | Image URL field remains; upload endpoint polish pending. |
-| BF-013 | Ops | E2E / production smoke coverage incomplete | Docs list remaining verification gaps. |
-| BF-014 | Design | Star ratings are decorative (not backed by review API) | Visual parity with Startup; real ratings need a reviews feature. |
+| BF-010 | Product | Minimum order value (pickup ₦3,000 / delivery ₦5,000) not implemented | See `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`. |
+| BF-011 | Product | Contact form may not fully persist to DB | Spec compliance W4.3. |
+| BF-012 | Product | Supplier product image upload still URL-based | Image URL field remains. |
+| BF-013 | Ops | E2E / production smoke coverage incomplete | Staging verification pending. |
+| BF-014 | Design | Star ratings are decorative (not backed by review API) | Post-MVP reviews feature. |
 
 ## How to report
 
-1. Reproduce on local (`frontend` `:3001`, backend as configured).
-2. Note role (`customer` / `supplier` / `admin`), page URL, and expected vs actual.
-3. Add a new row under **Open** (or open a GitHub issue) with ID `BF-XXX`.
+1. Reproduce on local (`frontend` `:3001`, backend as configured).  
+2. Note role, page URL, expected vs actual.  
+3. Add a row under **Open** (or open a GitHub issue) with ID `BF-XXX`.
