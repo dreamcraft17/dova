@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, CreateOrderDto, LoginDto, PaymentInitializeDto, RegisterDto, SupplierRegisterDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
 
 @Controller()
 export class AppController {
@@ -26,9 +27,25 @@ export class AppController {
   @Post('payments/initialize') async initializePayment(@Req() req: Request, @Body() body: PaymentInitializeDto) { const u = await this.auth(req); this.service.requireRole(u, ['customer']); return this.service.initializePayment(u.id, body.orderId, body.amount); }
   @Get('payments/verify') async verifyPayment(@Req() req: Request, @Query('reference') reference = '') { const u = await this.auth(req); this.service.requireRole(u, ['customer']); return this.service.verifyPayment(u.id, reference); }
   @Post('payments/verify') async verifyPaymentPost(@Req() req: Request, @Query('reference') reference = '') { const u = await this.auth(req); this.service.requireRole(u, ['customer']); return this.service.verifyPayment(u.id, reference); }
-  @Post('payments/webhook') webhook(@Headers('x-paystack-signature') signature: string | undefined, @Body() body: any) { return this.service.handlePaystackWebhook(signature, body); }
-  @Post('suppliers/register') supplierRegister(@Body() b: SupplierRegisterDto) { const user = this.service.makeSupplierUser(b); return user; }
-  @Get('suppliers/products') async supplierProducts(@Req() req: Request) { const u = await this.auth(req); const s = this.service.supplierFor(u.id); return this.service.products.filter(p => p.supplierId === s.id); }
-  @Get('admin/dashboard') async admin(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return { users: this.service.users.length, products: this.service.products.length, orders: this.service.orders.length, pendingSuppliers: this.service.suppliers.filter(s => s.status === 'pending').length }; }
+  @Post('payments/webhook') webhook(@Req() req: Request, @Headers('x-paystack-signature') signature: string | undefined, @Body() body: any) { return this.service.handlePaystackWebhook(signature, body, (req as Request & { rawBody?: Buffer }).rawBody); }
+  @Post('suppliers/register') @UseInterceptors(FileInterceptor('verificationDocs', { limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype) ? callback(null, true) : callback(new BadRequestException('Document must be PDF, JPG, or PNG'), false) })) supplierRegister(@Body() b: SupplierRegisterDto, @UploadedFile() file?: any) { if (file) b.documentUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`; return this.service.makeSupplierUser(b); }
+  @Get('suppliers/status') async supplierStatus(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierStatus(u.id); }
+  @Get('suppliers/products') async supplierProducts(@Req() req: Request) { const u = await this.auth(req); return this.service.supplierProducts(u.id); }
+  @Post('suppliers/products') async supplierProductCreate(@Req() req: Request, @Body() b: ProductDto) { const u = await this.auth(req); return this.service.addSupplierProduct(u.id, b); }
+  @Put('suppliers/products/:id') async supplierProductUpdate(@Req() req: Request, @Param('id') id: string, @Body() b: ProductDto) { const u = await this.auth(req); return this.service.updateSupplierProduct(u.id, id, b); }
+  @Delete('suppliers/products/:id') async supplierProductDelete(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.removeSupplierProduct(u.id, id); }
+  @Put('suppliers/products/:id/stock') async supplierStock(@Req() req: Request, @Param('id') id: string, @Body() b: StockDto) { const u = await this.auth(req); return this.service.adjustSupplierStock(u.id, id, b.quantity, b.reason); }
+  @Get('suppliers/products/:id/stock-history') async supplierStockHistory(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.supplierStockHistory(u.id, id); }
+  @Get('suppliers/orders') async supplierOrders(@Req() req: Request) { const u = await this.auth(req); return this.service.supplierOrders(u.id); }
+  @Put('suppliers/orders/:itemId/status') async supplierOrderStatus(@Req() req: Request, @Param('itemId') itemId: string, @Body() b: OrderStatusDto) { const u = await this.auth(req); return this.service.updateSupplierOrderStatus(u.id, itemId, b.status); }
+  @Get('admin/dashboard') async admin(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminDashboard(); }
+  @Get('admin/suppliers/pending') async pendingSuppliers(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.pendingSuppliers(); }
+  @Post('admin/suppliers/:id/approve') async approveSupplier(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.approveSupplier(id); }
+  @Post('admin/suppliers/:id/reject') async rejectSupplier(@Req() req: Request, @Param('id') id: string, @Body() b: SupplierRejectDto) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.rejectSupplier(id, b.reason); }
+  @Get('admin/users') async adminUsers(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminUsers(); }
+  @Put('admin/users/:id/active') async userActive(@Req() req: Request, @Param('id') id: string, @Body('active') active: boolean) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.setUserActive(id, Boolean(active)); }
+  @Get('admin/products') async adminProducts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminProducts(); }
+  @Put('admin/products/:id/active') async productActive(@Req() req: Request, @Param('id') id: string, @Body('active') active: boolean) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.setProductActive(id, Boolean(active)); }
+  @Get('admin/orders') async adminOrders(@Req() req: Request, @Query('status') status = '', @Query('search') search = '') { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminOrders(status, search); }
   @Post('contact') contact(@Body() body: any) { if (!body.name || !body.email || !body.message) throw new UnauthorizedException('All fields are required'); return { message: 'Thanks, your message has been received.' }; }
 }

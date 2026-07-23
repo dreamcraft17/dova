@@ -1,2 +1,71 @@
-import { FormEvent,useState } from 'react'; import { useRouter } from 'next/router'; import Link from 'next/link'; import { Layout } from '../../components/Layout'; import { api } from '../../lib/api'; import { useAuth } from '../../context/AuthContext';
-export default function Login(){const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [error,setError]=useState('');const router=useRouter();const { refresh }=useAuth();async function submit(e:FormEvent){e.preventDefault();try{const r=await api<{user:{role:string}}>('/auth/login',{method:'POST',body:JSON.stringify({email,password})});await refresh();router.push(r.user.role==='admin'?'/admin':r.user.role==='supplier'?'/supplier':'/customer')}catch(e){setError((e as Error).message)}}return <Layout><section className="form-page"><p className="eyebrow">WELCOME BACK</p><h1>Log in to DOVA</h1><form onSubmit={submit}><label>Email<input type="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label><label>Password<input type="password" required value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="button">Log in</button>{error&&<p className="error">{error}</p>}</form><p>New to DOVA? <Link href="/auth/register">Create an account</Link></p></section></Layout>}
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { AuthShell } from '../../components/AuthShell';
+import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+
+export default function Login() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
+  const { refresh } = useAuth();
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    try {
+      const r = await api<{ user: { role: string } }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      await refresh();
+      router.push(
+        r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/customer',
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <AuthShell>
+      <div className="login-card">
+        <h1>Welcome Back</h1>
+        <p>Login to continue exploring trusted agricultural products.</p>
+        <form onSubmit={submit}>
+          <label>Email</label>
+          <input
+            type="email"
+            required
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <label>Password</label>
+          <input
+            type="password"
+            required
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <div className="remember">
+            <label>
+              <input type="checkbox" /> Remember Me
+            </label>
+            <span style={{ color: '#999' }}>Forgot Password?</span>
+          </div>
+          <button type="submit">Login</button>
+          {error && <p className="error">{error}</p>}
+        </form>
+        <div className="register-link">
+          Don&apos;t have an account? <Link href="/auth/register">Register</Link>
+        </div>
+        <div className="supplier-link">
+          <Link href="/auth/supplier-register">Become a Supplier</Link>
+        </div>
+      </div>
+    </AuthShell>
+  );
+}

@@ -7,11 +7,12 @@
     "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
     "build": "npm run build -w shared && npm run build -w apps/backend && npm run build -w apps/frontend",
     "test": "npm run test:unit && npm run test:backend",
-    "test:unit": "jest --config jest.config.js --runInBand",
+    "test:unit": "npm run build -w shared && jest --config jest.config.js --runInBand",
     "test:coverage": "jest --config jest.config.js --runInBand --coverage",
     "test:backend": "npm run test -w apps/backend",
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
+    "db:seed:week3": "node scripts/seed-week3.js",
     "typecheck": "npm run build -w shared && npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "lint": "npm run typecheck"
   },

@@ -1,4 +1,4 @@
-import { IsEmail, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsString() @MinLength(2) fullName!: string;
@@ -39,4 +39,26 @@ export class CreateOrderDto {
 export class PaymentInitializeDto {
   @IsString() orderId!: string;
   @IsNumber() @Min(0) amount!: number;
+}
+
+export class ProductDto {
+  @IsString() @MinLength(2) name!: string;
+  @IsString() @MinLength(2) description!: string;
+  @IsNumber() @Min(1000) price!: number;
+  @IsInt() @Min(1) quantity!: number;
+  @IsString() categoryId!: string;
+  @IsOptional() @IsString() imageUrl?: string;
+}
+
+export class StockDto {
+  @IsInt() @Min(1) quantity!: number;
+  @IsIn(['restock', 'damage']) reason!: 'restock' | 'damage';
+}
+
+export class OrderStatusDto {
+  @IsIn(['processing', 'shipped', 'delivered']) status!: 'processing' | 'shipped' | 'delivered';
+}
+
+export class SupplierRejectDto {
+  @IsString() @MinLength(3) reason!: string;
 }

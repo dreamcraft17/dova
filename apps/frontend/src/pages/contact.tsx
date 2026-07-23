@@ -1,1 +1,50 @@
-import { Layout } from '../components/Layout'; import { FormEvent,useState } from 'react'; import { api } from '../lib/api'; export default function Contact(){const [done,setDone]=useState(false);async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const f=new FormData(e.currentTarget);await api('/contact',{method:'POST',body:JSON.stringify(Object.fromEntries(f))});setDone(true)}return <Layout><section className="form-page"><p className="eyebrow">CONTACT</p><h1>Let’s talk.</h1>{done?<p>Thanks, your message has been received.</p>:<form onSubmit={submit}><label>Name<input name="name" required/></label><label>Email<input name="email" type="email" required/></label><label>Message<textarea name="message" required rows={5}/></label><button className="button">Send message</button></form>}</section></Layout>}
+import { Layout } from '../components/Layout';
+import { FormEvent, useState } from 'react';
+import { api } from '../lib/api';
+
+export default function Contact() {
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError('');
+    try {
+      const f = new FormData(e.currentTarget);
+      await api('/contact', { method: 'POST', body: JSON.stringify(Object.fromEntries(f)) });
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <Layout>
+      <section className="form-page">
+        <p className="eyebrow">Contact Us</p>
+        <h1>Let’s talk.</h1>
+        <p className="lead">Questions about orders, suppliers, or partnership? Send us a message.</p>
+        {done ? (
+          <p>Thanks — your message has been received. We’ll get back to you soon.</p>
+        ) : (
+          <form onSubmit={submit}>
+            <label>
+              Name
+              <input name="name" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required />
+            </label>
+            <label>
+              Message
+              <textarea name="message" required rows={5} />
+            </label>
+            <button className="button">Send message</button>
+            {error && <p className="error">{error}</p>}
+          </form>
+        )}
+      </section>
+    </Layout>
+  );
+}

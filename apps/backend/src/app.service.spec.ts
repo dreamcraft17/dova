@@ -15,11 +15,32 @@ function makeService() {
     getCart: jest.fn().mockResolvedValue(undefined),
     saveCart: jest.fn(),
     createOrderFromCart: jest.fn().mockResolvedValue(undefined),
+    recordPurchaseStock: jest.fn(),
     listOrders: jest.fn().mockResolvedValue(undefined),
     findOrder: jest.fn().mockResolvedValue(undefined),
+    findOrderByPaymentReference: jest.fn().mockResolvedValue(undefined),
     markOrderPaid: jest.fn(),
     setOrderPaymentReference: jest.fn(),
     logPayment: jest.fn(),
+    findSupplierByUser: jest.fn().mockResolvedValue(undefined),
+    findSupplierById: jest.fn().mockResolvedValue(undefined),
+    insertSupplierProfile: jest.fn(),
+    listSupplierProducts: jest.fn().mockResolvedValue(undefined),
+    createSupplierProduct: jest.fn().mockResolvedValue(undefined),
+    updateSupplierProduct: jest.fn().mockResolvedValue(undefined),
+    deleteSupplierProduct: jest.fn(),
+    adjustStock: jest.fn().mockResolvedValue(undefined),
+    stockHistory: jest.fn().mockResolvedValue(undefined),
+    supplierOrders: jest.fn().mockResolvedValue(undefined),
+    updateSupplierOrderStatus: jest.fn().mockResolvedValue(undefined),
+    adminDashboard: jest.fn().mockResolvedValue(undefined),
+    pendingSuppliers: jest.fn().mockResolvedValue(undefined),
+    setSupplierStatus: jest.fn(),
+    adminUsers: jest.fn().mockResolvedValue(undefined),
+    setUserActive: jest.fn(),
+    adminProducts: jest.fn().mockResolvedValue(undefined),
+    setProductActive: jest.fn(),
+    adminOrders: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
   const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never);
@@ -123,6 +144,7 @@ describe('AppService', () => {
       expect(order.items[0].quantity).toBe(2);
       await expect(service.cart(customerId)).resolves.toEqual({ items: [], total: 0 });
       expect(product.stockQuantity).toBe(18);
+      expect(service.stockAdjustments).toEqual(expect.arrayContaining([expect.objectContaining({ productId: product.id, quantity: -2, reason: 'purchase', orderId: order.id })]));
     });
 
     it('initializes and verifies a mock payment for a pending order', async () => {
@@ -142,15 +164,68 @@ describe('AppService', () => {
       }
     });
 
+    it('reuses a pending mock payment reference instead of creating duplicates', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      delete process.env.PAYSTACK_SECRET_KEY;
+      try {
+        const { service } = makeService();
+        const customerId = 'idempotent-payment-customer';
+        await service.addCart(customerId, service.products[0].id, 1);
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
+        const first = await service.initializePayment(customerId, order.id, order.totalAmount);
+        const second = await service.initializePayment(customerId, order.id, order.totalAmount);
+        expect(second.reference).toBe(first.reference);
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
     it('accepts a mock payment webhook without requiring a secret', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       delete process.env.PAYSTACK_SECRET_KEY;
       try {
         const { service } = makeService();
-        await expect(service.handlePaystackWebhook(undefined, { event: 'charge.success' })).resolves.toMatchObject({ received: true, mode: 'mock' });
+        await expect(service.handlePaystackWebhook(undefined, { event: 'charge.success' }, Buffer.from('{"event":"charge.success"}'))).resolves.toMatchObject({ received: true, mode: 'mock' });
       } finally {
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
       }
+    });
+
+    it('supports supplier product CRUD and stock adjustments', async () => {
+      const { service } = makeService();
+      const supplier = service.users.find(user => user.role === 'supplier')!;
+      const product = await service.addSupplierProduct(supplier.id, { name: 'Test Greens', description: 'Fresh greens', price: 12000, quantity: 5, categoryId: service.categories[0].id });
+      expect(product.stockQuantity).toBe(5);
+      await service.adjustSupplierStock(supplier.id, product.id, 3, 'restock');
+      expect((await service.product(product.id)).stockQuantity).toBe(8);
+      const updated = await service.updateSupplierProduct(supplier.id, product.id, { name: 'Updated Greens', description: 'Better greens', price: 14000, quantity: 8, categoryId: service.categories[0].id });
+      expect(updated.name).toBe('Updated Greens');
+      await service.removeSupplierProduct(supplier.id, product.id);
+      await expect(service.product(product.id)).rejects.toThrow('Product not found');
+    });
+
+    it('enforces supplier order fulfillment transitions', async () => {
+      const { service } = makeService();
+      const supplier = service.users.find(user => user.role === 'supplier')!;
+      const customer = service.users.find(user => user.role === 'admin')!;
+      const product = service.products[0];
+      await service.addCart(customer.id, product.id, 1);
+      const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
+      const item = order.items[0];
+      await expect(service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped')).rejects.toThrow('Invalid status transition');
+      await service.updateSupplierOrderStatus(supplier.id, item.id, 'processing');
+      await service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped');
+      await service.updateSupplierOrderStatus(supplier.id, item.id, 'delivered');
+      expect(order.status).toBe('delivered');
+    });
+
+    it('supports supplier approval and rejects duplicate supplier emails', async () => {
+      const { service } = makeService();
+      const application = await service.makeSupplierUser({ businessName: 'New Farms', contactName: 'Nina', email: 'nina@farms.test', password: 'password123' });
+      expect(application.status).toBe('pending');
+      await service.approveSupplier(application.id);
+      expect(service.suppliers.find(s => s.id === application.id)?.status).toBe('approved');
+      await expect(service.makeSupplierUser({ businessName: 'Duplicate', email: 'nina@farms.test', password: 'password123' })).rejects.toThrow('Email already registered');
     });
   });
 });

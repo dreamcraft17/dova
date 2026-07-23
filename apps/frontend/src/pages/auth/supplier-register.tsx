@@ -1,0 +1,100 @@
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
+import { AuthShell } from '../../components/AuthShell';
+import { api } from '../../lib/api';
+
+export default function SupplierRegister() {
+  const router = useRouter();
+  const [form, setForm] = useState({
+    businessName: '',
+    contactName: '',
+    email: '',
+    phone: '',
+    password: '',
+  });
+  const [file, setFile] = useState<File>();
+  const [error, setError] = useState('');
+  const [done, setDone] = useState('');
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    try {
+      const body = new FormData();
+      Object.entries(form).forEach(([key, value]) => body.append(key, value));
+      if (file) body.append('verificationDocs', file);
+      const result = await api<{ message: string }>('/suppliers/register', {
+        method: 'POST',
+        body,
+      });
+      setDone(result.message);
+      setTimeout(() => void router.push('/auth/login'), 1200);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  return (
+    <AuthShell>
+      <div className="supplier-card">
+        <h1>Become a DOVA Supplier</h1>
+        <p>
+          Join our trusted supplier network and connect your products directly with buyers.
+        </p>
+        <form onSubmit={submit}>
+          <label>Contact / Full Name</label>
+          <input
+            required
+            placeholder="Enter your full name"
+            value={form.contactName}
+            onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+          />
+          <label>Farm / Company Name</label>
+          <input
+            required
+            placeholder="Enter your farm or company"
+            value={form.businessName}
+            onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+          />
+          <label>Email</label>
+          <input
+            type="email"
+            required
+            placeholder="Enter your email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <label>Phone Number</label>
+          <input
+            required
+            placeholder="Enter your phone number"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+          <label>Password</label>
+          <input
+            type="password"
+            minLength={8}
+            required
+            placeholder="Create a password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          <label>Verification document (PDF/JPG/PNG, max 5 MB)</label>
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            onChange={(e) => setFile(e.target.files?.[0])}
+          />
+          <button type="submit">Register as Supplier</button>
+          {error && <p className="error">{error}</p>}
+          {done && <p>{done}</p>}
+        </form>
+        <div className="login-link">
+          Already registered? <Link href="/auth/login">Login</Link>
+        </div>
+      </div>
+    </AuthShell>
+  );
+}

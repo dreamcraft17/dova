@@ -2,6 +2,17 @@
 
 Monorepo implementation berdasarkan PRD, SDD, SRS, dan tech-stack docs di `docs/`.
 
+## Documentation
+
+| Document | Audience |
+|---------|-------------|
+| [MVP progress update (non-technical)](./docs/DOVA%20MVP%20PROGRESS%20UPDATE.md) | Business, Ops, Sales, Leadership |
+| [MVP status report (non-technical)](./docs/DOVA_MVP_STATUS_NON_TECHNICAL.md) | Longer status brief |
+| [Week 1 update (non-technical)](./docs/DOVA_WEEK1_NON_TECHNICAL_UPDATE.md) | Short team coordination |
+| [Week 1 current update (technical)](./docs/DOVA_WEEK1_CURRENT_UPDATE.md) | Engineering |
+| [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
+| PRD / SRS / SDD | `docs/DOVA_PRD_AGGRESSIVE_4W.md`, `DOVA_SRS_*`, `DOVA_SDD_*` |
+
 ## Quick start
 
 ```bash
