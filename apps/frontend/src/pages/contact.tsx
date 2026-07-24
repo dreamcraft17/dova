@@ -24,13 +24,18 @@ export default function Contact() {
         <p className="eyebrow">Contact Us</p>
         <h1>Let’s talk.</h1>
         <p className="lead">Questions about orders, suppliers, or partnership? Send us a message.</p>
+        <p className="form-hint">
+          Email: <a href="mailto:support@dova.com">support@dova.com</a>
+          <br />
+          Phone: +234 800 000 0000
+        </p>
         {done ? (
           <p>Thanks — your message has been received. We’ll get back to you soon.</p>
         ) : (
           <form onSubmit={submit}>
             <label>
               Name
-              <input name="name" required />
+              <input name="name" required minLength={2} />
             </label>
             <label>
               Email
@@ -38,7 +43,7 @@ export default function Contact() {
             </label>
             <label>
               Message
-              <textarea name="message" required rows={5} />
+              <textarea name="message" required rows={5} minLength={5} />
             </label>
             <button className="button">Send message</button>
             {error && <p className="error">{error}</p>}

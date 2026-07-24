@@ -1,4 +1,5 @@
 import { IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @IsString() @MinLength(2) fullName!: string;
@@ -23,35 +24,43 @@ export class SupplierRegisterDto {
 
 export class CartAddDto {
   @IsString() productId!: string;
-  @IsInt() @Min(1) quantity!: number;
+  @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
 }
 
 export class CartUpdateDto {
-  @IsInt() @Min(1) quantity!: number;
+  @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
 }
 
 export class CreateOrderDto {
   @IsString() @MinLength(2) deliveryName!: string;
-  @IsString() @MinLength(5) deliveryAddress!: string;
+  /** Required for delivery; pickup may send hub placeholder from the client. */
+  @IsOptional() @IsString() @MinLength(5) deliveryAddress?: string;
   @IsString() @MinLength(7) deliveryPhone!: string;
+  @IsOptional() @IsIn(['pickup', 'delivery']) fulfillmentType?: 'pickup' | 'delivery';
+}
+
+export class ContactDto {
+  @IsString() @MinLength(2) name!: string;
+  @IsEmail() email!: string;
+  @IsString() @MinLength(5) message!: string;
 }
 
 export class PaymentInitializeDto {
   @IsString() orderId!: string;
-  @IsNumber() @Min(0) amount!: number;
+  @Transform(({ value }) => Number(value)) @IsNumber() @Min(0) amount!: number;
 }
 
 export class ProductDto {
   @IsString() @MinLength(2) name!: string;
   @IsString() @MinLength(2) description!: string;
-  @IsNumber() @Min(1000) price!: number;
-  @IsInt() @Min(1) quantity!: number;
+  @Transform(({ value }) => Number(value)) @IsNumber() @Min(1000) price!: number;
+  @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
   @IsString() categoryId!: string;
   @IsOptional() @IsString() imageUrl?: string;
 }
 
 export class StockDto {
-  @IsInt() @Min(1) quantity!: number;
+  @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
   @IsIn(['restock', 'damage']) reason!: 'restock' | 'damage';
 }
 

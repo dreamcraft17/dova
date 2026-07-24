@@ -55,29 +55,16 @@ We can enforce a minimum basket before checkout is allowed:
 | **Pickup**         | ₦3,000         |
 | **Home delivery**  | ₦5,000         |
 
-### Behaviour
+### Behaviour (implemented 24 July 2026)
 
 - Cart / checkout checks the current basket total against the minimum for the selected option.  
 - If below the minimum, checkout stays blocked and the customer sees something like:  
   **“Add ₦X more to qualify for checkout.”**  
   where **X** = minimum − current basket total.  
 - When the basket reaches the minimum, checkout proceeds as normal (then Paystack).
+- Checkout includes **Pickup** vs **Home delivery** choice; amounts above are enforced in shared helpers + API + DB.
 
-### One product note
-
-The current MVP checkout is mainly **delivery-style** (name, address, phone).  
-To apply the **two different minimums** correctly, we should add a clear choice at checkout:
-
-- **Pickup**, or  
-- **Home delivery**
-
-Then apply ₦3,000 or ₦5,000 accordingly. That is a straightforward addition.
-
-Please confirm the amounts below are final, and we can include this in the next build:
-
-- [ ] Pickup minimum = **₦3,000**  
-- [ ] Home delivery minimum = **₦5,000**  
-- [ ] Message copy: *“Add ₦X more to qualify for checkout.”* (or your preferred wording)
+**Status:** Built in MVP codebase (see `CHANGELOG` 0.3.0). Paystack still needs your **test keys** for live test txs.
 
 ---
 
@@ -85,8 +72,8 @@ Please confirm the amounts below are final, and we can include this in the next 
 
 | Topic | Answer |
 |-------|--------|
-| Paystack | Already integrated in code; needs your Paystack **test keys** + webhook URL to go live in test mode |
-| Min order value | **Yes, possible** — Pickup ₦3k / Delivery ₦5k + “Add ₦X more…” message |
-| Next from you | Share Paystack test access + confirm the minimums |
+| Paystack | Already integrated in code; needs your Paystack **test keys** + webhook URL for staging proof |
+| Min order value | **Done in code** — Pickup ₦3k / Delivery ₦5k + “Add ₦X more…” |
+| Next from you | Share Paystack test access + staging host for go-live checks |
 
-Happy to proceed on both once you confirm.
+Happy to run staging smoke once keys and host are ready.

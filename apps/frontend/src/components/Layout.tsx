@@ -155,6 +155,7 @@ export function Layout({
             <h4>Contact</h4>
             <ul>
               <li>support@dova.com</li>
+              <li>+234 800 000 0000</li>
               <li>Nigeria</li>
             </ul>
           </div>

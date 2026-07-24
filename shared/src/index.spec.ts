@@ -1,4 +1,4 @@
-import { isValidEmail, isValidPassword, ORDER_STATUSES, ROLES } from './index';
+import { isValidEmail, isValidPassword, ORDER_STATUSES, ROLES, minOrderFor, minOrderMessage, MIN_ORDER_PICKUP, MIN_ORDER_DELIVERY } from './index';
 
 describe('shared validation and constants', () => {
   it('validates email format', () => {
@@ -15,5 +15,14 @@ describe('shared validation and constants', () => {
     expect(ROLES).toEqual(['customer', 'supplier', 'admin']);
     expect(ORDER_STATUSES).toContain('pending');
     expect(ORDER_STATUSES).toContain('delivered');
+  });
+
+  it('enforces pickup and delivery minimum order values', () => {
+    expect(MIN_ORDER_PICKUP).toBe(3000);
+    expect(MIN_ORDER_DELIVERY).toBe(5000);
+    expect(minOrderFor('pickup')).toBe(3000);
+    expect(minOrderFor('delivery')).toBe(5000);
+    expect(minOrderMessage(2000, 'pickup')).toContain('1,000');
+    expect(minOrderMessage(5000, 'delivery')).toBeUndefined();
   });
 });

@@ -99,6 +99,9 @@ export default function CartPage() {
               <p>
                 Subtotal <span>₦ {cart.total.toLocaleString('en-NG')}</span>
               </p>
+              <p className="form-hint" style={{ display: 'block', marginBottom: 16 }}>
+                Minimum checkout: pickup ₦3,000 · delivery ₦5,000. Choose at checkout.
+              </p>
               <Link className="checkout-btn" href="/checkout" style={{ display: 'block', textAlign: 'center' }}>
                 Proceed to Checkout
               </Link>

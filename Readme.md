@@ -3,6 +3,7 @@
 Agricultural marketplace MVP connecting buyers with verified suppliers.  
 Monorepo: NestJS API + Next.js storefront + shared types.
 
+**Status:** MVP **codebase 100% complete** (Week 1–4 product scope). Go-live still needs staging + Paystack proof.  
 **Stack:** Node.js · NestJS · Next.js · PostgreSQL / Redis (optional) · Paystack (NGN)  
 **UI:** Design ported from the DOVA-Startup mockups (green / gold brand).
 
@@ -106,7 +107,7 @@ DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_U
 | Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` (verification doc guidance on form) |
 | Customer | `/customer`, `/customer/orders/[id]` |
 | Supplier | `/supplier` — sidebar: products, add/edit, orders |
-| Admin | `/admin` — users, suppliers, products, orders |
+| Admin | `/admin` — users, suppliers, products, orders, contacts |
 
 Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, development uses a **mock** flow (no real charges).
 
@@ -129,6 +130,8 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, develop
 | [MVP progress update](./docs/DOVA%20MVP%20PROGRESS%20UPDATE.md) | Business / ops |
 | [Spec compliance](./docs/DOVA_SPEC_COMPLIANCE.md) | Engineering — PRD/SRS/SDD vs code |
 | [VPS deploy steps](./docs/DOVA_VPS_DEPLOY.md) | DevOps — single-server deploy |
+| [Runbook](./docs/DOVA_RUNBOOK.md) | DevOps — deploy, rollback, smoke |
+| [API (MVP)](./docs/DOVA_API.md) | Engineering — endpoint cheat sheet |
 | [Paystack + min order reply](./docs/DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md) | Stakeholder draft |
 | [Supplier verification docs reply](./docs/DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md) | Stakeholder draft — which documents to upload |
 | [4-week plan summary](./docs/DOVA_SUMMARY_4W.md) | All stakeholders |
@@ -140,6 +143,8 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set. Without it, develop
 
 ## Notes
 
+- **MVP codebase: 100% complete** — see [spec compliance](./docs/DOVA_SPEC_COMPLIANCE.md).
 - Currency UI is **₦ (NGN)** to match Paystack / Nigeria market.
 - Storefront UI follows the **DOVA-Startup** design reference (brand, home, auth cards, dashboards).
-- Open product gaps (min order value, image upload polish, etc.) are tracked in [BUG_FIXES.md](./docs/BUG_FIXES.md).
+- Min order: **pickup ₦3,000** / **delivery ₦5,000**. Contact messages land in Admin → Contacts.
+- Remaining **ops** (live staging proof, Paystack test txs): [BUG_FIXES.md](./docs/BUG_FIXES.md) BF-013; launch steps in [DOVA_RUNBOOK.md](./docs/DOVA_RUNBOOK.md).

@@ -5,10 +5,10 @@
 |---|---|
 | **Project** | DOVA — food supply marketplace |
 | **Planned period** | 21 July – 17 August 2026 (4 weeks) |
-| **Report date** | 23 July 2026 (design + mobile update) |
+| **Report date** | 24 July 2026 |
 | **Prepared by** | Dozer |
 | **Audience** | Non-technical teams & business stakeholders |
-| **Overall status** | Core MVP + Startup-branded UI **built**; internal demo ready (desktop & mobile). **Not** public go-live. |
+| **Overall status** | **MVP codebase 100% complete.** Internal demo ready. **Not** public go-live. |
 
 ---
 
@@ -24,12 +24,13 @@
 
 | Question | Short answer |
 |---|---|
-| Can the product already be tried? | **Yes** — local / internal demo, including **phone layout**. |
-| Design aligned with Startup mockups? | **Yes** — brand, home, auth, dashboards, cart/checkout. |
+| Is MVP finished in code? | **Yes — 100% codebase.** |
+| Can the product already be tried? | **Yes** — local / internal demo, including **phone**. |
+| Design aligned with Startup mockups? | **Yes.** |
 | Is it live for the general public? | **Not yet.** |
 | Can real money be processed? | **Not on live env yet** (Paystack wired; mock without keys). |
-| Where are we vs the 4-week plan? | Features + early UI polish **ahead**; launch readiness still Week 4. |
-| What do non-tech teams need to do? | Confirm demo accounts, staging, go/no-go, Paystack owner, review date. |
+| Where are we vs the 4-week plan? | **All product weeks Done in repo**; launch = staging + Paystack proof. |
+| What do non-tech teams need to do? | Staging owners, Paystack test keys, go/no-go date. |
 
 ---
 
@@ -38,56 +39,51 @@
 | Role | What they do in DOVA |
 |---|---|
 | **Customer** | Sign up → browse → cart → checkout & pay → order history |
-| **Supplier** | Register + docs → approval → products & stock → fulfill orders |
-| **Administrator** | Approve suppliers → monitor users, products, orders |
+| **Supplier** | Register + docs → approval → products & stock → fulfill |
+| **Administrator** | Approve suppliers → monitor users/products/orders → Contacts inbox |
 
 ---
 
 ## 4. MVP feature status (business language)
 
-### Done (demo-ready)
+### Done — MVP complete in code
 
-| Area | What it means for the business |
+| Area | What it means |
 |---|---|
-| Sign-up & login | Role-based access; branded auth cards |
-| Product catalog | Search, categories, details; ₦ display |
-| Cart & checkout | Full purchase path; mobile-friendly |
+| Sign-up & login | Role-based; branded auth cards |
+| Product catalog | Search, categories, details; ₦ |
+| Cart & checkout | Pickup/delivery + min order rules |
 | Payment (test mode) | Simulation locally; Paystack when keys set |
-| Supplier & admin dashboards | Sidebar layouts matching Startup design |
-| Supplier verification docs | Form explains accepted types: CAC, government ID, optional address proof |
-| Public pages | Full branded home + About + Contact + footer |
-| Mobile | Hamburger menu; layouts optimized for small screens |
+| Supplier & admin dashboards | Sidebar layouts; image upload; contact inbox |
+| Supplier verification docs | CAC, government ID, optional address proof |
+| Public pages | Home + About + Contact (saved) + footer |
+| Mobile | Hamburger; responsive layouts |
+| Launch docs in repo | Runbook, API notes, smoke script |
 
-### Partial / needs business confirmation
-
-| Area | Notes |
-|---|---|
-| Live Paystack payments | Need keys + **≥10 successful test txs** on staging |
-| Contact form storage | UI exists; DB save still incomplete |
-| Shared staging demo data | Seeds exist; need shared staging DB |
-| Minimum order (pickup/delivery) | Requested by stakeholder; not built — see reply draft |
-
-### Not yet
+### Ops / launch (not missing features)
 
 | Area | Notes |
 |---|---|
-| Public go-live / staging URL | Pending |
-| Password reset / email verification | Out of MVP |
-| Real reviews / wishlist / discounts / tracking | Out of MVP |
-| E2E on public staging + prod monitoring | Week 4 |
+| Live Paystack payments | Need keys + ≥10 successful test txs on staging |
+| Shared staging URL | Seeds exist; need shared host + DB |
+| Soft launch approval | Go/no-go checklist |
+
+### Out of MVP
+
+Password reset, email verification, real reviews / wishlist / discounts / tracking.
 
 ---
 
 ## 5. User journeys (for team demos)
 
 ### A. Customer
-1. Register → browse → product → cart → checkout → pay → dashboard  
+Register → browse → product → cart → checkout (pickup/delivery) → pay → dashboard  
 
 ### B. Supplier
-1. Register + docs (CAC / ID / address listed on form) → admin approves → products → fulfill orders  
+Register + docs → admin approves → products (image upload) → fulfill orders  
 
 ### C. Admin
-1. Login → approve suppliers → review stats / orders  
+Login → approve suppliers → review stats / orders / **Contacts**  
 
 **Demo accounts:**
 
@@ -96,9 +92,7 @@
 | Admin | `admin@dova.local` | `admin1234` |
 | Supplier | `supplier@dova.local` | `supplier1234` |
 
-Customers: register via the registration page.
-
-**Tip:** Also open the demo on a phone (or Chrome device mode) to review the mobile UI.
+Customers: register via the registration page. Also try on a phone.
 
 ---
 
@@ -106,10 +100,10 @@ Customers: register via the registration page.
 
 | Week | Planned focus | Current status |
 |---|---|---|
-| **1** | Foundation | **Done in code** |
-| **2** | Customer shopping | **Mostly ready** — staging/Paystack open |
-| **3** | Supplier & admin | **Mostly ready** — staging open |
-| **4** | Polish + launch | **UI polish advanced**; launch checks pending |
+| **1** | Foundation | **Done in codebase** |
+| **2** | Customer shopping | **Done in codebase** |
+| **3** | Supplier & admin | **Done in codebase** |
+| **4** | Polish + launch prep | **Features + docs Done in codebase**; live verify = **ops** |
 
 ---
 
@@ -126,11 +120,12 @@ Customers: register via the registration page.
 
 ## 8. What has been tested
 
-- **24** unit tests passing  
+- **27** unit tests passing  
 - Auth smoke + build/typecheck passing  
+- `npm run smoke:week4` available when API is up  
 - Mobile-first UI implemented locally  
 
-Not yet: E2E on public staging, production load tests.
+Not yet: E2E on public staging, production load tests (ops).
 
 ---
 
@@ -142,8 +137,9 @@ Not yet: E2E on public staging, production load tests.
 4. Official staging admin/supplier emails  
 5. Who provides Paystack test keys / how many txs before go-live  
 6. Content readiness (About/Contact/catalog)  
-7. Internal demo + Week 4 go/no-go date  
-8. Confirm whether **minimum order rules** (pickup/delivery) are in MVP  
+7. Soft-launch go/no-go date  
+
+*(Minimum order rules are already built: pickup ₦3,000 / delivery ₦5,000.)*
 
 ---
 
@@ -153,24 +149,20 @@ Not yet: E2E on public staging, production load tests.
 |---|---|---|
 | No shared staging | Can’t self-test | Provision staging + demo soon |
 | Paystack untested with test money | Payment risk at launch | 10+ successful test payments |
-| Contact form doesn’t store messages | Lost leads | Fix before soft launch |
-| Min order not built | Stakeholder expectation gap | Confirm scope / timeline |
 
 ---
 
 ## 11. Recommended next steps
 
 ### This week
-1. Internal demo (customer → supplier → admin) on **desktop and phone**  
+1. Internal demo (customer → supplier → admin) on desktop and phone  
 2. Decide staging + Paystack owners  
-3. Confirm min-order scope  
+3. After deploy: `npm run smoke:week4` against staging API  
 
 ### Toward soft launch
-1. Staging + DB  
+1. Staging + DB (`npm run db:migrate`)  
 2. Paystack test mode  
-3. Soft UAT  
-4. Contact persist + min order (if in scope)  
-5. Go/no-go checklist  
+3. Soft UAT + go/no-go checklist  
 
 ---
 
@@ -187,4 +179,4 @@ Not yet: E2E on public staging, production load tests.
 
 ---
 
-**Related:** `DOVA MVP PROGRESS UPDATE.md`, `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`, `DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md`.
+**Related:** `DOVA MVP PROGRESS UPDATE.md`, `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_RUNBOOK.md`, `DOVA_SPEC_COMPLIANCE.md`.

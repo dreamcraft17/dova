@@ -34,6 +34,7 @@ export default function Supplier() {
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(empty);
+  const [imageFile, setImageFile] = useState<File>();
   const [editing, setEditing] = useState<string>();
   const [message, setMessage] = useState('');
   const [supplierInfo, setSupplierInfo] = useState<{
@@ -73,8 +74,17 @@ export default function Supplier() {
     setMessage('');
     try {
       const path = editing ? `/suppliers/products/${editing}` : '/suppliers/products';
-      await api(path, { method: editing ? 'PUT' : 'POST', body: JSON.stringify(form) });
+      const body = new FormData();
+      body.append('name', form.name);
+      body.append('description', form.description);
+      body.append('price', String(form.price));
+      body.append('quantity', String(form.quantity));
+      body.append('categoryId', form.categoryId);
+      if (form.imageUrl) body.append('imageUrl', form.imageUrl);
+      if (imageFile) body.append('image', imageFile);
+      await api(path, { method: editing ? 'PUT' : 'POST', body });
       setForm({ ...empty, categoryId: categories[0]?.id || '' });
+      setImageFile(undefined);
       setEditing(undefined);
       await load();
       setMessage('Product saved.');
@@ -313,7 +323,14 @@ export default function Supplier() {
                       </option>
                     ))}
                   </select>
-                  <label>Image URL</label>
+                  <label>Product image (JPG / PNG / WEBP, max 5 MB)</label>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => setImageFile(e.target.files?.[0])}
+                  />
+                  {imageFile && <p className="form-hint">Selected: {imageFile.name}</p>}
+                  <label>Or image URL (optional)</label>
                   <input
                     value={form.imageUrl}
                     onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
@@ -327,6 +344,7 @@ export default function Supplier() {
                       style={{ marginTop: 12 }}
                       onClick={() => {
                         setEditing(undefined);
+                        setImageFile(undefined);
                         setForm({ ...empty, categoryId: categories[0]?.id || '' });
                       }}
                     >

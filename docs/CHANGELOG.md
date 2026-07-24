@@ -2,6 +2,21 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.3.0] — 2026-07-24
+
+### Week 4 / MVP codebase complete
+- Contact form persists to `contact_submissions` (DB) or in-memory; Admin **Contacts** inbox (`GET /admin/contacts`).
+- Minimum order value: pickup **₦3,000** / delivery **₦5,000** with checkout fulfillment choice; enforced in shared helpers + API + DB path.
+- Orders store `fulfillment_type` (`002_week4.sql`); migrate script applies all `database/migrations/*.sql`.
+- Supplier product create/update accepts multipart **image** upload (JPG/PNG/WEBP, 5 MB) in addition to optional URL.
+- Optional Resend notification for contact messages when email env is set.
+
+### Docs & ops
+- Added `DOVA_RUNBOOK.md`, `DOVA_API.md`, `scripts/smoke-week4.js` (`npm run smoke:week4`).
+- Spec compliance + progress docs mark **MVP codebase = 100%**; remaining items are staging/Paystack go-live (ops).
+
+---
+
 ## [0.2.2] — 2026-07-23
 
 ### Supplier registration UX

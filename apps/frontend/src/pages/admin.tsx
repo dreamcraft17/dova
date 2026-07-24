@@ -25,12 +25,15 @@ type AdminOrder = Pick<Order, 'id' | 'orderNumber' | 'status' | 'totalAmount' | 
   customerName: string;
 };
 
+type AdminContact = { id: string; name: string; email: string; message: string; status: string; createdAt: string };
+
 const NAV = [
   { id: 'overview', label: 'Dashboard' },
   { id: 'suppliers', label: 'Suppliers' },
   { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
   { id: 'users', label: 'Users' },
+  { id: 'contacts', label: 'Contacts' },
 ];
 
 export default function Admin() {
@@ -40,21 +43,24 @@ export default function Admin() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [contacts, setContacts] = useState<AdminContact[]>([]);
   const [message, setMessage] = useState('');
 
   const load = async () => {
-    const [s, p, u, pr, o] = await Promise.all([
+    const [s, p, u, pr, o, c] = await Promise.all([
       api<Stats>('/admin/dashboard'),
       api<Supplier[]>('/admin/suppliers/pending'),
       api<AdminUser[]>('/admin/users'),
       api<Product[]>('/admin/products'),
       api<AdminOrder[]>('/admin/orders'),
+      api<AdminContact[]>('/admin/contacts'),
     ]);
     setStats(s);
     setPending(p);
     setUsers(u);
     setProducts(pr);
     setOrders(o);
+    setContacts(c);
   };
 
   useEffect(() => {
@@ -299,6 +305,43 @@ export default function Admin() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </>
+          )}
+
+          {tab === 'contacts' && (
+            <>
+              <h1>Contact messages</h1>
+              <p className="lead-muted">Messages submitted from the Contact Us form.</p>
+              <div className="orders-table">
+                {contacts.length === 0 ? (
+                  <p>No contact messages yet.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contacts.map((c) => (
+                        <tr key={c.id}>
+                          <td data-label="Name">{c.name}</td>
+                          <td data-label="Email">{c.email}</td>
+                          <td data-label="Message">{c.message}</td>
+                          <td data-label="Status">
+                            <span className="badge">{c.status}</span>
+                          </td>
+                          <td data-label="Date">{new Date(c.createdAt).toLocaleString('en-NG')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </>
           )}

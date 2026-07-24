@@ -18,15 +18,22 @@ Known issues found during MVP / design port work, and their status.
 | BF-015 | UI | Not mobile-first (desktop CSS + weak HP nav) | Hamburger drawer, mobile-first CSS, cart/table/dashboard polish. |
 | BF-016 | UX | Suppliers unclear which verification document to upload | On-form hint: CAC, government ID, optional address proof (+ stakeholder reply doc). |
 
-## Open / known
+## Fixed — 2026-07-24 (Week 4)
+
+| ID | Area | Issue | Fix |
+|----|------|-------|-----|
+| BF-010 | Product | Minimum order value (pickup ₦3,000 / delivery ₦5,000) not implemented | Shared constants + checkout UI + API/DB enforcement. |
+| BF-011 | Product | Contact form may not fully persist to DB | `insertContactSubmission` + admin Contacts tab. |
+| BF-012 | Product | Supplier product image upload still URL-based | Multipart `image` on create/update; URL optional. |
+
+## Open / known (ops & post-MVP — not blocking MVP codebase)
 
 | ID | Area | Issue | Notes |
 |----|------|-------|-------|
-| BF-010 | Product | Minimum order value (pickup ₦3,000 / delivery ₦5,000) not implemented | See `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`. |
-| BF-011 | Product | Contact form may not fully persist to DB | Spec compliance W4.3. |
-| BF-012 | Product | Supplier product image upload still URL-based | Image URL field remains. |
-| BF-013 | Ops | E2E / production smoke coverage incomplete | Staging verification pending. |
+| BF-013 | Ops | Live staging E2E / production smoke not verified | Unit + `smoke:week4` in repo; needs staging URL. |
 | BF-014 | Design | Star ratings are decorative (not backed by review API) | Post-MVP reviews feature. |
+
+**MVP codebase status:** complete (BF-010–012 fixed). Remaining open items are ops or post-MVP.
 
 ## How to report
 

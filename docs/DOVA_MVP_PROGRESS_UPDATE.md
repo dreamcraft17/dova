@@ -5,10 +5,10 @@
 |---|---|
 | **Project** | DOVA — food supply marketplace |
 | **Planned period** | 21 July – 17 August 2026 (4 weeks) |
-| **Update date** | 23 July 2026 (UI + mobile update) |
+| **Update date** | 24 July 2026 |
 | **Prepared by** | Dozer |
 | **Audience** | Non-technical teams & business stakeholders |
-| **Overall status** | Core MVP features + branded UI are **built**; ready for internal demo on desktop & phone. **Not** ready for public go-live. |
+| **Overall status** | **MVP codebase 100% complete.** Internal demo ready (desktop & phone). **Public go-live** still needs staging + Paystack proof. |
 
 ---
 
@@ -24,12 +24,13 @@
 
 | Question | Short answer |
 |---|---|
-| Can the product already be tried? | **Yes** — locally / internal demo (sign up, shop, simulated payment, supplier & admin dashboards). Works on **phone and desktop**. |
-| Does it look like the agreed Startup design? | **Yes** — green/gold brand, home sections, auth cards, dashboards, cart/checkout restyled. |
-| Is it live for the general public? | **Not yet.** Staging/production hosting and managed database are not verified. |
-| Can real money be processed? | **Not on a live environment yet.** Paystack is wired; without keys the system uses **simulated payment**. |
-| Where are we vs the 4-week plan? | Calendar is still **Week 1**, but **Week 2–3 features + early Week 4 UI polish** are largely in. Remaining: staging, real test payments, launch. |
-| What is this update for? | Share current **progress only** — what is done, partial, or not started. |
+| Is the MVP finished in code? | **Yes — 100% codebase** for the agreed MVP scope. |
+| Can the product already be tried? | **Yes** — local / internal demo (desktop & phone). |
+| Does it look like the Startup design? | **Yes** — brand, home, auth, dashboards, cart/checkout. |
+| Is it live for the general public? | **Not yet** — hosting / staging URL not verified. |
+| Can real money be processed? | **Not on a live env yet.** Paystack is wired; demo uses **simulation** without keys. |
+| Where are we vs the 4-week plan? | **All Week 1–4 product work is in the repo.** Next: ops launch track. |
+| What is this update for? | Confirm feature completion vs what still needs business/ops action. |
 
 ---
 
@@ -37,105 +38,71 @@
 
 | Role | What they do in DOVA |
 |---|---|
-| **Customer** | Sign up → browse products → cart → checkout & pay → view order history |
-| **Supplier** | Register + upload documents → wait for admin approval → manage products & stock → fulfill orders |
-| **Administrator** | Approve/reject suppliers → monitor users, products, and orders → view platform overview |
+| **Customer** | Sign up → browse → cart → checkout (pickup/delivery) & pay → order history |
+| **Supplier** | Register + docs → admin approval → products (incl. image upload) & stock → fulfill |
+| **Administrator** | Approve suppliers → monitor users/products/orders → **Contacts** inbox |
 
 ---
 
 ## 4. Feature progress (business language)
 
-### Done (demo-ready)
+### Done — MVP complete in code
 
 | Area | What it means for the business |
 |---|---|
-| Sign-up & login | Customers, suppliers, and admins have separate access by role; auth screens use branded cards |
-| Product catalog | Search, category filter, product details; ₦ pricing; trust cues on cards |
-| Shopping cart | Add / change / remove items; mobile-friendly cart layout |
-| Checkout & orders | Delivery form, create order, confirmation, order history |
-| Payment (test / demo mode) | Flow exists; local demos use **simulation** if Paystack keys are not set |
-| Supplier dashboard | Sidebar dashboard: products, stock, fulfillment |
-| Supplier registration | Upload documents with **on-form guidance** (CAC, government ID, optional address proof); status starts as “pending approval” |
-| Admin dashboard | Sidebar: stats, approvals, users/products/orders |
-| Public pages & brand | Home (hero, How It Works, featured, supplier CTA, trust), About, Contact, full footer |
-| Mobile experience | Hamburger menu, stacked layouts, tables → cards on small screens |
+| Sign-up & login | Role-based access; branded auth cards |
+| Product catalog | Search, categories, details; ₦ pricing |
+| Shopping cart | Add / change / remove; mobile-friendly |
+| Checkout & orders | Pickup **₦3,000** min / delivery **₦5,000** min; history |
+| Payment | Paystack wired; simulation without keys |
+| Supplier dashboard | Products (image upload), stock, fulfillment |
+| Supplier registration | CAC / government ID / optional address proof guidance |
+| Admin dashboard | Stats, approvals, users/products/orders, contact inbox |
+| Public pages & brand | Home, About, Contact (saved), footer |
+| Mobile experience | Hamburger menu; responsive layouts |
+| Launch docs (in repo) | Runbook, API notes, smoke script |
 
-### Partial
-
-| Area | Current progress |
-|---|---|
-| Live Paystack payments | Integration prepared; multi-transaction verification on staging **not finished** |
-| Contact form storage | Contact page exists; messages **not yet fully saved** to storage |
-| Shared staging demo data | Seed scripts exist; not yet confirmed on a shared staging environment |
-| Minimum order value | Stakeholder asked (pickup ₦3k / delivery ₦5k) — **not built yet** |
-
-### Not yet
+### Ops / launch (not code gaps)
 
 | Area | Notes |
 |---|---|
-| Public go-live / official staging URL | No jointly verified public URL yet |
-| Password reset / email verification | Out of MVP scope |
-| Real product reviews API, wishlist, discounts, courier tracking | Out of MVP scope (stars on UI are decorative for now) |
-| Full browser (E2E) tests & production monitoring | Still Week 4 |
+| Shared staging / public URL | Needs hosting provision + migrate/seed |
+| Live Paystack test txs | Need keys + ≥10 successful test payments |
+| Soft launch go/no-go | Business checklist on staging |
+
+### Intentionally out of MVP
+
+Password reset, email verification, real reviews API, wishlist, discounts, courier tracking.
 
 ---
 
-## 5. Progress by user journey (detail)
+## 5. Progress by user journey
 
-### A. Customer — Done
-1. Register a customer account  
-2. Log in / log out  
-3. Browse the catalog (search, category filter, pagination)  
-4. Open product details  
-5. Add to cart; update or remove items  
-6. Checkout with delivery details  
-7. Pay (simulation or Paystack when keys are configured)  
-8. See payment / order confirmation  
-9. View order list and order detail in the customer area  
-
-### B. Supplier — Done
-1. Register as a supplier and upload supporting documents  
-   (CAC / government ID / optional address proof — shown on the form)  
-2. Wait in **pending** status until admin action  
-3. After approval: access supplier dashboard  
-4. Create, edit, and remove products  
-5. Manage stock (restock / adjustments)  
-6. See supplier orders and update fulfillment status  
-
-### C. Admin — Done
-1. Log in as admin  
-2. View platform summary / stats  
-3. Approve or reject pending suppliers  
-4. Monitor users, products, and orders  
-
-### D. Public site — Done
-- Branded home page (Startup design)  
-- About Us / Contact  
-- Shared navigation (desktop + mobile drawer) and footer  
+All customer / supplier / admin / public journeys listed in earlier updates are **Done** in the product (including contact save, min order, product image upload).
 
 ---
 
 ## 6. Progress vs the 4-week plan
 
-| Week | Planned focus | Current status |
+| Week | Planned focus | Status |
 |---|---|---|
-| **1** (21–27 Jul) | Foundation: accounts, roles, data structure, site shell | **Complete in product** |
-| **2** (28 Jul–3 Aug) | Customer shopping: catalog, cart, pay, order history | **Mostly complete** — staging & live Paystack checks still open |
-| **3** (4–10 Aug) | Supplier & admin | **Mostly complete** — joint staging verification still open |
-| **4** (11–17 Aug) | Polish, joint testing, production launch | **UI polish advanced early**; staging/launch checks still pending |
+| **1** | Foundation | **Complete in codebase** |
+| **2** | Customer shopping | **Complete in codebase** |
+| **3** | Supplier & admin | **Complete in codebase** |
+| **4** | Polish + launch prep | **Features + docs complete in codebase**; live URL / Paystack proof = **ops** |
 
-**Summary:** Feature + brand delivery is **ahead of the calendar**. Launch readiness is still on the Week 4 track.
+**Summary:** **MVP codebase = 100%.** Remaining work is launch operations.
 
 ---
 
-## 7. Hosting & services (current plan)
+## 7. Hosting & services (plan)
 
-| Part | Current plan |
+| Part | Plan |
 |---|---|
-| Customer-facing website | **Vercel** and/or **VPS** (Nginx + Node) |
-| Backend system | Separate Node.js server |
-| Data & sessions | Managed or VPS PostgreSQL & Redis (Docker not required) |
-| Payments | **Paystack** only for MVP (NGN) |
+| Website | Vercel and/or VPS |
+| Backend | Node.js |
+| Data | PostgreSQL + Redis |
+| Payments | Paystack (NGN) |
 
 ---
 
@@ -146,7 +113,7 @@
 | Admin | `admin@dova.local` | `admin1234` |
 | Supplier | `supplier@dova.local` | `supplier1234` |
 
-Customers register through the sign-up page. Sample catalog (~**20 products**) available in seed/demo.
+Customers register on the sign-up page. ~20 sample products in seed/demo.
 
 ---
 
@@ -154,35 +121,31 @@ Customers register through the sign-up page. Sample catalog (~**20 products**) a
 
 | Check | Status |
 |---|---|
-| Automated unit tests | **24** passing |
-| Authentication smoke checks | Passing |
-| Project build / type checks | Passing |
-| Mobile-first UI pass | Done (local) |
-| Full browser end-to-end on public staging | Not done |
-| Production performance / load verification | Not done |
+| Automated unit tests | **27** passing |
+| Auth smoke | Passing |
+| Build / typecheck | Passing |
+| Week 4 smoke helper | `npm run smoke:week4` (API up) |
+| E2E on public staging | Ops — pending staging URL |
+| Production load tests | Ops — pending |
 
 ---
 
-## 10. Still open (progress remaining)
+## 10. Still open (ops only)
 
 | Item | Status |
 |---|---|
 | Shared staging / official public URL | Pending |
 | Live Paystack test transactions verified | Pending |
-| Contact form messages saved to storage | Partial |
-| Minimum order value (pickup/delivery) | Not started |
-| Week 4 joint UAT + production monitoring | Pending |
+| Soft launch / go-no-go on staging | Pending |
 
-**Intentionally out of MVP scope:** password reset, email verification, real reviews API, wishlist, discounts, courier tracking.
+**Codebase items previously open (contact save, min order, image upload) are Done.**
 
 ---
 
 ## 11. Bottom line
 
-**MVP features for customer, supplier, and admin — plus branded, mobile-friendly UI — are ready for internal demos and business walkthroughs.**
+**MVP product code is complete (100%).** Teams can demo end-to-end locally.
 
-**Not complete yet:** launch readiness — shared staging, live payment verification, min-order rules, and Week 4 joint testing.
+**Not complete yet:** public go-live — staging URL, Paystack test proof, soft-launch approval.
 
-**Related docs:** `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_SPEC_COMPLIANCE.md`, `DOVA_REPLY_PAYSTACK_AND_MIN_ORDER.md`, `DOVA_REPLY_SUPPLIER_VERIFICATION_DOCS.md`.
-
----
+**Related:** `CHANGELOG.md`, `BUG_FIXES.md`, `DOVA_SPEC_COMPLIANCE.md`, `DOVA_RUNBOOK.md`, `DOVA_API.md`.

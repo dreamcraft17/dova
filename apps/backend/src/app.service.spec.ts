@@ -41,6 +41,8 @@ function makeService() {
     adminProducts: jest.fn().mockResolvedValue(undefined),
     setProductActive: jest.fn(),
     adminOrders: jest.fn().mockResolvedValue(undefined),
+    insertContactSubmission: jest.fn().mockResolvedValue(undefined),
+    listContactSubmissions: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
   const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never);
@@ -138,13 +140,40 @@ describe('AppService', () => {
       const customerId = 'customer-id';
       const product = service.products[0];
       await service.addCart(customerId, product.id, 2);
-      const order = await service.createOrder(customerId, { deliveryName: 'Jane Doe', deliveryAddress: 'Jakarta', deliveryPhone: '+62000000000' });
+      const order = await service.createOrder(customerId, { deliveryName: 'Jane Doe', deliveryAddress: 'Jakarta', deliveryPhone: '+62000000000', fulfillmentType: 'delivery' });
 
       expect(order.status).toBe('pending');
+      expect(order.fulfillmentType).toBe('delivery');
       expect(order.items[0].quantity).toBe(2);
       await expect(service.cart(customerId)).resolves.toEqual({ items: [], total: 0 });
       expect(product.stockQuantity).toBe(18);
       expect(service.stockAdjustments).toEqual(expect.arrayContaining([expect.objectContaining({ productId: product.id, quantity: -2, reason: 'purchase', orderId: order.id })]));
+    });
+
+    it('rejects checkout below the delivery minimum order value', async () => {
+      const { service } = makeService();
+      const customerId = 'min-order-customer';
+      service.products[0].price = 1000;
+      await service.addCart(customerId, service.products[0].id, 1);
+      await expect(
+        service.createOrder(customerId, {
+          deliveryName: 'Jane',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+          fulfillmentType: 'delivery',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('stores contact form submissions', async () => {
+      const { service } = makeService();
+      const result = await service.submitContact({
+        name: 'Ada',
+        email: 'ada@example.com',
+        message: 'Hello DOVA team, I have a question.',
+      });
+      expect(result.message).toMatch(/thank you/i);
+      expect(service.contacts[0]).toMatchObject({ name: 'Ada', email: 'ada@example.com' });
     });
 
     it('initializes and verifies a mock payment for a pending order', async () => {

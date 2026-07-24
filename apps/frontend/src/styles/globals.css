@@ -1799,9 +1799,28 @@ form .button {
   margin-top: 0;
 }
 
-.checkout-form .button,
-.checkout-form .confirm-btn {
-  margin-top: 8px;
+.fulfillment-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.fulfillment-option {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  margin: 0 !important;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-weight: 500 !important;
+  cursor: pointer;
+  background: #fff;
+}
+
+.fulfillment-option input {
+  width: auto !important;
+  margin: 0;
 }
 
 .order-summary {

@@ -2,12 +2,24 @@ import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Pos
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+
+const imageUpload = FileInterceptor('image', {
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) =>
+    ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)
+      ? callback(null, true)
+      : callback(new BadRequestException('Image must be JPG, PNG, or WEBP'), false),
+});
 
 @Controller()
 export class AppController {
   constructor(private readonly service: AppService) {}
   private auth(req: Request) { const token = req.cookies?.accessToken ?? req.headers.authorization?.replace('Bearer ', ''); return this.service.userFromToken(token); }
+  private applyImage(b: ProductDto, file?: any) {
+    if (file) b.imageUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    return b;
+  }
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
   @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
   @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) { const result = await this.service.login(body.email, body.password); res.cookie('accessToken', result.accessToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900000 }); res.cookie('refreshToken', result.refreshToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 604800000 }); return result; }
@@ -31,8 +43,8 @@ export class AppController {
   @Post('suppliers/register') @UseInterceptors(FileInterceptor('verificationDocs', { limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype) ? callback(null, true) : callback(new BadRequestException('Document must be PDF, JPG, or PNG'), false) })) supplierRegister(@Body() b: SupplierRegisterDto, @UploadedFile() file?: any) { if (file) b.documentUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`; return this.service.makeSupplierUser(b); }
   @Get('suppliers/status') async supplierStatus(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierStatus(u.id); }
   @Get('suppliers/products') async supplierProducts(@Req() req: Request) { const u = await this.auth(req); return this.service.supplierProducts(u.id); }
-  @Post('suppliers/products') async supplierProductCreate(@Req() req: Request, @Body() b: ProductDto) { const u = await this.auth(req); return this.service.addSupplierProduct(u.id, b); }
-  @Put('suppliers/products/:id') async supplierProductUpdate(@Req() req: Request, @Param('id') id: string, @Body() b: ProductDto) { const u = await this.auth(req); return this.service.updateSupplierProduct(u.id, id, b); }
+  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@Req() req: Request, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); return this.service.addSupplierProduct(u.id, this.applyImage(b, file)); }
+  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@Req() req: Request, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); return this.service.updateSupplierProduct(u.id, id, this.applyImage(b, file)); }
   @Delete('suppliers/products/:id') async supplierProductDelete(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.removeSupplierProduct(u.id, id); }
   @Put('suppliers/products/:id/stock') async supplierStock(@Req() req: Request, @Param('id') id: string, @Body() b: StockDto) { const u = await this.auth(req); return this.service.adjustSupplierStock(u.id, id, b.quantity, b.reason); }
   @Get('suppliers/products/:id/stock-history') async supplierStockHistory(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.supplierStockHistory(u.id, id); }
@@ -47,5 +59,6 @@ export class AppController {
   @Get('admin/products') async adminProducts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminProducts(); }
   @Put('admin/products/:id/active') async productActive(@Req() req: Request, @Param('id') id: string, @Body('active') active: boolean) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.setProductActive(id, Boolean(active)); }
   @Get('admin/orders') async adminOrders(@Req() req: Request, @Query('status') status = '', @Query('search') search = '') { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminOrders(status, search); }
-  @Post('contact') contact(@Body() body: any) { if (!body.name || !body.email || !body.message) throw new UnauthorizedException('All fields are required'); return { message: 'Thanks, your message has been received.' }; }
+  @Get('admin/contacts') async adminContacts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.listContacts(); }
+  @Post('contact') contact(@Body() body: ContactDto) { return this.service.submitContact(body); }
 }

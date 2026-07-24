@@ -13,4 +13,24 @@ export class NotificationService {
     if (!response.ok) return { sent: false, reason: 'provider-error' };
     return { sent: true };
   }
+
+  async contactMessage(payload: { name: string; email: string; message: string }) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    const support = process.env.SUPPORT_EMAIL || from;
+    if (!apiKey || !from || !support) return { sent: false, reason: 'email-provider-not-configured' };
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [support],
+        reply_to: payload.email,
+        subject: `DOVA contact from ${payload.name}`,
+        text: `From: ${payload.name} <${payload.email}>\n\n${payload.message}`,
+      }),
+    });
+    if (!response.ok) return { sent: false, reason: 'provider-error' };
+    return { sent: true };
+  }
 }

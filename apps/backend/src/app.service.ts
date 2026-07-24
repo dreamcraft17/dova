@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, ForbiddenException, NotFoundExceptio
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, SupplierStatus, User } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -13,6 +13,7 @@ type Supplier = { id: string; userId: string; businessName: string; phone: strin
 @Injectable()
 export class AppService {
   users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string }>(); stockAdjustments: any[] = [];
+  contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
   revokedTokens = new Set<string>();
   categories: Category[] = ['Vegetables','Fruits','Dairy','Grains','Meat','Seafood','Beverages','Pantry'].map(name => ({ id: randomUUID(), name }));
   constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, @Optional() private readonly notifications?: NotificationService) {
@@ -49,7 +50,113 @@ export class AppService {
   recalculate(cart: Cart) { cart.items.forEach(i => i.subtotal = i.quantity * i.product.price); cart.total = cart.items.reduce((sum, i) => sum + i.subtotal, 0); }
   async updateCart(userId: string, itemId: string, quantity: number) { const cart = await this.cart(userId); const item = cart.items.find(i => i.id === itemId); if (!item) throw new NotFoundException('Cart item not found'); if (quantity < 1 || quantity > item.product.stockQuantity) throw new BadRequestException('Invalid quantity'); item.quantity = quantity; this.recalculate(cart); return this.saveCart(userId, cart); }
   async removeCart(userId: string, itemId: string) { const cart = await this.cart(userId); cart.items = cart.items.filter(i => i.id !== itemId); this.recalculate(cart); return this.saveCart(userId, cart); }
-  async createOrder(userId: string, body: any) { if (this.database.enabled) { try { const stored = await this.database.createOrderFromCart(userId, body); if (stored) { await this.database.recordPurchaseStock(stored.id); return stored; } } catch (error) { if (error instanceof BadRequestException) throw error; throw new BadRequestException(error instanceof Error ? error.message : 'Unable to create order'); } } const cart = await this.cart(userId); if (!cart.items.length) throw new BadRequestException('Cart is empty'); if (!body.deliveryName || !body.deliveryAddress || !body.deliveryPhone) throw new BadRequestException('Delivery details are required'); cart.items.forEach(i => { const p = this.products.find(item => item.id === i.product.id); if (p) { p.stockQuantity -= i.quantity; this.stockAdjustments.unshift({ id: randomUUID(), orderId: undefined, productId: p.id, supplierId: p.supplierId, quantity: -i.quantity, reason: 'purchase', stockAfter: p.stockQuantity, createdAt: new Date().toISOString() }); } }); const order: Order = { id: randomUUID(), orderNumber: `DOVA-${Date.now().toString(36).toUpperCase()}`, customerId: userId, status: 'pending', totalAmount: cart.total, deliveryName: body.deliveryName, deliveryAddress: body.deliveryAddress, deliveryPhone: body.deliveryPhone, items: cart.items.map(i => ({ id: i.id, product: i.product, quantity: i.quantity, unitPrice: i.product.price, subtotal: i.subtotal, supplierOrderStatus: 'pending' })), createdAt: new Date().toISOString() }; this.orders.unshift(order); this.stockAdjustments.filter(entry => entry.reason === 'purchase' && !entry.orderId && order.items.some(item => item.product.id === entry.productId)).forEach(entry => { entry.orderId = order.id; }); await this.saveCart(userId, { items: [], total: 0 }); return order; }
+  async createOrder(userId: string, body: any) {
+    if (this.database.enabled) {
+      try {
+        const stored = await this.database.createOrderFromCart(userId, body);
+        if (stored) {
+          await this.database.recordPurchaseStock(stored.id);
+          return stored;
+        }
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        throw new BadRequestException(error instanceof Error ? error.message : 'Unable to create order');
+      }
+    }
+    const cart = await this.cart(userId);
+    if (!cart.items.length) throw new BadRequestException('Cart is empty');
+    const fulfillmentType: FulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery';
+    if (!body.deliveryName || !body.deliveryPhone) throw new BadRequestException('Delivery details are required');
+    if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
+      throw new BadRequestException('Delivery address is required');
+    }
+    const shortfallMsg = minOrderMessage(cart.total, fulfillmentType);
+    if (shortfallMsg) throw new BadRequestException(shortfallMsg);
+    const deliveryAddress =
+      fulfillmentType === 'pickup' ? body.deliveryAddress || 'Pickup at DOVA hub' : body.deliveryAddress;
+    cart.items.forEach((i) => {
+      const p = this.products.find((item) => item.id === i.product.id);
+      if (p) {
+        p.stockQuantity -= i.quantity;
+        this.stockAdjustments.unshift({
+          id: randomUUID(),
+          orderId: undefined,
+          productId: p.id,
+          supplierId: p.supplierId,
+          quantity: -i.quantity,
+          reason: 'purchase',
+          stockAfter: p.stockQuantity,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    });
+    const order: Order = {
+      id: randomUUID(),
+      orderNumber: `DOVA-${Date.now().toString(36).toUpperCase()}`,
+      customerId: userId,
+      status: 'pending',
+      totalAmount: cart.total,
+      deliveryName: body.deliveryName,
+      deliveryAddress,
+      deliveryPhone: body.deliveryPhone,
+      fulfillmentType,
+      items: cart.items.map((i) => ({
+        id: i.id,
+        product: i.product,
+        quantity: i.quantity,
+        unitPrice: i.product.price,
+        subtotal: i.subtotal,
+        supplierOrderStatus: 'pending',
+      })),
+      createdAt: new Date().toISOString(),
+    };
+    this.orders.unshift(order);
+    this.stockAdjustments
+      .filter(
+        (entry) =>
+          entry.reason === 'purchase' &&
+          !entry.orderId &&
+          order.items.some((item) => item.product.id === entry.productId),
+      )
+      .forEach((entry) => {
+        entry.orderId = order.id;
+      });
+    await this.saveCart(userId, { items: [], total: 0 });
+    return order;
+  }
+
+  async submitContact(body: { name: string; email: string; message: string }) {
+    if (!body.name || !body.email || !body.message || !/^\S+@\S+\.\S+$/.test(body.email)) {
+      throw new BadRequestException('All fields are required');
+    }
+    const stored = await this.database.insertContactSubmission(body);
+    const entry = stored ?? {
+      id: randomUUID(),
+      status: 'received',
+      createdAt: new Date().toISOString(),
+    };
+    if (!stored) {
+      this.contacts.unshift({
+        id: entry.id,
+        name: body.name,
+        email: body.email,
+        message: body.message,
+        status: entry.status,
+        createdAt: entry.createdAt,
+      });
+    }
+    const emailResult = await this.notifications?.contactMessage(body);
+    return {
+      message: 'Thank you for contacting us',
+      id: entry.id,
+      emailNotification: emailResult?.sent ? 'sent' : emailResult?.reason || 'queued',
+    };
+  }
+
+  async listContacts() {
+    return (await this.database.listContactSubmissions()) ?? this.contacts;
+  }
+
   async initializePayment(userId: string, orderId: string, amount?: number) { const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId); if (!order) throw new NotFoundException('Order not found'); if (order.status !== 'pending') throw new BadRequestException('Order is not payable'); if (amount !== undefined && Number(amount) !== order.totalAmount) throw new BadRequestException('Payment amount mismatch'); if (order.paymentReference && this.payments.get(order.paymentReference)?.status === 'pending' && !process.env.PAYSTACK_SECRET_KEY) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`, reference: order.paymentReference, mode: 'mock' }; const reference = `DOVA-${order.orderNumber}-${randomUUID().slice(0, 8)}`; this.payments.set(reference, { orderId, status: 'pending' }); order.paymentReference = reference; await this.database.setOrderPaymentReference(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated'); const secret = process.env.PAYSTACK_SECRET_KEY; if (!secret) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`, reference, mode: 'mock' };
     const customer = await this.findUser(userId, true); return fetch('https://api.paystack.co/transaction/initialize', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: customer?.email, amount: Math.round(order.totalAmount * 100), currency: process.env.PAYSTACK_CURRENCY || 'NGN', reference, metadata: { orderId } }) }).then(async response => { const result = await response.json() as any; if (!response.ok || !result.status) throw new BadRequestException(result.message || 'Payment initialization failed'); return { authorization_url: result.data.authorization_url, reference: result.data.reference, mode: 'paystack' }; }); }
   async verifyPayment(userId: string, reference: string) { const payment = this.payments.get(reference); const storedOrders = await this.database.listOrders(userId); const order = payment ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId)) : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId)); if (!order) throw new NotFoundException('Payment reference not found'); let successful = false; let response: unknown; if (!process.env.PAYSTACK_SECRET_KEY && (payment || order.paymentReference === reference)) successful = true; else if (process.env.PAYSTACK_SECRET_KEY) { const resultResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }); response = await resultResponse.json(); const result = response as any; successful = resultResponse.ok && result.status === true && result.data?.status === 'success'; } if (!successful) { await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response); throw new BadRequestException('Payment verification failed'); } order.status = 'paid'; order.paymentVerifiedAt = new Date().toISOString(); await this.database.markOrderPaid(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response); if (payment) payment.status = 'success'; return { orderId: order.id, orderNumber: order.orderNumber, status: order.status }; }
