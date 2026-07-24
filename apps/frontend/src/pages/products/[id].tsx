@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../../components/Layout';
+import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 import type { Product } from 'dova-shared';
 import { useCart } from '../../context/CartContext';
@@ -11,23 +12,37 @@ export default function Detail() {
   const [p, setP] = useState<Product>();
   const [qty, setQty] = useState(1);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const { refresh } = useCart();
 
   useEffect(() => {
-    if (r.query.id)
+    if (r.query.id) {
+      setLoading(true);
       api<Product>(`/products/${r.query.id}`)
         .then(setP)
-        .catch((e) => setMessage(e.message));
+        .catch((e) => setMessage(e.message))
+        .finally(() => setLoading(false));
+    }
   }, [r.query.id]);
 
-  if (!p)
+  if (loading) {
+    return (
+      <Layout>
+        <Loading label="Loading product…" block />
+      </Layout>
+    );
+  }
+
+  if (!p) {
     return (
       <Layout>
         <section className="page-head">
-          <p>{message || 'Loading...'}</p>
+          <p className="error">{message || 'Product not found.'}</p>
         </section>
       </Layout>
     );
+  }
 
   return (
     <Layout>
@@ -62,7 +77,10 @@ export default function Detail() {
               />
               <button
                 className="button"
-                onClick={() =>
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  setMessage('');
                   api('/cart/add', {
                     method: 'POST',
                     body: JSON.stringify({ productId: p.id, quantity: qty }),
@@ -72,9 +90,10 @@ export default function Detail() {
                       setMessage('Added to cart');
                     })
                     .catch((e) => setMessage(e.message))
-                }
+                    .finally(() => setBusy(false));
+                }}
               >
-                Add to cart
+                {busy ? <Loading label="Adding…" inline size="sm" /> : 'Add to cart'}
               </button>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
+import { FeaturedGridSkeleton } from '../components/Loading';
 import { api } from '../lib/api';
 import type { Product } from 'dova-shared';
 
@@ -76,6 +77,7 @@ export default function Home() {
   const [featured, setFeatured] = useState<
     { id: string; name: string; description: string; imageUrl: string; price: number; href: string }[]
   >(FALLBACK_FEATURED);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
 
   useEffect(() => {
     api<{ data: Product[] }>('/products?page=1&limit=3')
@@ -92,7 +94,8 @@ export default function Home() {
           })),
         );
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setFeaturedLoading(false));
   }, []);
 
   return (
@@ -144,6 +147,9 @@ export default function Home() {
       <section className="section" style={{ paddingTop: 0 }}>
         <h2 className="section-title">Featured Products</h2>
         <p className="section-sub">Discover fresh agricultural products from verified suppliers.</p>
+        {featuredLoading ? (
+          <FeaturedGridSkeleton />
+        ) : (
         <div className="featured-grid">
           {featured.map((p) => (
             <Link href={p.href} className="product-card" key={p.id}>
@@ -165,6 +171,7 @@ export default function Home() {
             </Link>
           ))}
         </div>
+        )}
       </section>
 
       <section className="supplier-cta">

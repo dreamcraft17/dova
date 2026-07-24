@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../components/Layout';
+import { Loading, LoadingOverlay } from '../components/Loading';
 import { api } from '../lib/api';
 import type { Cart } from 'dova-shared';
 import { useCart } from '../context/CartContext';
@@ -8,13 +9,17 @@ import { useCart } from '../context/CartContext';
 export default function CartPage() {
   const [cart, setCart] = useState<Cart>();
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const { refresh } = useCart();
 
-  const load = () =>
-    api<Cart>('/cart')
+  const load = () => {
+    setLoading(true);
+    return api<Cart>('/cart')
       .then(setCart)
-      .catch(() => setError('Please log in to view your cart.'));
+      .catch(() => setError('Please log in to view your cart.'))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     void load();
@@ -50,7 +55,9 @@ export default function CartPage() {
           <p>Review your selected products before checkout.</p>
         </div>
 
-        {error ? (
+        {loading ? (
+          <Loading label="Loading your cart…" block />
+        ) : error ? (
           <div style={{ textAlign: 'center' }}>
             <p>{error}</p>
             <Link className="button" href="/auth/login">
@@ -59,7 +66,8 @@ export default function CartPage() {
           </div>
         ) : cart?.items.length ? (
           <>
-            <div className="cart-wrapper">
+            <div className={`cart-wrapper${busy ? ' is-busy' : ''}`}>
+              {busy ? <LoadingOverlay label="Updating cart…" /> : null}
               {cart.items.map((i) => (
                 <div className="cart-item" key={i.id}>
                   {i.product.imageUrl ? (

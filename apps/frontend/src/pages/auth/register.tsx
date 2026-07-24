@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
+import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 
 export default function Register() {
@@ -12,15 +13,19 @@ export default function Register() {
     confirmPassword: '',
   });
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    setBusy(true);
+    setError('');
     try {
       await api('/auth/register', { method: 'POST', body: JSON.stringify(form) });
       router.push('/auth/login');
     } catch (err) {
       setError((err as Error).message);
+      setBusy(false);
     }
   }
 
@@ -62,7 +67,9 @@ export default function Register() {
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
           />
-          <button type="submit">Register</button>
+          <button type="submit" disabled={busy}>
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Register'}
+          </button>
           {error && <p className="error">{error}</p>}
         </form>
         <div className="login-link">

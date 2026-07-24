@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
+import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,11 +10,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { refresh } = useAuth();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    setBusy(true);
+    setError('');
     try {
       const r = await api<{ user: { role: string } }>('/auth/login', {
         method: 'POST',
@@ -25,6 +29,7 @@ export default function Login() {
       );
     } catch (err) {
       setError((err as Error).message);
+      setBusy(false);
     }
   }
 
@@ -56,7 +61,9 @@ export default function Login() {
             </label>
             <span style={{ color: '#999' }}>Forgot Password?</span>
           </div>
-          <button type="submit">Login</button>
+          <button type="submit" disabled={busy}>
+            {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
+          </button>
           {error && <p className="error">{error}</p>}
         </form>
         <div className="register-link">

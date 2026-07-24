@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { RequireAuth } from '../components/RequireAuth';
 import { DashboardShell } from '../components/DashboardShell';
+import { Loading, LoadingOverlay } from '../components/Loading';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Category, Product } from 'dova-shared';
@@ -37,6 +38,9 @@ export default function Supplier() {
   const [imageFile, setImageFile] = useState<File>();
   const [editing, setEditing] = useState<string>();
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [submitBusy, setSubmitBusy] = useState(false);
   const [supplierInfo, setSupplierInfo] = useState<{
     status: string;
     businessName: string;
@@ -66,12 +70,14 @@ export default function Supplier() {
         setSupplierInfo(info);
         if (info.status === 'approved') return load();
       })
-      .catch((e) => setMessage(e.message));
+      .catch((e) => setMessage(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setMessage('');
+    setSubmitBusy(true);
     try {
       const path = editing ? `/suppliers/products/${editing}` : '/suppliers/products';
       const body = new FormData();
@@ -91,19 +97,27 @@ export default function Supplier() {
       setTab('products');
     } catch (err) {
       setMessage((err as Error).message);
+    } finally {
+      setSubmitBusy(false);
     }
   }
 
   async function remove(id: string) {
     if (!window.confirm('Remove this product?')) return;
-    await api(`/suppliers/products/${id}`, { method: 'DELETE' });
-    await load();
+    setActionBusy(true);
+    try {
+      await api(`/suppliers/products/${id}`, { method: 'DELETE' });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   async function stock(id: string, reason: 'restock' | 'damage') {
     const raw = window.prompt(`${reason === 'restock' ? 'Restock' : 'Remove'} quantity`, '1');
     const quantity = Number(raw);
     if (!quantity) return;
+    setActionBusy(true);
     try {
       await api(`/suppliers/products/${id}/stock`, {
         method: 'PUT',
@@ -112,10 +126,13 @@ export default function Supplier() {
       await load();
     } catch (err) {
       setMessage((err as Error).message);
+    } finally {
+      setActionBusy(false);
     }
   }
 
   async function status(itemId: string, value: string) {
+    setActionBusy(true);
     try {
       await api(`/suppliers/orders/${itemId}/status`, {
         method: 'PUT',
@@ -124,6 +141,8 @@ export default function Supplier() {
       await load();
     } catch (err) {
       setMessage((err as Error).message);
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -138,6 +157,16 @@ export default function Supplier() {
       imageUrl: p.imageUrl || '',
     });
     setTab('add');
+  }
+
+  if (loading) {
+    return (
+      <Layout chrome="none">
+        <RequireAuth roles={['supplier', 'admin']}>
+          <Loading label="Loading supplier dashboard…" block />
+        </RequireAuth>
+      </Layout>
+    );
   }
 
   if (supplierInfo && supplierInfo.status !== 'approved') {
@@ -231,7 +260,8 @@ export default function Supplier() {
             <>
               <h1>Your Products</h1>
               <p className="lead-muted">Manage stock and listings ({products.length}).</p>
-              <div className="orders-table">
+              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+                {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 <table>
                   <thead>
                     <tr>
@@ -251,17 +281,30 @@ export default function Supplier() {
                         <td data-label="Status">{p.isActive ? 'Active' : 'Hidden'}</td>
                         <td data-label="Actions">
                           <div className="product-actions">
-                            <button className="button small" onClick={() => startEdit(p)}>
+                            <button
+                              className="button small"
+                              disabled={actionBusy}
+                              onClick={() => startEdit(p)}
+                            >
                               Edit
                             </button>
-                            <button className="button small" onClick={() => void stock(p.id, 'restock')}>
+                            <button
+                              className="button small"
+                              disabled={actionBusy}
+                              onClick={() => void stock(p.id, 'restock')}
+                            >
                               + Stock
                             </button>
-                            <button className="button small" onClick={() => void stock(p.id, 'damage')}>
+                            <button
+                              className="button small"
+                              disabled={actionBusy}
+                              onClick={() => void stock(p.id, 'damage')}
+                            >
                               − Stock
                             </button>
                             <button
                               className="button small secondary"
+                              disabled={actionBusy}
                               onClick={() => void remove(p.id)}
                             >
                               Remove
@@ -336,7 +379,19 @@ export default function Supplier() {
                     onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                     placeholder="https://..."
                   />
-                  <button type="submit">{editing ? 'Save changes' : 'Add product'}</button>
+                  <button type="submit" disabled={submitBusy}>
+                    {submitBusy ? (
+                      <Loading
+                        label={editing ? 'Saving changes…' : 'Adding product…'}
+                        inline
+                        size="sm"
+                      />
+                    ) : editing ? (
+                      'Save changes'
+                    ) : (
+                      'Add product'
+                    )}
+                  </button>
                   {editing && (
                     <button
                       type="button"
@@ -360,7 +415,8 @@ export default function Supplier() {
             <>
               <h1>Orders</h1>
               <p className="lead-muted">Manage all customer orders for your products.</p>
-              <div className="orders-table">
+              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+                {actionBusy ? <LoadingOverlay label="Updating order…" /> : null}
                 {orders.length === 0 ? (
                   <p>No incoming orders.</p>
                 ) : (
@@ -393,6 +449,7 @@ export default function Supplier() {
                             ) : (
                               <select
                                 value={o.status}
+                                disabled={actionBusy}
                                 onChange={(e) => void status(o.itemId, e.target.value)}
                               >
                                 <option value={o.status}>{o.status}</option>

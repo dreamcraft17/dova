@@ -15,13 +15,25 @@ export function Layout({
   const { count } = useCart();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [routeLoading, setRouteLoading] = useState(false);
   const dash =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
 
   useEffect(() => {
     const close = () => setMenuOpen(false);
-    router.events.on('routeChangeStart', close);
-    return () => router.events.off('routeChangeStart', close);
+    const start = () => {
+      close();
+      setRouteLoading(true);
+    };
+    const end = () => setRouteLoading(false);
+    router.events.on('routeChangeStart', start);
+    router.events.on('routeChangeComplete', end);
+    router.events.on('routeChangeError', end);
+    return () => {
+      router.events.off('routeChangeStart', start);
+      router.events.off('routeChangeComplete', end);
+      router.events.off('routeChangeError', end);
+    };
   }, [router.events]);
 
   useEffect(() => {
@@ -83,6 +95,7 @@ export function Layout({
 
   return (
     <>
+      {routeLoading ? <div className="route-progress" aria-hidden="true" /> : null}
       <header className="header">
         <Link href="/" className="brand">
           <img src="/images/logo.jpg" alt="DOVA" />

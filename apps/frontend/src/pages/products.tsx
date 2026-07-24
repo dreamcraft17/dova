@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../components/Layout';
+import { Loading, ProductGridSkeleton } from '../components/Loading';
 import { api } from '../lib/api';
 import type { Category, Product } from 'dova-shared';
 
@@ -12,6 +13,7 @@ export default function Products() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const limit = 12;
 
   useEffect(() => {
@@ -19,6 +21,7 @@ export default function Products() {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     const t = setTimeout(
       () =>
         api<{ data: Product[]; pagination: { total: number } }>(
@@ -29,7 +32,8 @@ export default function Products() {
             setTotal(r.pagination.total);
             setError('');
           })
-          .catch((e) => setError(e.message)),
+          .catch((e) => setError(e.message))
+          .finally(() => setLoading(false)),
       300,
     );
     return () => clearTimeout(t);
@@ -68,6 +72,9 @@ export default function Products() {
         </div>
       </section>
 
+      {loading ? (
+        <ProductGridSkeleton />
+      ) : (
       <section className="grid">
         {error && <p className="error">{error}</p>}
         {products.length === 0 && !error && <p>No products found.</p>}
@@ -89,8 +96,10 @@ export default function Products() {
           </Link>
         ))}
       </section>
+      )}
 
       <div className="pagination">
+        {loading ? <Loading label="Loading products…" inline size="sm" /> : null}
         <button className="button small" disabled={page === 1} onClick={() => setPage(page - 1)}>
           ← Previous
         </button>

@@ -1,15 +1,20 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
+import { Loading } from '../components/Loading';
 import { RequireAuth } from '../components/RequireAuth';
 import { api } from '../lib/api';
 import type { Order } from 'dova-shared';
 
 export default function Customer() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api<Order[]>('/orders').then(setOrders).catch(() => undefined);
+    api<Order[]>('/orders')
+      .then(setOrders)
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -21,7 +26,9 @@ export default function Customer() {
             <p>Track and review everything you have ordered on DOVA.</p>
           </div>
           <div className="orders-table" style={{ maxWidth: 1000, margin: '0 auto' }}>
-            {orders.length ? (
+            {loading ? (
+              <Loading label="Loading your orders…" block />
+            ) : orders.length ? (
               <table>
                 <thead>
                   <tr>

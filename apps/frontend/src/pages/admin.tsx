@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { RequireAuth } from '../components/RequireAuth';
 import { DashboardShell } from '../components/DashboardShell';
+import { Loading, LoadingOverlay } from '../components/Loading';
 import { api } from '../lib/api';
 import type { Order, Product } from 'dova-shared';
 
@@ -45,6 +46,8 @@ export default function Admin() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [contacts, setContacts] = useState<AdminContact[]>([]);
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const load = async () => {
     const [s, p, u, pr, o, c] = await Promise.all([
@@ -64,39 +67,60 @@ export default function Admin() {
   };
 
   useEffect(() => {
-    void load().catch((e) => setMessage(e.message));
+    void load()
+      .catch((e) => setMessage(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   async function decision(id: string, action: 'approve' | 'reject') {
     const reason = action === 'reject' ? window.prompt('Rejection reason') : undefined;
     if (action === 'reject' && !reason) return;
-    await api(`/admin/suppliers/${id}/${action}`, {
-      method: 'POST',
-      ...(reason ? { body: JSON.stringify({ reason }) } : {}),
-    });
-    await load();
+    setActionBusy(true);
+    try {
+      await api(`/admin/suppliers/${id}/${action}`, {
+        method: 'POST',
+        ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+      });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   async function toggleUser(user: AdminUser) {
-    await api(`/admin/users/${user.id}/active`, {
-      method: 'PUT',
-      body: JSON.stringify({ active: !user.isActive }),
-    });
-    await load();
+    setActionBusy(true);
+    try {
+      await api(`/admin/users/${user.id}/active`, {
+        method: 'PUT',
+        body: JSON.stringify({ active: !user.isActive }),
+      });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   async function toggleProduct(product: Product) {
-    await api(`/admin/products/${product.id}/active`, {
-      method: 'PUT',
-      body: JSON.stringify({ active: !product.isActive }),
-    });
-    await load();
+    setActionBusy(true);
+    try {
+      await api(`/admin/products/${product.id}/active`, {
+        method: 'PUT',
+        body: JSON.stringify({ active: !product.isActive }),
+      });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   return (
     <Layout chrome="none">
       <RequireAuth roles={['admin']}>
         <DashboardShell title="DOVA ADMIN" items={NAV} active={tab} onSelect={setTab}>
+          {loading ? (
+            <Loading label="Loading dashboard…" block />
+          ) : (
+          <>
           {message && <p className="error">{message}</p>}
 
           {tab === 'overview' && (
@@ -155,7 +179,8 @@ export default function Admin() {
             <>
               <h1>Pending Suppliers</h1>
               <p className="lead-muted">Review and approve supplier applications.</p>
-              <div className="orders-table">
+              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+                {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 {pending.length === 0 ? (
                   <p>No pending suppliers.</p>
                 ) : (
@@ -187,11 +212,16 @@ export default function Admin() {
                             <span className="badge">{s.status}</span>
                           </td>
                           <td data-label="Actions" className="product-actions">
-                            <button className="button small" onClick={() => void decision(s.id, 'approve')}>
+                            <button
+                              className="button small"
+                              disabled={actionBusy}
+                              onClick={() => void decision(s.id, 'approve')}
+                            >
                               Approve
                             </button>
                             <button
                               className="button small secondary"
+                              disabled={actionBusy}
                               onClick={() => void decision(s.id, 'reject')}
                             >
                               Reject
@@ -210,7 +240,8 @@ export default function Admin() {
             <>
               <h1>Products</h1>
               <p className="lead-muted">Activate or deactivate marketplace products.</p>
-              <div className="orders-table">
+              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+                {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 <table>
                   <thead>
                     <tr>
@@ -229,7 +260,11 @@ export default function Admin() {
                         <td data-label="Stock">{p.stockQuantity}</td>
                         <td data-label="Status">{p.isActive ? 'Active' : 'Hidden'}</td>
                         <td data-label="">
-                          <button className="button small" onClick={() => void toggleProduct(p)}>
+                          <button
+                            className="button small"
+                            disabled={actionBusy}
+                            onClick={() => void toggleProduct(p)}
+                          >
                             {p.isActive ? 'Deactivate' : 'Activate'}
                           </button>
                         </td>
@@ -280,7 +315,8 @@ export default function Admin() {
             <>
               <h1>Users</h1>
               <p className="lead-muted">Manage account access.</p>
-              <div className="orders-table">
+              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+                {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 <table>
                   <thead>
                     <tr>
@@ -297,7 +333,11 @@ export default function Admin() {
                         <td data-label="Email">{u.email}</td>
                         <td data-label="Role">{u.role}</td>
                         <td data-label="">
-                          <button className="button small" onClick={() => void toggleUser(u)}>
+                          <button
+                            className="button small"
+                            disabled={actionBusy}
+                            onClick={() => void toggleUser(u)}
+                          >
                             {u.isActive ? 'Deactivate' : 'Activate'}
                           </button>
                         </td>
@@ -344,6 +384,8 @@ export default function Admin() {
                 )}
               </div>
             </>
+          )}
+          </>
           )}
         </DashboardShell>
       </RequireAuth>

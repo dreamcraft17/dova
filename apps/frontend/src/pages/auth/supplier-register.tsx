@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
+import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 
 export default function SupplierRegister() {
@@ -15,11 +16,13 @@ export default function SupplierRegister() {
   });
   const [file, setFile] = useState<File>();
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const [done, setDone] = useState('');
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
       const body = new FormData();
       Object.entries(form).forEach(([key, value]) => body.append(key, value));
@@ -32,6 +35,7 @@ export default function SupplierRegister() {
       setTimeout(() => void router.push('/auth/login'), 1200);
     } catch (err) {
       setError((err as Error).message);
+      setBusy(false);
     }
   }
 
@@ -112,7 +116,9 @@ export default function SupplierRegister() {
               Selected: {file.name}
             </p>
           )}
-          <button type="submit">Register as Supplier</button>
+          <button type="submit" disabled={busy}>
+            {busy ? <Loading label="Submitting…" inline size="sm" /> : 'Register as Supplier'}
+          </button>
           {error && <p className="error">{error}</p>}
           {done && <p>{done}</p>}
         </form>

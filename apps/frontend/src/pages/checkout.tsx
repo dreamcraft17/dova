@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../components/Layout';
+import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
 import { minOrderFor, minOrderMessage } from 'dova-shared';
@@ -18,6 +19,7 @@ export default function Checkout() {
     deliveryPhone: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -29,7 +31,8 @@ export default function Checkout() {
       }));
     api<Cart>('/cart')
       .then(setCart)
-      .catch(() => setError('Please log in before checkout.'));
+      .catch(() => setError('Please log in before checkout.'))
+      .finally(() => setLoading(false));
   }, [user]);
 
   const minRequired = minOrderFor(fulfillmentType);
@@ -74,7 +77,9 @@ export default function Checkout() {
           <p>Complete your order by filling in the information below.</p>
         </div>
 
-        {cart?.items.length ? (
+        {loading ? (
+          <Loading label="Loading checkout…" block />
+        ) : cart?.items.length ? (
           <div className="checkout-wrapper">
             <div className="checkout-form">
               <h3>Customer Information</h3>
@@ -135,7 +140,7 @@ export default function Checkout() {
                 </select>
                 {shortfallMessage && <p className="error">{shortfallMessage}</p>}
                 <button className="confirm-btn" disabled={busy || Boolean(shortfallMessage)}>
-                  {busy ? 'Redirecting…' : 'Confirm Order'}
+                  {busy ? <Loading label="Redirecting…" inline size="sm" /> : 'Confirm Order'}
                 </button>
                 {error && <p className="error">{error}</p>}
               </form>

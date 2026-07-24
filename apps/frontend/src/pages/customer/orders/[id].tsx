@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../../../components/Layout';
+import { Loading } from '../../../components/Loading';
 import { RequireAuth } from '../../../components/RequireAuth';
 import { api } from '../../../lib/api';
 import type { Order } from 'dova-shared';
@@ -31,7 +32,7 @@ export default function OrderDetail() {
             {error ? (
               <p className="error">{error}</p>
             ) : !order ? (
-              <p>Loading order…</p>
+              <Loading label="Loading order…" block />
             ) : (
               <>
                 <h1>{order.orderNumber}</h1>

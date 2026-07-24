@@ -1,20 +1,24 @@
 import { Layout } from '../components/Layout';
+import { Loading } from '../components/Loading';
 import { FormEvent, useState } from 'react';
 import { api } from '../lib/api';
 
 export default function Contact() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
       const f = new FormData(e.currentTarget);
       await api('/contact', { method: 'POST', body: JSON.stringify(Object.fromEntries(f)) });
       setDone(true);
     } catch (err) {
       setError((err as Error).message);
+      setBusy(false);
     }
   }
 
@@ -45,7 +49,9 @@ export default function Contact() {
               Message
               <textarea name="message" required rows={5} minLength={5} />
             </label>
-            <button className="button">Send message</button>
+            <button className="button" disabled={busy}>
+              {busy ? <Loading label="Sending…" inline size="sm" /> : 'Send message'}
+            </button>
             {error && <p className="error">{error}</p>}
           </form>
         )}
