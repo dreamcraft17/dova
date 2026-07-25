@@ -13,9 +13,9 @@ Monorepo: NestJS API + Next.js storefront + shared types.
 
 ```bash
 npm install
-cp .env.example .env
-cp apps/backend/.env.example apps/backend/.env
-cp apps/frontend/.env.local.example apps/frontend/.env.local
+cp .env.dev .env
+cp apps/backend/.env.dev apps/backend/.env
+cp apps/frontend/.env.dev apps/frontend/.env.local
 npm run dev
 ```
 
