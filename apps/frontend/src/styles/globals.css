@@ -2023,11 +2023,11 @@ form .button {
 }
 
 .product-card--featured .pc-image {
-  height: 160px;
+  height: 200px;
 }
 
 .product-card--grid .pc-image {
-  height: 140px;
+  height: 180px;
 }
 
 .product-card--featured .pc-image img,
@@ -2117,4 +2117,33 @@ form .button {
   align-self: flex-start;
   font-size: 12px;
   padding: 8px 14px;
+}
+
+.filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.filter-stack .search {
+  margin-top: 0;
+  width: 100%;
+}
+
+.filter-stack select {
+  width: 100%;
+}
+
+.page-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.page-content .grid {
+  padding-left: 0;
+  padding-right: 0;
 }
