@@ -1988,3 +1988,133 @@ form .button {
   pointer-events: none;
   opacity: 0.55;
 }
+
+/* ========== PRODUCT CARD (reusable component) ========== */
+.product-card--featured,
+.product-card--grid {
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  text-align: left;
+  transition: 0.3s;
+  border: none;
+  color: inherit;
+}
+
+.product-card--featured:hover,
+.product-card--grid:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Image */
+.product-card--featured .pc-image,
+.product-card--grid .pc-image {
+  width: 100%;
+  background: var(--mint);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.product-card--featured .pc-image {
+  height: 160px;
+}
+
+.product-card--grid .pc-image {
+  height: 140px;
+}
+
+.product-card--featured .pc-image img,
+.product-card--grid .pc-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: 0.4s;
+}
+
+.product-card--featured:hover .pc-image img,
+.product-card--grid:hover .pc-image img {
+  transform: scale(1.05);
+}
+
+/* Body */
+.product-card--featured .pc-body,
+.product-card--grid .pc-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Category label (grid only) */
+.pc-category {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px;
+}
+
+/* Title */
+.pc-title {
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+/* Description (featured only) */
+.pc-desc {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Meta (supplier + stars) */
+.pc-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+/* Price */
+.pc-price {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--green);
+  margin: 0 0 4px;
+}
+
+/* Stock (grid only) */
+.pc-stock {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0;
+}
+
+/* CTA button (featured only) */
+.pc-cta {
+  margin-top: auto;
+  padding-top: 10px;
+  align-self: flex-start;
+  font-size: 12px;
+  padding: 8px 14px;
+}

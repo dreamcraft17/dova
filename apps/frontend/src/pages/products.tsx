@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { Loading, ProductGridSkeleton } from '../components/Loading';
+import { ProductCard } from '../components/ProductCard';
 import { api } from '../lib/api';
 import type { Category, Product } from 'dova-shared';
 
@@ -79,21 +79,21 @@ export default function Products() {
         {error && <p className="error">{error}</p>}
         {products.length === 0 && !error && <p>No products found.</p>}
         {products.map((p) => (
-          <Link href={`/products/${p.id}`} className="card product-card" key={p.id}>
-            <div className="product-image">
-              {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <>🌿</>}
-            </div>
-            <div className="card-body">
-              <p className="muted">{p.categoryName}</p>
-              <h3>{p.name}</h3>
-              <p className="origin-meta">
-                <span>📍 {p.supplierName}</span>
-                <span className="stars">★★★★★</span>
-              </p>
-              <p className="price">₦ {p.price.toLocaleString('en-NG')}</p>
-              <p className="muted">{p.stockQuantity} available</p>
-            </div>
-          </Link>
+          <ProductCard
+            key={p.id}
+            variant="grid"
+            product={{
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              imageUrl: p.imageUrl,
+              price: p.price,
+              href: `/products/${p.id}`,
+              categoryName: p.categoryName,
+              supplierName: p.supplierName,
+              stockQuantity: p.stockQuantity,
+            }}
+          />
         ))}
       </section>
       )}
