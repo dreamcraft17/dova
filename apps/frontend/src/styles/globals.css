@@ -268,6 +268,11 @@ textarea {
   transform: translateY(-2px);
 }
 
+a.button,
+a.button:visited {
+  color: #fff;
+}
+
 .button.small {
   padding: 10px 20px;
   font-size: 14px;
