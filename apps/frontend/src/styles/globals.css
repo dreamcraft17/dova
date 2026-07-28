@@ -581,7 +581,7 @@ textarea {
 /* ========== MARKETPLACE / SHARED ========== */
 .page-head,
 .form-page {
-  max-width: 900px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 64px 24px 28px;
 }
@@ -925,6 +925,23 @@ form .button {
   font-weight: 600;
 }
 
+.filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.filter-stack .search {
+  margin-top: 0;
+  width: 100%;
+}
+
+.filter-stack select {
+  width: 100%;
+}
+
 /* ========== BREAKPOINTS (enhance up from mobile) ========== */
 @media (min-width: 640px) {
   .grid {
@@ -969,6 +986,21 @@ form .button {
 }
 
 @media (min-width: 900px) {
+  .filter-stack {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .filter-stack .search {
+    flex: 1;
+    width: auto;
+  }
+
+  .filter-stack select {
+    width: auto;
+    min-width: 180px;
+  }
+
   .header {
     min-height: 76px;
     padding: 10px var(--pad-x);
@@ -1084,6 +1116,12 @@ form .button {
 @media (min-width: 1100px) {
   .grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid {
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 
@@ -2119,26 +2157,8 @@ form .button {
   padding: 8px 14px;
 }
 
-.filter-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
-  width: 100%;
-  max-width: 480px;
-}
-
-.filter-stack .search {
-  margin-top: 0;
-  width: 100%;
-}
-
-.filter-stack select {
-  width: 100%;
-}
-
 .page-content {
-  max-width: 900px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 24px;
 }
