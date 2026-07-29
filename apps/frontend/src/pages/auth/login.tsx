@@ -5,19 +5,19 @@ import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { refresh } = useAuth();
+  const { showToast } = useToast();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError('');
     try {
       const r = await api<{ user: { role: string } }>('/auth/login', {
         method: 'POST',
@@ -28,7 +28,7 @@ export default function Login() {
         r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/customer',
       );
     } catch (err) {
-      setError((err as Error).message);
+      showToast((err as Error).message, 'error');
       setBusy(false);
     }
   }
@@ -64,7 +64,6 @@ export default function Login() {
           <button type="submit" disabled={busy}>
             {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
           </button>
-          {error && <p className="error">{error}</p>}
         </form>
         <div className="register-link">
           Don&apos;t have an account? <Link href="/auth/register">Register</Link>
