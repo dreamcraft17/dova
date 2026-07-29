@@ -268,6 +268,11 @@ textarea {
   transform: translateY(-2px);
 }
 
+a.button,
+a.button:visited {
+  color: #fff;
+}
+
 .button.small {
   padding: 10px 20px;
   font-size: 14px;
@@ -581,7 +586,7 @@ textarea {
 /* ========== MARKETPLACE / SHARED ========== */
 .page-head,
 .form-page {
-  max-width: 900px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 64px 24px 28px;
 }
@@ -925,6 +930,23 @@ form .button {
   font-weight: 600;
 }
 
+.filter-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.filter-stack .search {
+  margin-top: 0;
+  width: 100%;
+}
+
+.filter-stack select {
+  width: 100%;
+}
+
 /* ========== BREAKPOINTS (enhance up from mobile) ========== */
 @media (min-width: 640px) {
   .grid {
@@ -969,6 +991,21 @@ form .button {
 }
 
 @media (min-width: 900px) {
+  .filter-stack {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .filter-stack .search {
+    flex: 1;
+    width: auto;
+  }
+
+  .filter-stack select {
+    width: auto;
+    min-width: 180px;
+  }
+
   .header {
     min-height: 76px;
     padding: 10px var(--pad-x);
@@ -1084,6 +1121,12 @@ form .button {
 @media (min-width: 1100px) {
   .grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .grid {
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 
@@ -1987,4 +2030,294 @@ form .button {
 .is-busy > :not(.loading-overlay) {
   pointer-events: none;
   opacity: 0.55;
+}
+
+/* ========== PRODUCT CARD (reusable component) ========== */
+.product-card--featured,
+.product-card--grid {
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  text-align: left;
+  transition: 0.3s;
+  border: none;
+  color: inherit;
+}
+
+.product-card--featured:hover,
+.product-card--grid:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Image */
+.product-card--featured .pc-image,
+.product-card--grid .pc-image {
+  width: 100%;
+  background: var(--mint);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.product-card--featured .pc-image {
+  height: 200px;
+}
+
+.product-card--grid .pc-image {
+  height: 180px;
+}
+
+.product-card--featured .pc-image img,
+.product-card--grid .pc-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: 0.4s;
+}
+
+.product-card--featured:hover .pc-image img,
+.product-card--grid:hover .pc-image img {
+  transform: scale(1.05);
+}
+
+/* Body */
+.product-card--featured .pc-body,
+.product-card--grid .pc-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Category label (grid only) */
+.pc-category {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px;
+}
+
+/* Title */
+.pc-title {
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  line-height: 1.3;
+}
+
+/* Description (featured only) */
+.pc-desc {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0 0 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Meta (supplier + stars) */
+.pc-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+/* Price */
+.pc-price {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--green);
+  margin: 0 0 4px;
+}
+
+/* Stock (grid only) */
+.pc-stock {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 0;
+}
+
+/* CTA button (featured only) */
+.pc-cta {
+  margin-top: auto;
+  padding-top: 10px;
+  align-self: flex-start;
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.page-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.page-content .grid {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* ========== MODAL ========== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  position: relative;
+  width: min(100%, 440px);
+  max-height: 90dvh;
+  overflow-y: auto;
+  animation: modal-in 0.2s ease;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 0;
+  width: auto;
+}
+
+.modal-close:hover {
+  background: var(--mint);
+  color: var(--green);
+}
+
+/* ========== TOAST ========== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 240px;
+  max-width: 360px;
+  pointer-events: all;
+  animation: toast-in 0.25s ease;
+  border-left: 4px solid var(--green);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-success {
+  border-left-color: var(--green);
+}
+
+.toast-error {
+  border-left-color: #e53e3e;
+}
+
+.toast-warning {
+  border-left-color: var(--gold);
+}
+
+.toast-info {
+  border-left-color: #3182ce;
+}
+
+.toast-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  color: var(--ink);
+}
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+  width: auto;
+  margin-top: 0;
+}
+
+.toast-dismiss:hover {
+  color: var(--ink);
+}
+
+@media (max-width: 480px) {
+  .toast-container {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
+  .toast {
+    max-width: 100%;
+  }
 }

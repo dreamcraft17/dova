@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { FeaturedGridSkeleton } from '../components/Loading';
+import { ProductCard } from '../components/ProductCard';
+import type { ProductCardItem } from '../components/ProductCard';
 import { api } from '../lib/api';
 import type { Product } from 'dova-shared';
 
@@ -74,9 +76,7 @@ const FALLBACK_FEATURED = [
 ];
 
 export default function Home() {
-  const [featured, setFeatured] = useState<
-    { id: string; name: string; description: string; imageUrl: string; price: number; href: string }[]
-  >(FALLBACK_FEATURED);
+  const [featured, setFeatured] = useState<ProductCardItem[]>(FALLBACK_FEATURED);
   const [featuredLoading, setFeaturedLoading] = useState(true);
 
   useEffect(() => {
@@ -152,23 +152,7 @@ export default function Home() {
         ) : (
         <div className="featured-grid">
           {featured.map((p) => (
-            <Link href={p.href} className="product-card" key={p.id}>
-              <div className="product-image">
-                <img src={p.imageUrl} alt={p.name} />
-              </div>
-              <div className="card-body">
-                <h3>{p.name}</h3>
-                <p className="card-text">{p.description}</p>
-                <p className="origin-meta">
-                  <span>📍 Verified supplier</span>
-                  <span className="stars">★★★★★</span>
-                </p>
-                {p.price > 0 && (
-                  <p className="price">₦ {p.price.toLocaleString('en-NG')}</p>
-                )}
-                <span className="button small">View Details →</span>
-              </div>
-            </Link>
+            <ProductCard key={p.id} product={p} variant="featured" />
           ))}
         </div>
         )}

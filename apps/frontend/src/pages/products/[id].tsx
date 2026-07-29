@@ -3,28 +3,55 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../../components/Layout';
 import { Loading } from '../../components/Loading';
+import { LoginModal } from '../../components/LoginModal';
 import { api } from '../../lib/api';
 import type { Product } from 'dova-shared';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function Detail() {
   const r = useRouter();
   const [p, setP] = useState<Product>();
   const [qty, setQty] = useState(1);
-  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const { refresh } = useCart();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { refresh: refreshCart } = useCart();
+  const { user } = useAuth();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (r.query.id) {
       setLoading(true);
       api<Product>(`/products/${r.query.id}`)
         .then(setP)
-        .catch((e) => setMessage(e.message))
+        .catch((e) => showToast(e.message, 'error'))
         .finally(() => setLoading(false));
     }
   }, [r.query.id]);
+
+  async function addToCart() {
+    if (!user) {
+      showToast('Please login to add items to your cart.', 'info');
+      setShowLoginModal(true);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await api('/cart/add', {
+        method: 'POST',
+        body: JSON.stringify({ productId: p!.id, quantity: qty }),
+      });
+      await refreshCart();
+      showToast(`${p!.name} added to cart!`, 'success');
+    } catch (e) {
+      showToast((e as Error).message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -38,7 +65,7 @@ export default function Detail() {
     return (
       <Layout>
         <section className="page-head">
-          <p className="error">{message || 'Product not found.'}</p>
+          <p className="error">Product not found.</p>
         </section>
       </Layout>
     );
@@ -75,33 +102,21 @@ export default function Detail() {
                   setQty(Math.max(1, Math.min(p.stockQuantity, Number(e.target.value))))
                 }
               />
-              <button
-                className="button"
-                disabled={busy}
-                onClick={() => {
-                  setBusy(true);
-                  setMessage('');
-                  api('/cart/add', {
-                    method: 'POST',
-                    body: JSON.stringify({ productId: p.id, quantity: qty }),
-                  })
-                    .then(async () => {
-                      await refresh();
-                      setMessage('Added to cart');
-                    })
-                    .catch((e) => setMessage(e.message))
-                    .finally(() => setBusy(false));
-                }}
-              >
+              <button className="button" disabled={busy} onClick={addToCart}>
                 {busy ? <Loading label="Adding…" inline size="sm" /> : 'Add to cart'}
               </button>
             </div>
           ) : (
             <p className="error">Out of stock</p>
           )}
-          <p>{message}</p>
         </div>
       </section>
+
+      <LoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={addToCart}
+      />
     </Layout>
   );
 }
