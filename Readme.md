@@ -139,30 +139,28 @@ DOVA keeps the marketplace stack (Nest + Next). Product feedback runs as **FeedL
 - FeedLog stays updatable from upstream MIT repo
 - DOVA go-live (Paystack / staging) stays unblocked
 
-### Local
+### Local / dev
 
 1. Start DOVA as usual (`npm run dev` → API `:3000`, web `:3001`).
-2. In a second terminal, from the sibling repo:
+2. For **Feedback** links, pick one (no Docker on dev machines):
 
-```bash
-cd ../feedlog
-pnpm install
-# Needs Postgres 17+ with pgvector — see feedlog README / compose.yml
-pnpm dev -- --port 3010
-```
-
-3. Enable links in DOVA frontend:
+| Option | Setup |
+|--------|--------|
+| **Quick** | `NEXT_PUBLIC_FEEDLOG_URL=https://feedback.feedlog.ai` in `apps/frontend/.env.local` |
+| **Self-host** | Deploy FeedLog to Vercel/Cloudflare with Neon/Supabase Postgres (`vector` ext), then set that URL |
 
 ```bash
 # apps/frontend/.env.local
-NEXT_PUBLIC_FEEDLOG_URL=http://localhost:3010
+NEXT_PUBLIC_FEEDLOG_URL=https://feedback.feedlog.ai
 ```
 
-4. Restart the frontend. Nav + footer show **Feedback** / **Feedback & Roadmap**.
+3. Restart the frontend. Nav + footer show **Feedback** / **Feedback & Roadmap**.
+
+To run FeedLog `pnpm dev` locally, use a **remote** `DATABASE_URL` (Neon/Supabase) in `../feedlog/.env` — not local Docker.
 
 ### Production
 
-- Deploy FeedLog separately (Docker / Vercel / Cloudflare — see `../feedlog/README.md`).
+- Deploy FeedLog to **Vercel** or **Cloudflare Workers** (see `../feedlog/README.md`).
 - Point a subdomain, e.g. `https://feedback.your-dova-domain`.
 - Set `NEXT_PUBLIC_FEEDLOG_URL` on the Vercel/frontend build to that URL and rebuild.
 
