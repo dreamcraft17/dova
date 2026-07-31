@@ -116,14 +116,63 @@ DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_U
 | Supplier | `/supplier` — products (image upload), stock, orders |
 | Admin | `/admin` — users, suppliers, products, orders, contacts |
 
+**Feedback (FeedLog):** optional sibling app for public feedback / roadmap / changelog.  
+Set `NEXT_PUBLIC_FEEDLOG_URL` on the frontend to show **Feedback** in nav + footer.
+
 **Minimum order (NGN):** pickup **₦3,000** · delivery **₦5,000**.  
 Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock** flow (no real charges).
 
 ---
 
+## Feedback (FeedLog) — recommended integration
+
+DOVA keeps the marketplace stack (Nest + Next). Product feedback runs as **FeedLog** (Nuxt) next to it — not merged into this monorepo.
+
+| Piece | Role |
+|-------|------|
+| DOVA | Buy / sell / Paystack |
+| FeedLog (`../feedlog`) | Ideas, votes, roadmap, changelog |
+
+### Why this shape
+
+- No Nuxt-into-Nest rewrite
+- FeedLog stays updatable from upstream MIT repo
+- DOVA go-live (Paystack / staging) stays unblocked
+
+### Local
+
+1. Start DOVA as usual (`npm run dev` → API `:3000`, web `:3001`).
+2. In a second terminal, from the sibling repo:
+
+```bash
+cd ../feedlog
+pnpm install
+# Needs Postgres 17+ with pgvector — see feedlog README / compose.yml
+pnpm dev -- --port 3010
+```
+
+3. Enable links in DOVA frontend:
+
+```bash
+# apps/frontend/.env.local
+NEXT_PUBLIC_FEEDLOG_URL=http://localhost:3010
+```
+
+4. Restart the frontend. Nav + footer show **Feedback** / **Feedback & Roadmap**.
+
+### Production
+
+- Deploy FeedLog separately (Docker / Vercel / Cloudflare — see `../feedlog/README.md`).
+- Point a subdomain, e.g. `https://feedback.your-dova-domain`.
+- Set `NEXT_PUBLIC_FEEDLOG_URL` on the Vercel/frontend build to that URL and rebuild.
+
+SSO between DOVA accounts and FeedLog is **out of scope** for this MVP wiring; users open FeedLog and sign in there (or later via FeedLog SSO secrets).
+
+---
+
 ## Deployment
 
-- **Frontend:** Vercel (`vercel.json`). Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`).
+- **Frontend:** Vercel (`vercel.json`). Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`). Optionally set `NEXT_PUBLIC_FEEDLOG_URL` for feedback links.
 - **Backend:** Node.js host (e.g. PM2) with `USE_IN_MEMORY=false`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `FRONTEND_URL`, `PAYSTACK_*`.
 - After deploy: `npm run db:migrate`, then `npm run smoke:week4` against the public API.
 - No Docker required for this MVP path.

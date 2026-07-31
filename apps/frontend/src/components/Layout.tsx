@@ -3,6 +3,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { getFeedlogUrl } from '../lib/feedlog';
 
 export function Layout({
   children,
@@ -16,6 +17,7 @@ export function Layout({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
+  const feedlogUrl = getFeedlogUrl();
   const dash =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
 
@@ -57,6 +59,11 @@ export function Layout({
       <Link href="/contact" onClick={() => setMenuOpen(false)}>
         Contact Us
       </Link>
+      {feedlogUrl ? (
+        <a href={feedlogUrl} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>
+          Feedback
+        </a>
+      ) : null}
       <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
         Cart{count > 0 && <sup className="cart-count">{count}</sup>}
       </Link>
@@ -162,6 +169,13 @@ export function Layout({
               <li>
                 <Link href="/contact">Contact Us</Link>
               </li>
+              {feedlogUrl ? (
+                <li>
+                  <a href={feedlogUrl} target="_blank" rel="noopener noreferrer">
+                    Feedback &amp; Roadmap
+                  </a>
+                </li>
+              ) : null}
             </ul>
           </div>
           <div>
