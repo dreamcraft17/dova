@@ -6,7 +6,8 @@ export type FulfillmentType = 'pickup' | 'delivery';
 export interface User { id: string; email: string; fullName: string; phoneNumber?: string; role: Role; isActive: boolean; createdAt: string; }
 export interface Category { id: string; name: string; }
 export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; isActive: boolean; }
-export interface CartItem { id: string; product: Product; quantity: number; subtotal: number; }
+export type DeliverySlot = 'morning' | 'evening';
+export interface CartItem { id: string; product: Product; quantity: number; subtotal: number; deliverySlot: DeliverySlot; }
 export interface Cart { items: CartItem[]; total: number; }
 export interface OrderItem { id: string; product: Product; quantity: number; unitPrice: number; subtotal: number; supplierOrderStatus: string; }
 export interface Order {

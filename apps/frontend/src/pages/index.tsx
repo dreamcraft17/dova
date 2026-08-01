@@ -21,7 +21,7 @@ const HOW = [
   {
     icon: '🚚',
     title: 'Receive Fresh Delivery',
-    text: 'Sit back and enjoy high-quality agricultural products delivered to your location.',
+    text: 'Order today before 6:00 PM and receive high-quality agricultural products delivered fresh to your location tomorrow.',
   },
 ] as const;
 
@@ -122,10 +122,19 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="delivery-banner">
+        <span className="delivery-banner-icon">🚚</span>
+        <div>
+          <strong>Order today, delivered tomorrow.</strong>
+          <span> Place your order before 6:00 PM for next-day delivery.</span>
+        </div>
+      </section>
+
       <section className="trust-strip">
         <span>✓ Verified suppliers</span>
         <span>✓ Fair market pricing</span>
         <span>✓ Reliable delivery</span>
+        <span>🚚 Next-day delivery</span>
       </section>
 
       <section className="section">
