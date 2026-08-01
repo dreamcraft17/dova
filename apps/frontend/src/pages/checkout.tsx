@@ -151,7 +151,7 @@ export default function Checkout() {
               {cart.items.map((i) => (
                 <div className="summary-item" key={i.id}>
                   <span>
-                    {i.product.name} × {i.quantity}
+                    {i.product.name} × {Number.isInteger(i.quantity) ? i.quantity : i.quantity.toFixed(2)} kg
                   </span>
                   <span>₦ {i.subtotal.toLocaleString('en-NG')}</span>
                 </div>
