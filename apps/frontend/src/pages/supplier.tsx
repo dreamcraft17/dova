@@ -42,6 +42,12 @@ function productBadge(p: Product) {
   return { className: 'muted', label: 'Hidden' };
 }
 
+function supplierStatusBadge(status: string) {
+  if (status === 'approved') return { className: 'success', label: 'Approved' };
+  if (status === 'rejected') return { className: 'muted', label: 'Rejected' };
+  return { className: 'warn', label: 'Pending review' };
+}
+
 export default function Supplier() {
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');
@@ -56,9 +62,11 @@ export default function Supplier() {
   const [actionBusy, setActionBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [supplierInfo, setSupplierInfo] = useState<{
+    id: string;
     status: string;
     businessName: string;
     rejectionReason?: string;
+    documentUrl?: string;
   }>();
 
   const revenue = useMemo(
@@ -79,7 +87,13 @@ export default function Supplier() {
   };
 
   useEffect(() => {
-    void api<{ status: string; businessName: string; rejectionReason?: string }>('/suppliers/status')
+    void api<{
+      id: string;
+      status: string;
+      businessName: string;
+      rejectionReason?: string;
+      documentUrl?: string;
+    }>('/suppliers/status')
       .then((info) => {
         setSupplierInfo(info);
         if (info.status === 'approved') return load();
@@ -537,6 +551,121 @@ export default function Supplier() {
                     </table>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+
+          {tab === 'profile' && (
+            <>
+              <h2 className="supplier-dash-title">Profile</h2>
+              <p className="supplier-dash-subtitle">Your account and business information.</p>
+
+              <div className="supplier-dash-profile-grid">
+                <div className="supplier-dash-panel supplier-dash-profile-card">
+                  <h3>Account</h3>
+                  <dl>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Full name</dt>
+                      <dd>{user?.fullName || '—'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Email</dt>
+                      <dd>{user?.email || '—'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Phone</dt>
+                      <dd>{user?.phoneNumber || '—'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Role</dt>
+                      <dd>{user?.role || 'supplier'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Account status</dt>
+                      <dd>
+                        <span
+                          className={`supplier-dash-badge ${user?.isActive ? 'success' : 'muted'}`}
+                        >
+                          {user?.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="supplier-dash-panel supplier-dash-profile-card">
+                  <h3>Business</h3>
+                  <dl>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Business name</dt>
+                      <dd>{supplierInfo?.businessName || '—'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Supplier ID</dt>
+                      <dd>{supplierInfo?.id || '—'}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Verification</dt>
+                      <dd>
+                        {supplierInfo ? (
+                          <span
+                            className={`supplier-dash-badge ${supplierStatusBadge(supplierInfo.status).className}`}
+                          >
+                            {supplierStatusBadge(supplierInfo.status).label}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </dd>
+                    </div>
+                    {supplierInfo?.documentUrl && (
+                      <div className="supplier-dash-profile-row">
+                        <dt>Document</dt>
+                        <dd>
+                          <a href={supplierInfo.documentUrl} target="_blank" rel="noreferrer">
+                            View uploaded document
+                          </a>
+                        </dd>
+                      </div>
+                    )}
+                    {supplierInfo?.rejectionReason && (
+                      <div className="supplier-dash-profile-row">
+                        <dt>Rejection reason</dt>
+                        <dd>{supplierInfo.rejectionReason}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+
+                <div className="supplier-dash-panel supplier-dash-profile-card">
+                  <h3>Store summary</h3>
+                  <dl>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Products listed</dt>
+                      <dd>{products.length}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Orders received</dt>
+                      <dd>{orders.length}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Total order value</dt>
+                      <dd>₦ {revenue.toLocaleString('en-NG')}</dd>
+                    </div>
+                    <div className="supplier-dash-profile-row">
+                      <dt>Member since</dt>
+                      <dd>
+                        {user?.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString('en-NG', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })
+                          : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
               </div>
             </>
           )}

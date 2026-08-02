@@ -452,7 +452,28 @@
   gap: 7px;
 }
 
+.supplier-dash-nav a {
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: 0.3s ease;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+}
+
 .supplier-dash-nav button:hover {
+  background: #fff;
+  color: #176b4b;
+}
+
+.supplier-dash-nav a:hover {
   background: #fff;
   color: #176b4b;
 }
@@ -752,6 +773,56 @@
 
 .supplier-dash-busy {
   position: relative;
+}
+
+.supplier-dash-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.supplier-dash-profile-card {
+  padding: 28px;
+}
+
+.supplier-dash-profile-card h3 {
+  color: #176b4b;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef6f2;
+}
+
+.supplier-dash-profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.supplier-dash-profile-row:last-child {
+  border-bottom: none;
+}
+
+.supplier-dash-profile-row dt {
+  color: #777;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.supplier-dash-profile-row dd {
+  color: #222;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  text-align: right;
+}
+
+.supplier-dash-profile-row dd a {
+  color: #176b4b;
 }
 
 @keyframes dashFadeUp {

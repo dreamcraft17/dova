@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
 import { RequireAuth } from '../components/RequireAuth';
+import { FeedlogLink } from '../components/FeedlogLink';
+import { isFeedlogEnabled } from '../lib/feedlog';
 import { api } from '../lib/api';
 import type { Order } from 'dova-shared';
 
@@ -25,6 +27,17 @@ export default function Customer() {
             <h1>Your Orders</h1>
             <p>Track and review everything you have ordered on DOVA.</p>
           </div>
+          {isFeedlogEnabled() ? (
+            <div className="feedlog-callout">
+              <div>
+                <h2>Share feedback</h2>
+                <p>Suggest features, report issues, and vote on the DOVA roadmap.</p>
+              </div>
+              <FeedlogLink isLoggedIn className="button">
+                Open Feedback Board
+              </FeedlogLink>
+            </div>
+          ) : null}
           <div className="orders-table" style={{ maxWidth: 1000, margin: '0 auto' }}>
             {loading ? (
               <Loading label="Loading your orders…" block />

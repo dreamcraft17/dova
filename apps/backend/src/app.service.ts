@@ -7,6 +7,7 @@ import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { buildFeedlogSsoRedirectUrl, normalizeFeedlogBaseUrl } from './feedlog.util';
 
 type UserRecord = StoredUser;
 type Supplier = { id: string; userId: string; businessName: string; phone: string; status: SupplierStatus; documentUrl?: string; };
@@ -182,4 +183,14 @@ export class AppService {
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }
   async makeSupplierUser(body: any) { if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data'); if (await this.findUser(body.email) || this.suppliers.some(s => this.users.find(u => u.id === s.userId)?.email === body.email.toLowerCase())) throw new BadRequestException('Email already registered'); const user = this.makeUser(body.email.toLowerCase(), body.contactName || body.businessName, 'supplier', body.password); this.users.push(user); const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl }; this.suppliers.push(supplier); await this.database.insertUser(user); await this.database.insertSupplierProfile(supplier); return { id: supplier.id, status: 'pending', message: "Application submitted. We'll review it shortly.", reference: supplier.id, emailNotification: 'queued' }; }
+  feedlogBaseUrl() { return normalizeFeedlogBaseUrl(process.env.FEEDLOG_BASE_URL); }
+  buildFeedlogSsoRedirect(user: UserRecord, returnTo?: string) {
+    const baseUrl = this.feedlogBaseUrl();
+    if (!baseUrl) throw new BadRequestException('FeedLog is not configured');
+    return buildFeedlogSsoRedirectUrl(user, {
+      baseUrl,
+      secret: process.env.FEEDLOG_SSO_SECRET,
+      returnTo,
+    });
+  }
 }

@@ -61,4 +61,13 @@ export class AppController {
   @Get('admin/orders') async adminOrders(@Req() req: Request, @Query('status') status = '', @Query('search') search = '') { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminOrders(status, search); }
   @Get('admin/contacts') async adminContacts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.listContacts(); }
   @Post('contact') contact(@Body() body: ContactDto) { return this.service.submitContact(body); }
+  @Get('feedback/sso') async feedlogSso(@Req() req: Request, @Query('return_to') returnTo = '/', @Res() res: Response) {
+    const u = await this.auth(req);
+    const url = this.service.buildFeedlogSsoRedirect(u, returnTo);
+    return res.redirect(302, url);
+  }
+  @Get('feedback/config') feedlogConfig() {
+    const enabled = Boolean(this.service.feedlogBaseUrl());
+    return { enabled, sso: Boolean(process.env.FEEDLOG_SSO_SECRET?.trim()) };
+  }
 }
