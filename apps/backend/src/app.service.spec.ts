@@ -1,6 +1,12 @@
 import { JwtService } from '@nestjs/jwt';
-import { BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { AppService } from './app.service';
+
+const SLOT = 'morning' as const;
+
+function addToCart(service: AppService, userId: string, productId: string, quantity: number, deliverySlot: 'morning' | 'evening' = SLOT) {
+  return service.addCart(userId, productId, quantity, deliverySlot);
+}
 
 function makeService() {
   const database = {
@@ -123,23 +129,48 @@ describe('AppService', () => {
     it('adds a product to cart and calculates totals', async () => {
       const { service } = makeService();
       const product = service.products[0];
-      const cart = await service.addCart('customer-id', product.id, 2);
+      const cart = await addToCart(service, 'customer-id', product.id, 2);
       expect(cart.items).toHaveLength(1);
       expect(cart.items[0].subtotal).toBe(product.price * 2);
+      expect(cart.items[0].deliverySlot).toBe('morning');
       expect(cart.total).toBe(product.price * 2);
+    });
+
+    it('stores and updates delivery slot on cart items', async () => {
+      const { service } = makeService();
+      const product = service.products[0];
+      const cart = await addToCart(service, 'slot-customer', product.id, 1, 'evening');
+      expect(cart.items[0].deliverySlot).toBe('evening');
+
+      const merged = await addToCart(service, 'slot-customer', product.id, 1, 'morning');
+      expect(merged.items).toHaveLength(1);
+      expect(merged.items[0].deliverySlot).toBe('morning');
+
+      const itemId = merged.items[0].id;
+      const updated = await service.updateCart('slot-customer', itemId, 3, 'evening');
+      expect(updated.items[0].quantity).toBe(3);
+      expect(updated.items[0].deliverySlot).toBe('evening');
+    });
+
+    it('rejects invalid cart quantity updates', async () => {
+      const { service } = makeService();
+      const product = service.products[0];
+      const cart = await addToCart(service, 'qty-customer', product.id, 1);
+      await expect(service.updateCart('qty-customer', cart.items[0].id, 0)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.updateCart('qty-customer', 'missing-item', 1)).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('rejects quantities above stock', async () => {
       const { service } = makeService();
       const product = service.products[0];
-      await expect(service.addCart('customer-id', product.id, product.stockQuantity + 1)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(addToCart(service, 'customer-id', product.id, product.stockQuantity + 1)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('creates an order and clears the customer cart', async () => {
       const { service } = makeService();
       const customerId = 'customer-id';
       const product = service.products[0];
-      await service.addCart(customerId, product.id, 2);
+      await addToCart(service, customerId, product.id, 2);
       const order = await service.createOrder(customerId, { deliveryName: 'Jane Doe', deliveryAddress: 'Jakarta', deliveryPhone: '+62000000000', fulfillmentType: 'delivery' });
 
       expect(order.status).toBe('pending');
@@ -154,13 +185,37 @@ describe('AppService', () => {
       const { service } = makeService();
       const customerId = 'min-order-customer';
       service.products[0].price = 1000;
-      await service.addCart(customerId, service.products[0].id, 1);
+      await addToCart(service, customerId, service.products[0].id, 1);
       await expect(
         service.createOrder(customerId, {
           deliveryName: 'Jane',
           deliveryAddress: 'Lagos',
           deliveryPhone: '0812345678',
           fulfillmentType: 'delivery',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('allows pickup checkout at the pickup minimum and rejects below it', async () => {
+      const { service } = makeService();
+      const customerId = 'pickup-min-customer';
+      service.products[0].price = 3000;
+      await addToCart(service, customerId, service.products[0].id, 1);
+      const order = await service.createOrder(customerId, {
+        deliveryName: 'Jane',
+        deliveryPhone: '0812345678',
+        fulfillmentType: 'pickup',
+      });
+      expect(order.fulfillmentType).toBe('pickup');
+      expect(order.deliveryAddress).toBe('Pickup at DOVA hub');
+
+      service.products[1].price = 2000;
+      await addToCart(service, 'pickup-below-min', service.products[1].id, 1);
+      await expect(
+        service.createOrder('pickup-below-min', {
+          deliveryName: 'Jane',
+          deliveryPhone: '0812345678',
+          fulfillmentType: 'pickup',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -182,7 +237,7 @@ describe('AppService', () => {
       try {
         const { service } = makeService();
         const customerId = 'payment-customer';
-        await service.addCart(customerId, service.products[0].id, 1);
+        await addToCart(service, customerId, service.products[0].id, 1);
         const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
         const payment = await service.initializePayment(customerId, order.id, order.totalAmount);
         expect(payment.mode).toBe('mock');
@@ -199,7 +254,7 @@ describe('AppService', () => {
       try {
         const { service } = makeService();
         const customerId = 'idempotent-payment-customer';
-        await service.addCart(customerId, service.products[0].id, 1);
+        await addToCart(service, customerId, service.products[0].id, 1);
         const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
         const first = await service.initializePayment(customerId, order.id, order.totalAmount);
         const second = await service.initializePayment(customerId, order.id, order.totalAmount);
@@ -238,7 +293,7 @@ describe('AppService', () => {
       const supplier = service.users.find(user => user.role === 'supplier')!;
       const customer = service.users.find(user => user.role === 'admin')!;
       const product = service.products[0];
-      await service.addCart(customer.id, product.id, 1);
+      await addToCart(service, customer.id, product.id, 1);
       const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
       const item = order.items[0];
       await expect(service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped')).rejects.toThrow('Invalid status transition');

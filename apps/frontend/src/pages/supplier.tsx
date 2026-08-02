@@ -3,6 +3,14 @@ import { Layout } from '../components/Layout';
 import { RequireAuth } from '../components/RequireAuth';
 import { DashboardShell } from '../components/DashboardShell';
 import { Loading, LoadingOverlay } from '../components/Loading';
+import {
+  IconBox,
+  IconCart,
+  IconClipboard,
+  IconHome,
+  IconMoney,
+  IconPlusSquare,
+} from '../components/DashboardIcons';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Category, Product } from 'dova-shared';
@@ -22,11 +30,17 @@ type SupplierOrder = {
 const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', imageUrl: '' };
 
 const NAV = [
-  { id: 'overview', label: 'Dashboard' },
-  { id: 'products', label: 'Products' },
-  { id: 'add', label: 'Add Product' },
-  { id: 'orders', label: 'Orders' },
+  { id: 'overview', label: 'Dashboard', icon: <IconHome /> },
+  { id: 'products', label: 'Products', icon: <IconBox /> },
+  { id: 'add', label: 'Add Product', icon: <IconPlusSquare /> },
+  { id: 'orders', label: 'Orders', icon: <IconCart /> },
 ];
+
+function productBadge(p: Product) {
+  if (p.stockQuantity < 20) return { className: 'warn', label: 'Low Stock' };
+  if (p.isActive) return { className: 'success', label: 'Available' };
+  return { className: 'muted', label: 'Hidden' };
+}
 
 export default function Supplier() {
   const { user } = useAuth();
@@ -195,137 +209,186 @@ export default function Supplier() {
   return (
     <Layout chrome="none">
       <RequireAuth roles={['supplier', 'admin']}>
-        <DashboardShell title="DOVA" items={NAV} active={tab} onSelect={setTab}>
+        <DashboardShell
+          variant="supplier"
+          title="DOVA SUPPLIER"
+          subtitle="Dashboard Supplier"
+          items={NAV}
+          active={tab}
+          onSelect={setTab}
+        >
           {message && <p className={message.includes('saved') ? '' : 'error'}>{message}</p>}
 
           {tab === 'overview' && (
             <>
-              <h1>Supplier Dashboard</h1>
-              <p className="lead-muted">
+              <h2 className="supplier-dash-title">Supplier Dashboard</h2>
+              <p className="supplier-dash-subtitle">
                 Welcome back{user?.fullName ? `, ${user.fullName}` : ''}
                 {supplierInfo?.businessName ? ` · ${supplierInfo.businessName}` : ''}
               </p>
-              <div className="dashboard-cards">
-                <div className="dash-card">
-                  <h2>{products.length}</h2>
-                  <p>Total Products</p>
+
+              <div className="supplier-dash-stats">
+                <div className="supplier-dash-stat-card">
+                  <div className="supplier-dash-stat-body">
+                    <div className="supplier-dash-icon-circle orange">
+                      <IconBox />
+                    </div>
+                    <h3>{products.length}</h3>
+                    <p>Total Products</p>
+                  </div>
                 </div>
-                <div className="dash-card">
-                  <h2>{orders.length}</h2>
-                  <p>Total Orders</p>
+                <div className="supplier-dash-stat-card">
+                  <div className="supplier-dash-stat-body">
+                    <div className="supplier-dash-icon-circle purple">
+                      <IconClipboard />
+                    </div>
+                    <h3>{orders.length}</h3>
+                    <p>Total Orders</p>
+                  </div>
                 </div>
-                <div className="dash-card">
-                  <h2>₦ {revenue.toLocaleString('en-NG')}</h2>
-                  <p>Order Value</p>
+                <div className="supplier-dash-stat-card">
+                  <div className="supplier-dash-stat-body">
+                    <div className="supplier-dash-icon-circle green">
+                      <IconMoney />
+                    </div>
+                    <h3>₦ {revenue.toLocaleString('en-NG')}</h3>
+                    <p>Order Value</p>
+                  </div>
                 </div>
               </div>
-              <div className="recent-products">
-                <h2>Recent Products</h2>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Category</th>
-                      <th>Stock</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.slice(0, 8).map((p) => (
-                      <tr key={p.id}>
-                        <td data-label="Product">{p.name}</td>
-                        <td data-label="Category">{p.categoryName}</td>
-                        <td data-label="Stock">{p.stockQuantity}</td>
-                        <td data-label="Status">
-                          {p.stockQuantity < 20
-                            ? 'Low Stock'
-                            : p.isActive
-                              ? 'Available'
-                              : 'Hidden'}
-                        </td>
-                      </tr>
-                    ))}
-                    {products.length === 0 && (
+
+              <div className="supplier-dash-panel">
+                <div className="supplier-dash-panel-header">
+                  <span>Recent Products</span>
+                  <button
+                    type="button"
+                    className="supplier-dash-view-btn"
+                    onClick={() => setTab('products')}
+                  >
+                    View All
+                  </button>
+                </div>
+                <div className="supplier-dash-table-wrap">
+                  <table>
+                    <thead>
                       <tr>
-                        <td colSpan={4}>No products yet. Add your first product.</td>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Status</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {products.slice(0, 8).map((p) => {
+                        const badge = productBadge(p);
+                        return (
+                          <tr key={p.id}>
+                            <td>{p.name}</td>
+                            <td>{p.categoryName}</td>
+                            <td>{p.stockQuantity}</td>
+                            <td>
+                              <span className={`supplier-dash-badge ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {products.length === 0 && (
+                        <tr>
+                          <td colSpan={4}>No products yet. Add your first product.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
 
           {tab === 'products' && (
             <>
-              <h1>Your Products</h1>
-              <p className="lead-muted">Manage stock and listings ({products.length}).</p>
-              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+              <h2 className="supplier-dash-title">Your Products</h2>
+              <p className="supplier-dash-subtitle">Manage stock and listings ({products.length}).</p>
+              <div className={`supplier-dash-panel${actionBusy ? ' supplier-dash-busy' : ''}`}>
                 {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Price</th>
-                      <th>Stock</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {products.map((p) => (
-                      <tr key={p.id}>
-                        <td data-label="Product">{p.name}</td>
-                        <td data-label="Price">₦ {p.price.toLocaleString('en-NG')}</td>
-                        <td data-label="Stock">{p.stockQuantity}</td>
-                        <td data-label="Status">{p.isActive ? 'Active' : 'Hidden'}</td>
-                        <td data-label="Actions">
-                          <div className="product-actions">
-                            <button
-                              className="button small"
-                              disabled={actionBusy}
-                              onClick={() => startEdit(p)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="button small"
-                              disabled={actionBusy}
-                              onClick={() => void stock(p.id, 'restock')}
-                            >
-                              + Stock
-                            </button>
-                            <button
-                              className="button small"
-                              disabled={actionBusy}
-                              onClick={() => void stock(p.id, 'damage')}
-                            >
-                              − Stock
-                            </button>
-                            <button
-                              className="button small secondary"
-                              disabled={actionBusy}
-                              onClick={() => void remove(p.id)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </td>
+                <div className="supplier-dash-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {products.map((p) => {
+                        const badge = productBadge(p);
+                        return (
+                          <tr key={p.id}>
+                            <td>{p.name}</td>
+                            <td>₦ {p.price.toLocaleString('en-NG')}</td>
+                            <td>{p.stockQuantity}</td>
+                            <td>
+                              <span className={`supplier-dash-badge ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="supplier-dash-actions-row">
+                                <button
+                                  type="button"
+                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                  disabled={actionBusy}
+                                  onClick={() => startEdit(p)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                  disabled={actionBusy}
+                                  onClick={() => void stock(p.id, 'restock')}
+                                >
+                                  + Stock
+                                </button>
+                                <button
+                                  type="button"
+                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                  disabled={actionBusy}
+                                  onClick={() => void stock(p.id, 'damage')}
+                                >
+                                  − Stock
+                                </button>
+                                <button
+                                  type="button"
+                                  className="supplier-dash-btn-sm supplier-dash-btn-danger"
+                                  disabled={actionBusy}
+                                  onClick={() => void remove(p.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
 
           {tab === 'add' && (
             <>
-              <h1>{editing ? 'Edit Product' : 'Add Product'}</h1>
-              <p className="lead-muted">
+              <h2 className="supplier-dash-title">{editing ? 'Edit Product' : 'Add Product'}</h2>
+              <p className="supplier-dash-subtitle">
                 {editing ? 'Update your product details.' : 'List a new product on DOVA.'}
               </p>
-              <div className="add-product-form">
+              <div className="supplier-dash-form-panel">
                 <form onSubmit={submit}>
                   <label>Name</label>
                   <input
@@ -395,7 +458,7 @@ export default function Supplier() {
                   {editing && (
                     <button
                       type="button"
-                      className="button secondary"
+                      className="supplier-dash-btn-sm supplier-dash-btn-warning"
                       style={{ marginTop: 12 }}
                       onClick={() => {
                         setEditing(undefined);
@@ -413,62 +476,66 @@ export default function Supplier() {
 
           {tab === 'orders' && (
             <>
-              <h1>Orders</h1>
-              <p className="lead-muted">Manage all customer orders for your products.</p>
-              <div className={`orders-table${actionBusy ? ' is-busy' : ''}`}>
+              <h2 className="supplier-dash-title">Orders</h2>
+              <p className="supplier-dash-subtitle">Manage all customer orders for your products.</p>
+              <div className={`supplier-dash-panel${actionBusy ? ' supplier-dash-busy' : ''}`}>
                 {actionBusy ? <LoadingOverlay label="Updating order…" /> : null}
                 {orders.length === 0 ? (
-                  <p>No incoming orders.</p>
+                  <p className="supplier-dash-subtitle" style={{ padding: '24px' }}>
+                    No incoming orders.
+                  </p>
                 ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>Product</th>
-                        <th>Qty</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((o) => (
-                        <tr key={o.itemId}>
-                          <td data-label="Order">{o.orderNumber}</td>
-                          <td data-label="Customer">
-                            {o.customerName}
-                            <br />
-                            <small className="muted">{o.deliveryAddress}</small>
-                          </td>
-                          <td data-label="Product">{o.productName}</td>
-                          <td data-label="Qty">{o.quantity}</td>
-                          <td data-label="Total">₦ {o.subtotal.toLocaleString('en-NG')}</td>
-                          <td data-label="Status">
-                            {o.status === 'delivered' ? (
-                              <span className="badge">{o.status}</span>
-                            ) : (
-                              <select
-                                value={o.status}
-                                disabled={actionBusy}
-                                onChange={(e) => void status(o.itemId, e.target.value)}
-                              >
-                                <option value={o.status}>{o.status}</option>
-                                {(o.status === 'pending' || o.status === 'paid') && (
-                                  <option value="processing">processing</option>
-                                )}
-                                {o.status === 'processing' && (
-                                  <option value="shipped">shipped</option>
-                                )}
-                                {o.status === 'shipped' && (
-                                  <option value="delivered">delivered</option>
-                                )}
-                              </select>
-                            )}
-                          </td>
+                  <div className="supplier-dash-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Customer</th>
+                          <th>Product</th>
+                          <th>Qty</th>
+                          <th>Total</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {orders.map((o) => (
+                          <tr key={o.itemId}>
+                            <td>{o.orderNumber}</td>
+                            <td>
+                              {o.customerName}
+                              <br />
+                              <small className="muted">{o.deliveryAddress}</small>
+                            </td>
+                            <td>{o.productName}</td>
+                            <td>{o.quantity}</td>
+                            <td>₦ {o.subtotal.toLocaleString('en-NG')}</td>
+                            <td>
+                              {o.status === 'delivered' ? (
+                                <span className="supplier-dash-badge success">{o.status}</span>
+                              ) : (
+                                <select
+                                  value={o.status}
+                                  disabled={actionBusy}
+                                  onChange={(e) => void status(o.itemId, e.target.value)}
+                                >
+                                  <option value={o.status}>{o.status}</option>
+                                  {(o.status === 'pending' || o.status === 'paid') && (
+                                    <option value="processing">processing</option>
+                                  )}
+                                  {o.status === 'processing' && (
+                                    <option value="shipped">shipped</option>
+                                  )}
+                                  {o.status === 'shipped' && (
+                                    <option value="delivered">delivered</option>
+                                  )}
+                                </select>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </>
