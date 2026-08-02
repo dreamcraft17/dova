@@ -1,0 +1,741 @@
+/*==========================
+      ADMIN DASHBOARD
+===========================*/
+
+
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: #f4f6f8;
+    color: #333;
+}
+
+/* ============================
+        HEADER
+============================ */
+
+header {
+    width: 100%;
+    background: #0D6A43;
+    box-shadow: 0 5px 10px rgba(0, 0, 0, .15);
+
+}
+
+.top-bar {
+
+    max-width: 1400px;
+    margin: auto;
+    margin-right: 10px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 18px;
+}
+
+/* ============================
+        LOGO
+============================ */
+
+.logo {
+
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+}
+
+.logo-text h2 {
+
+    color: white;
+
+    font-size: 26px;
+
+    letter-spacing: 1px;
+
+    font-weight: 1000;
+
+}
+
+.logo-text p {
+
+    color: #d8ece2;
+
+    font-size: 13px;
+
+    font-weight: 500;
+
+}
+
+/* ============================
+        NAVBAR
+============================ */
+
+nav {
+
+    background-color: #0D6A43;
+
+    display: flex;
+    gap: 20px;
+    height: 100px;
+    padding: 25px 20px;
+
+}
+
+nav a {
+
+    color: white;
+
+    text-decoration: none;
+
+    transition: .3s;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    font-size: 15px;
+
+    padding: 10px;
+
+    border-radius: 5px;
+}
+
+nav a:hover {
+
+    background: rgba(255, 255, 255, .15);
+
+}
+
+nav .active {
+
+    background: #D7B75B;
+
+    color: #222;
+
+    font-weight: 600;
+
+}
+
+/* ============================
+      RIGHT MENU
+============================ */
+
+.sub-menu {
+
+    display: flex;
+    gap: 10px;
+
+}
+
+.sub-menu a {
+
+    color: white;
+
+    text-decoration: none;
+
+    padding: 12px 18px;
+
+    border-radius: 10px;
+
+    transition: .3s;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+}
+
+.sub-menu a:hover {
+
+    background: rgba(255, 255, 255, .15);
+
+}
+
+/* ============================
+      CONTAINER
+============================ */
+
+.container {
+
+    max-width: 1350px;
+
+    margin: auto;
+
+    padding: 45px 30px;
+
+}
+
+/* ============================
+      TITLE
+============================ */
+
+.heading {
+
+    margin-bottom: 40px;
+
+}
+
+.title {
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+}
+
+.heading h1 {
+
+    color: #0D6A43;
+
+    font-size: 42px;
+
+    margin-bottom: 10px;
+
+}
+
+.heading p {
+
+    color: #777;
+
+    font-size: 16px;
+
+}
+
+/* ============================
+        CARDS
+============================ */
+
+.cards {
+
+    display: grid;
+
+    grid-template-columns: repeat(5, 1fr);
+
+    gap: 25px;
+
+    margin-bottom: 45px;
+
+}
+
+.card {
+
+    background: white;
+
+    border-radius: 18px;
+
+    padding: 35px 20px;
+
+    text-align: center;
+
+    box-shadow: 0 12px 25px rgba(0, 0, 0, .0.8);
+
+    transition: .3s;
+
+}
+
+.card:hover {
+
+    transform: translateY(-8px);
+
+    box-shadow: 0 20px 35px rgba(0, 0, 0, .12);
+
+}
+
+.card-icon {
+
+    width: 65px;
+
+    height: 65px;
+
+    border-radius: 50%;
+
+    margin: auto;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 24px;
+
+    color: white;
+
+    margin-bottom: 20px;
+
+}
+
+.green {
+
+    background: #2ecc71;
+
+}
+
+.blue {
+
+    background: #3498db;
+
+}
+
+.orange {
+
+    background: #f39c12;
+
+}
+
+.purple {
+
+    background: #9b59b6;
+
+}
+
+.red {
+
+    background: #e74c3c;
+
+}
+
+.card h2 {
+
+    font-size: 45px;
+
+    color: #0D6A43;
+
+    margin-bottom: 8px;
+
+}
+
+.card p {
+
+    color: #666;
+
+    font-size: 15px;
+
+}
+
+/* ============================
+        TABLE
+============================ */
+
+.table-section {
+
+    background: #fff;
+
+    border-radius: 18px;
+
+    padding: 30px;
+
+    box-shadow: 0 12px 25px rgba(0, 0, 0, .08);
+
+}
+
+.table-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 25px;
+
+}
+
+.table-header h2 {
+
+    color: #0D6A43;
+
+    font-size: 26px;
+
+}
+
+.table-header button {
+
+    background: #0D6A43;
+
+    color: white;
+
+    border: none;
+
+    padding: 12px 22px;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    transition: .3s;
+
+    font-weight: 500;
+
+}
+
+.table-header button:hover {
+
+    background: #0b5d3b;
+
+}
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    overflow: hidden;
+
+}
+
+thead {
+
+    background: #0D6A43;
+
+}
+
+thead th {
+
+    color: white;
+
+    padding: 18px;
+
+    text-align: left;
+
+    font-size: 15px;
+
+}
+
+tbody td {
+
+    padding: 18px;
+
+    border-bottom: 1px solid #ececec;
+
+    font-size: 15px;
+
+}
+
+tbody tr {
+
+    transition: .3s;
+
+}
+
+tbody tr:hover {
+
+    background: #f5f9f7;
+
+}
+
+/* ============================
+        STATUS
+============================ */
+
+.status {
+
+    padding: 8px 18px;
+
+    border-radius: 30px;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+}
+
+.status.active {
+
+    background: #d4f5df;
+
+    color: #159947;
+
+}
+
+.status.pending {
+
+    background: #fff2cf;
+
+    color: #d18b00;
+
+}
+
+/* ============================
+      RESPONSIVE
+============================ */
+
+@media(max-width:1200px) {
+
+    .cards {
+
+        grid-template-columns: repeat(3, 1fr);
+
+    }
+
+    .top-bar {
+
+        flex-direction: column;
+
+        gap: 20px;
+
+    }
+
+}
+
+@media(max-width:900px) {
+
+    .cards {
+
+        grid-template-columns: repeat(2, 1fr);
+
+    }
+
+    nav {
+
+        flex-wrap: wrap;
+
+        justify-content: center;
+
+    }
+
+    .sub-menu {
+
+        justify-content: center;
+
+    }
+
+}
+
+.logo{
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.menu-toggle{
+    display: none;
+    font-size: 24px;
+    color: #fff;
+    cursor: pointer;
+}
+
+@media (max-width:650px){
+
+    .top-bar{
+        display:flex;
+        flex-wrap:wrap;
+        justify-content:space-between;
+        align-items:center;
+        padding:20px;
+    }
+
+    .logo{
+        display: flex;
+        align-items: center;
+        flex-direction:row;
+        text-align:left;
+    }
+
+    .menu-toggle{
+        display:block;
+        color:#fff;
+        font-size:24px;
+        cursor:pointer;
+        margin-right: 10px;
+    }
+
+    nav{
+        display:none;
+        width:100%;
+        flex-direction:column;
+        background:#0D6A43;
+        height:auto;
+        padding:15px 0;
+        gap:8px;
+        order:3;
+    }
+
+    nav.show{
+        display:flex;
+    }
+
+    nav a{
+        width:100%;
+        justify-content:center;
+    }
+
+    .sub-menu{
+        width:100%;
+        justify-content:center;
+        margin-top:10px;
+        order:4;
+    }
+
+    .cards{
+        grid-template-columns:1fr;
+    }
+
+    .heading h1{
+        font-size:32px;
+    }
+
+    .table-header{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:15px;
+    }
+
+    table{
+        display:block;
+        overflow-x:auto;
+    }
+
+}
+/* ============================
+      SCROLLBAR
+============================ */
+
+::-webkit-scrollbar {
+
+    width: 8px;
+
+}
+
+::-webkit-scrollbar-thumb {
+
+    background: #0D6A43;
+
+    border-radius: 10px;
+
+}
+
+::-webkit-scrollbar-track {
+
+    background: #eee;
+
+}
+
+/* ============================
+      ANIMATION
+============================ */
+
+.card,
+.table-section {
+
+    animation: fadeUp .6s ease;
+
+}
+
+@keyframes fadeUp {
+
+    from {
+
+        opacity: 0;
+
+        transform: translateY(25px);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform: translateY(0);
+
+    }
+
+}
+
+/*============================
+      HAMBURGER MENU
+=============================*/
+
+.menu-toggle {
+
+    display: none;
+
+    color: #fff;
+
+    font-size: 24px;
+
+    cursor: pointer;
+
+}
+
+/*============================
+      RESPONSIVE
+=============================*/
+
+@media (max-width:768px) {
+
+    .top-bar {
+
+        flex-wrap: wrap;
+
+        gap: 15px;
+
+        padding: 20px;
+
+    }
+
+    .menu-toggle {
+
+        display: block;
+
+        margin-left: auto;
+
+    }
+
+    nav {
+
+        display: none;
+
+        width: 100%;
+
+        flex-direction: column;
+
+        gap: 10px;
+
+        height: auto;
+
+        padding: 15px 0;
+
+    }
+
+    nav.show {
+
+        display: flex;
+
+    }
+
+    nav a {
+
+        width: 100%;
+
+        justify-content: center;
+
+    }
+
+    .sub-menu {
+
+        width: 100%;
+
+        justify-content: center;
+
+        margin-top: 10px;
+
+    }
+
+}

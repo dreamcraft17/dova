@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DOVA Admin Dashboard</title>
+
+    <link rel="stylesheet" href="./styleadmin.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+
+</head>
+
+<body>
+
+    <header>
+
+        <div class="top-bar">
+
+            <div class="logo">
+    
+                    <div class="menu-toggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </div>
+    
+                    <div class="logo-text">
+    
+                        <h2>DOVA ADMIN</h2>
+                        <p>Dashboard Management</p>
+    
+                    </div>
+                
+            </div>
+
+            <nav>
+
+                <a class="active" href="#">
+                    <i class="fa-solid fa-chart-line"></i>
+                    Dashboard
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-store"></i>
+                    Suppliers
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-box"></i>
+                    Products
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    Orders
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-users"></i>
+                    Users
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-envelope"></i>
+                    Contacts
+                </a>
+
+            </nav>
+
+            <div class="sub-menu">
+
+                <a href="#">
+                    <i class="fa-solid fa-shop"></i>
+                    Storefront
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout
+                </a>
+
+            </div>
+
+        </div>
+
+    </header>
+
+    <main class="container">
+
+        <section class="heading">
+
+            <div class="title">
+                <h1>Admin Dashboard</h1>
+                <p>Monitor and manage the DOVA platform.</p>
+            </div>
+
+        </section>
+
+        <section class="cards">
+
+            <div class="card">
+
+                <div class="card-icon green">
+
+                    <i class="fa-solid fa-users"></i>
+
+                </div>
+
+                <h2>2</h2>
+
+                <p>Total Users</p>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-icon blue">
+
+                    <i class="fa-solid fa-store"></i>
+
+                </div>
+
+                <h2>1</h2>
+
+                <p>Suppliers</p>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-icon orange">
+
+                    <i class="fa-solid fa-box"></i>
+
+                </div>
+
+                <h2>20</h2>
+
+                <p>Products</p>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-icon purple">
+
+                    <i class="fa-solid fa-cart-shopping"></i>
+
+                </div>
+
+                <h2>0</h2>
+
+                <p>Orders</p>
+
+            </div>
+
+            <div class="card">
+
+                <div class="card-icon red">
+
+                    <i class="fa-solid fa-clock"></i>
+
+                </div>
+
+                <h2>0</h2>
+
+                <p>Pending</p>
+
+            </div>
+
+        </section>
+
+        <section class="table-section">
+
+            <div class="table-header">
+
+                <h2>Recent Users</h2>
+
+                <button>
+                    View All
+                </button>
+
+            </div>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <tr>
+
+                        <td>DOVA Admin</td>
+
+                        <td>admin@dova.com</td>
+
+                        <td>Admin</td>
+
+                        <td>
+
+                            <span class="status active">
+
+                                Active
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Demo Supplier</td>
+
+                        <td>supplier@dova.com</td>
+
+                        <td>Supplier</td>
+
+                        <td>
+
+                            <span class="status active">
+
+                                Active
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Farmer John</td>
+
+                        <td>john@farm.com</td>
+
+                        <td>Supplier</td>
+
+                        <td>
+
+                            <span class="status pending">
+
+                                Pending
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                    <tr>
+
+                        <td>Nurul Husna</td>
+
+                        <td>nurul@dova.com</td>
+
+                        <td>Customer</td>
+
+                        <td>
+
+                            <span class="status active">
+
+                                Active
+
+                            </span>
+
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+
+</body>
+
+</html>

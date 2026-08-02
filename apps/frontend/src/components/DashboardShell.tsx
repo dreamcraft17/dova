@@ -1,51 +1,139 @@
 import Link from 'next/link';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { IconLogout, IconMenu, IconShop } from './DashboardIcons';
 
-export type DashItem = { id: string; label: string };
+export type DashItem = { id: string; label: string; icon?: ReactNode };
 
 export function DashboardShell({
+  variant,
   title,
+  subtitle,
   items,
   active,
   onSelect,
   children,
 }: {
+  variant: 'admin' | 'supplier';
   title: string;
+  subtitle?: string;
   items: DashItem[];
   active: string;
   onSelect: (id: string) => void;
   children: ReactNode;
 }) {
   const { logout } = useAuth();
+  const [navOpen, setNavOpen] = useState(false);
 
-  return (
-    <div className="dashboard">
-      <aside className="sidebar">
-        <h2>{title}</h2>
-        <ul>
-          {items.map((item) => (
-            <li key={item.id} className={active === item.id ? 'active' : undefined}>
-              <button type="button" onClick={() => onSelect(item.id)}>
-                {item.label}
+  const select = (id: string) => {
+    onSelect(id);
+    setNavOpen(false);
+  };
+
+  if (variant === 'admin') {
+    return (
+      <div className="admin-dash">
+        <header className="admin-dash-header">
+          <div className="admin-dash-top-bar">
+            <div className="admin-dash-logo">
+              <button
+                type="button"
+                className="admin-dash-menu-toggle"
+                aria-label="Toggle menu"
+                aria-expanded={navOpen}
+                onClick={() => setNavOpen((o) => !o)}
+              >
+                <IconMenu />
               </button>
-            </li>
-          ))}
-        </ul>
-        <div className="sidebar-foot">
-          <ul>
-            <li>
-              <Link href="/">Storefront</Link>
-            </li>
-            <li>
+              <div className="admin-dash-logo-text">
+                <h2>{title}</h2>
+                {subtitle && <p>{subtitle}</p>}
+              </div>
+            </div>
+
+            <nav className={navOpen ? 'show' : undefined}>
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={active === item.id ? 'active' : undefined}
+                  onClick={() => select(item.id)}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="admin-dash-sub-menu">
+              <Link href="/">
+                <IconShop />
+                Storefront
+              </Link>
               <button type="button" onClick={() => void logout()}>
+                <IconLogout />
                 Logout
               </button>
-            </li>
-          </ul>
+            </div>
+          </div>
+        </header>
+        <main className="admin-dash-container">{children}</main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="supplier-dash">
+      <nav className="supplier-dash-navbar">
+        <div className="supplier-dash-nav-inner">
+          <div className="supplier-dash-brand">
+            <span>{title}</span>
+            {subtitle && <small>{subtitle}</small>}
+          </div>
+
+          <button
+            type="button"
+            className="supplier-dash-toggler"
+            aria-label="Toggle menu"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((o) => !o)}
+          >
+            <IconMenu />
+          </button>
+
+          <div className={`supplier-dash-collapse${navOpen ? ' show' : ''}`}>
+            <ul className="supplier-dash-nav">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={active === item.id ? 'active' : undefined}
+                    onClick={() => select(item.id)}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+              <li className="supplier-dash-nav-profile">
+                <button type="button" onClick={() => select('overview')}>
+                  Profile
+                </button>
+              </li>
+              <li>
+                <button type="button" className="supplier-dash-logout" onClick={() => void logout()}>
+                  <IconLogout />
+                  Log Out
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
-      </aside>
-      <main className="main-content">{children}</main>
+      </nav>
+
+      <section className="supplier-dash-main">
+        <div className="supplier-dash-container">{children}</div>
+      </section>
     </div>
   );
 }

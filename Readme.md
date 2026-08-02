@@ -101,6 +101,7 @@ npm run smoke:week4
 ```
 
 CI: `.github/workflows/ci.yml`  
+Manual + automated test catalog: [`tests/TEST-CASES.md`](./tests/TEST-CASES.md)  
 DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_URL` secret)
 
 ---
