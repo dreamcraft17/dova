@@ -77,6 +77,14 @@ Internal product docs (PRD/SRS/runbook/changelog) live in a local `docs/` folder
 |----------|---------|
 | `NEXT_PUBLIC_API_URL` | e.g. `http://localhost:3000/api/v1` |
 | `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Optional public key |
+| `NEXT_PUBLIC_FEEDLOG_URL` | FeedLog portal URL (enables Feedback links) |
+
+**Backend FeedLog (optional SSO):**
+
+| Variable | Purpose |
+|----------|---------|
+| `FEEDLOG_BASE_URL` | Same URL as `NEXT_PUBLIC_FEEDLOG_URL` (for SSO redirect) |
+| `FEEDLOG_SSO_SECRET` | HS256 secret from FeedLog dashboard → Developer → SSO |
 
 ---
 
@@ -93,6 +101,8 @@ npm run test:backend
 
 # Real database (USE_IN_MEMORY=false)
 npm run db:migrate
+npm run db:migrate:feedlog   # FeedLog tables on same Postgres as DOVA
+npm run db:migrate:all       # both in one command
 npm run db:seed
 npm run db:seed:week3
 
@@ -125,47 +135,86 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock*
 
 ---
 
-## Feedback (FeedLog) — recommended integration
+## Feedback (FeedLog) — full integration
 
-DOVA keeps the marketplace stack (Nest + Next). Product feedback runs as **FeedLog** (Nuxt) next to it — not merged into this monorepo.
+DOVA keeps the marketplace stack (Nest + Next). Product feedback runs as **FeedLog** (Nuxt) in the sibling `../feedlog` repo.
 
 | Piece | Role |
 |-------|------|
-| DOVA | Buy / sell / Paystack |
+| DOVA API | `GET /api/v1/feedback/sso` — signs SSO JWT for logged-in users |
+| DOVA frontend | Nav/footer + dashboard **Feedback** links (SSO when logged in) |
 | FeedLog (`../feedlog`) | Ideas, votes, roadmap, changelog |
 
-### Why this shape
+### Shared database (recommended)
 
-- No Nuxt-into-Nest rewrite
-- FeedLog stays updatable from upstream MIT repo
-- DOVA go-live (Paystack / staging) stays unblocked
+DOVA and FeedLog can use **one Postgres instance** — separate tables, no naming conflicts:
 
-### Local / dev
+| App | Example tables |
+|-----|----------------|
+| DOVA | `users`, `products`, `orders`, `supplier_profiles`, … |
+| FeedLog | `user`, `post`, `board`, `changelog`, `organization`, … |
 
-1. Start DOVA as usual (`npm run dev` → API `:3000`, web `:3001`).
-2. For **Feedback** links, pick one (no Docker on dev machines):
+Both apps point at the same `DATABASE_URL`. Accounts are linked via **SSO email**, not foreign keys.
 
-| Option | Setup |
-|--------|--------|
-| **Quick** | `NEXT_PUBLIC_FEEDLOG_URL=https://feedback.feedlog.ai` in `apps/frontend/.env.local` |
-| **Self-host** | Deploy FeedLog to Vercel/Cloudflare with Neon/Supabase Postgres (`vector` ext), then set that URL |
+```bash
+# From dova/ — same DATABASE_URL in dova/.env and feedlog/.env
+npm run db:migrate          # DOVA SQL migrations (+ pgvector extension)
+npm run db:migrate:feedlog    # FeedLog Drizzle migrations
+# or
+npm run db:migrate:all
+```
+
+Requirements: Postgres **17+** with `vector` extension (enable on Neon/Supabase in dashboard).
+
+### Local dev (all three apps)
+
+```bash
+# Terminal A — DOVA
+npm install && cp .env.dev .env && cp apps/backend/.env.dev apps/backend/.env
+cp apps/frontend/.env.dev apps/frontend/.env.local
+npm run dev
+
+# Terminal B — FeedLog (needs remote Postgres with pgvector — Neon/Supabase)
+cd ../feedlog && cp .env.dova.example .env && pnpm install && pnpm dev --port 3010
+
+# Or run together from dova/:
+npm run dev:all
+```
+
+Set matching URLs:
 
 ```bash
 # apps/frontend/.env.local
+NEXT_PUBLIC_FEEDLOG_URL=http://localhost:3010
+
+# apps/backend/.env
+FEEDLOG_BASE_URL=http://localhost:3010
+FEEDLOG_SSO_SECRET=<same secret as FeedLog dashboard → Developer → SSO>
+```
+
+### SSO setup (recommended for production)
+
+1. Deploy FeedLog (Vercel/Cloudflare + Neon Postgres with `vector` extension).
+2. Sign in as admin → **Developer → SSO** → create signing secret.
+3. Copy secret to DOVA backend: `FEEDLOG_SSO_SECRET=...`
+4. Set `FEEDLOG_BASE_URL` (backend) and `NEXT_PUBLIC_FEEDLOG_URL` (frontend) to the same FeedLog URL.
+5. Rebuild/redeploy both apps.
+
+Logged-in DOVA users opening **Feedback** hit `/api/v1/feedback/sso`, get a short-lived JWT, and land on FeedLog already signed in. Guests see the public board.
+
+### Quick demo (no self-host)
+
+```bash
 NEXT_PUBLIC_FEEDLOG_URL=https://feedback.feedlog.ai
 ```
 
-3. Restart the frontend. Nav + footer show **Feedback** / **Feedback & Roadmap**.
+Links work; SSO is skipped without `FEEDLOG_SSO_SECRET`.
 
-To run FeedLog `pnpm dev` locally, use a **remote** `DATABASE_URL` (Neon/Supabase) in `../feedlog/.env` — not local Docker.
+### Why sibling app (not merged)
 
-### Production
-
-- Deploy FeedLog to **Vercel** or **Cloudflare Workers** (see `../feedlog/README.md`).
-- Point a subdomain, e.g. `https://feedback.your-dova-domain`.
-- Set `NEXT_PUBLIC_FEEDLOG_URL` on the Vercel/frontend build to that URL and rebuild.
-
-SSO between DOVA accounts and FeedLog is **out of scope** for this MVP wiring; users open FeedLog and sign in there (or later via FeedLog SSO secrets).
+- FeedLog stays updatable from upstream MIT repo
+- No Nuxt-into-Nest rewrite
+- DOVA go-live stays unblocked
 
 ---
 

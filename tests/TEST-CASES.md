@@ -133,10 +133,12 @@
 | PUB-01 | Home | `/` | Hero, featured, CTA |
 | PUB-02 | About / Contact | Static pages | Render; contact persists |
 | PUB-03 | Footer links | All footer links | Correct routes |
-| PUB-04 | Feedback link | `NEXT_PUBLIC_FEEDLOG_URL` set | Nav + footer **Feedback** opens external URL |
-| PUB-05 | No FeedLog URL | Env empty | Feedback links hidden |
+| PUB-04 | Feedback link (guest) | `NEXT_PUBLIC_FEEDLOG_URL` set | Nav + footer **Feedback** opens FeedLog portal |
+| PUB-05 | Feedback SSO (logged in) | `FEEDLOG_SSO_SECRET` + FeedLog SSO secret match | **Feedback** → `/api/v1/feedback/sso` → FeedLog signed in |
+| PUB-06 | No FeedLog URL | Env empty | Feedback links hidden |
+| PUB-07 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry points visible when URL set |
 
-**Automated coverage:** `getFeedlogUrl()` · contact smoke script
+**Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `feedlog.util` JWT · contact smoke script
 
 ---
 

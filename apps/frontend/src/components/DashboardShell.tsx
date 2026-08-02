@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { ReactNode, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { IconLogout, IconMenu, IconShop } from './DashboardIcons';
+import { FeedlogLink } from './FeedlogLink';
+import { IconLogout, IconMail, IconMenu, IconShop, IconUser } from './DashboardIcons';
+import { isFeedlogEnabled } from '../lib/feedlog';
 
 export type DashItem = { id: string; label: string; icon?: ReactNode };
 
@@ -22,8 +24,9 @@ export function DashboardShell({
   onSelect: (id: string) => void;
   children: ReactNode;
 }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [navOpen, setNavOpen] = useState(false);
+  const feedlogEnabled = isFeedlogEnabled();
 
   const select = (id: string) => {
     onSelect(id);
@@ -70,6 +73,12 @@ export function DashboardShell({
                 <IconShop />
                 Storefront
               </Link>
+              {feedlogEnabled ? (
+                <FeedlogLink isLoggedIn={Boolean(user)} className="admin-dash-feedlog-link">
+                  <IconMail />
+                  Feedback
+                </FeedlogLink>
+              ) : null}
               <button type="button" onClick={() => void logout()}>
                 <IconLogout />
                 Logout
@@ -115,8 +124,21 @@ export function DashboardShell({
                   </button>
                 </li>
               ))}
+              {feedlogEnabled ? (
+                <li>
+                  <FeedlogLink isLoggedIn={Boolean(user)} onClick={() => setNavOpen(false)}>
+                    <IconMail />
+                    Feedback
+                  </FeedlogLink>
+                </li>
+              ) : null}
               <li className="supplier-dash-nav-profile">
-                <button type="button" onClick={() => select('overview')}>
+                <button
+                  type="button"
+                  className={active === 'profile' ? 'active' : undefined}
+                  onClick={() => select('profile')}
+                >
+                  <IconUser />
                   Profile
                 </button>
               </li>

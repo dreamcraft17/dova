@@ -1844,6 +1844,31 @@ form .button {
   margin: 0;
 }
 
+.feedlog-callout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto 32px;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: #eef6f2;
+  border: 1px solid rgba(13, 106, 67, 0.12);
+}
+
+.feedlog-callout h2 {
+  color: var(--green);
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+
+.feedlog-callout p {
+  color: var(--muted);
+  margin: 0;
+}
+
 .cart-wrapper {
   display: flex;
   flex-direction: column;
