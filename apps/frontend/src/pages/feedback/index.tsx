@@ -71,96 +71,102 @@ export default function FeedbackPage() {
 
   return (
     <Layout>
-      <section className="cart-section feedback-section">
-        <div className="section-head">
-          <p className="eyebrow">Feedback</p>
-          <h1>Help shape DOVA</h1>
-          <p>Share ideas, vote on what matters, and follow progress on the roadmap and changelog.</p>
-          <p style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link href="/feedback/roadmap" className="button small">
-              View roadmap →
-            </Link>
-            <Link href="/feedback/changelog" className="button small secondary">
-              Changelog →
-            </Link>
-          </p>
-        </div>
-
-        <div className="feedback-layout">
-          <form className="card feedback-form" onSubmit={submit}>
-            <h2>Submit an idea</h2>
-            {!user ? (
-              <label>
-                Your name
-                <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} required minLength={2} />
-              </label>
-            ) : (
-              <p className="form-hint">Posting as {user.fullName}</p>
-            )}
-            <label>
-              Title
-              <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} placeholder="Short summary" />
-            </label>
-            <label>
-              Description
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} required minLength={10} rows={4} placeholder="What problem does this solve?" />
-            </label>
-            <button className="button" type="submit" disabled={busy}>
-              {busy ? <Loading label="Submitting…" inline size="sm" /> : 'Submit idea'}
-            </button>
-          </form>
-
-          <div className="feedback-list-wrap">
-            <div className="feedback-sort">
-              <span>Sort by</span>
-              <button type="button" className={sort === 'votes' ? 'active' : ''} onClick={() => setSort('votes')}>Top votes</button>
-              <button type="button" className={sort === 'new' ? 'active' : ''} onClick={() => setSort('new')}>Newest</button>
-            </div>
-            <form
-              className="feedback-search"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void load();
-              }}
-            >
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search ideas…"
-                aria-label="Search feedback ideas"
-              />
-              <button type="submit" className="button small">Search</button>
-            </form>
-            {loading ? (
-              <Loading label="Loading ideas…" block />
-            ) : posts.length ? (
-              <ul className="feedback-list">
-                {posts.map((post) => (
-                  <li key={post.id} className="card feedback-card">
-                    <div className="feedback-card-head">
-                      <h3>
-                        <Link href={`/feedback/${post.id}`}>{post.title}</Link>
-                      </h3>
-                      <span className="feedback-badge">{feedbackStatusLabel(post.status)}</span>
-                    </div>
-                    <p>{post.description}</p>
-                    <div className="feedback-meta">
-                      <span>{post.authorName}</span>
-                      <span>{new Date(post.createdAt).toLocaleDateString('en-NG')}</span>
-                      {post.commentCount ? <span>{post.commentCount} comments</span> : null}
-                    </div>
-                    <button type="button" className="feedback-vote" onClick={() => void vote(post.id)}>
-                      ▲ {post.votes}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No ideas match your search — try another term or submit one.</p>
-            )}
+      <div className="fb-container">
+        <div className="fb-hero">
+          <div className="fb-hero-text">
+            <h1>Customer Feedback</h1>
+            <p>Help us prioritize what to build next for DOVA.</p>
+          </div>
+          <div className="fb-hero-links">
+            <Link href="/feedback/roadmap" className="fb-link-btn">Roadmap</Link>
+            <Link href="/feedback/changelog" className="fb-link-btn secondary">Changelog</Link>
           </div>
         </div>
-      </section>
+
+        <div className="fb-grid">
+          <div className="fb-main">
+            <div className="fb-toolbar">
+              <div className="fb-tabs">
+                <button type="button" className={sort === 'votes' ? 'active' : ''} onClick={() => setSort('votes')}>Top</button>
+                <button type="button" className={sort === 'new' ? 'active' : ''} onClick={() => setSort('new')}>New</button>
+              </div>
+              <form
+                className="fb-search-bar"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void load();
+                }}
+              >
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search ideas..."
+                />
+              </form>
+            </div>
+
+            {loading ? (
+              <Loading label="Loading..." block />
+            ) : posts.length ? (
+              <div className="fb-list">
+                {posts.map((post) => (
+                  <div key={post.id} className="fb-item">
+                    <button type="button" className="fb-vote" onClick={() => void vote(post.id)}>
+                      <span>▲</span>
+                      <strong>{post.votes}</strong>
+                    </button>
+                    <div className="fb-item-content">
+                      <div className="fb-item-top">
+                        <Link href={`/feedback/${post.id}`} className="fb-title">{post.title}</Link>
+                        <span className={`fb-tag s-${post.status}`}>{feedbackStatusLabel(post.status)}</span>
+                      </div>
+                      <p className="fb-desc">{post.description}</p>
+                      <div className="fb-info">
+                        <span>{post.authorName}</span>
+                        <span>·</span>
+                        <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                        {post.commentCount ? (
+                          <>
+                            <span>·</span>
+                            <Link href={`/feedback/${post.id}`}>{post.commentCount} comments</Link>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="fb-empty">No ideas found.</div>
+            )}
+          </div>
+
+          <div className="fb-sidebar">
+            <form className="fb-form" onSubmit={submit}>
+              <h3>Submit Idea</h3>
+              {!user ? (
+                <div className="fb-field">
+                  <label>Name</label>
+                  <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} required minLength={2} placeholder="Your name" />
+                </div>
+              ) : (
+                <div className="fb-user-badge">Posting as {user.fullName}</div>
+              )}
+              <div className="fb-field">
+                <label>Title</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} placeholder="Brief summary" />
+              </div>
+              <div className="fb-field">
+                <label>Details</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} required minLength={10} rows={3} placeholder="What should we add and why?" />
+              </div>
+              <button type="submit" className="fb-submit" disabled={busy}>
+                {busy ? 'Sending...' : 'Post Idea'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 }

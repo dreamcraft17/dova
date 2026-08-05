@@ -22,16 +22,19 @@ export default function ChangelogDetailPage() {
   return (
     <Layout>
       <section className="cart-section feedback-section">
-        <p style={{ marginBottom: 16 }}>
-          <Link href="/feedback/changelog">← Back to changelog</Link>
-        </p>
+        <div className="feedback-back-nav">
+          <Link href="/feedback/changelog" className="feedback-back-link">
+            ← Back to changelog
+          </Link>
+        </div>
         {loading || !entry ? (
           <Loading label="Loading update…" block />
         ) : (
-          <article className="card feedback-detail">
-            <p className="eyebrow">{new Date(entry.publishedAt).toLocaleDateString('en-NG')}</p>
+          <article className="card feedback-detail changelog-detail">
+            <span className="eyebrow">{new Date(entry.publishedAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             <h1>{entry.title}</h1>
             <p className="changelog-summary">{entry.summary}</p>
+            <hr className="changelog-divider" />
             <div className="changelog-body">{entry.body.split('\n').map((line, i) => (line ? <p key={i}>{line}</p> : <br key={i} />))}</div>
           </article>
         )}
