@@ -519,38 +519,4 @@ describe('AppService', () => {
       }
     });
   });
-
-  describe('FeedLog SSO integration', () => {
-    it('builds an SSO redirect URL when FeedLog is configured', () => {
-      const previousBase = process.env.FEEDLOG_BASE_URL;
-      const previousSecret = process.env.FEEDLOG_SSO_SECRET;
-      process.env.FEEDLOG_BASE_URL = 'https://feedback.dova.example';
-      process.env.FEEDLOG_SSO_SECRET = 'a'.repeat(64);
-      try {
-        const { service } = makeService();
-        const admin = service.users.find(u => u.role === 'admin')!;
-        const url = service.buildFeedlogSsoRedirect(admin, '/roadmap');
-        expect(url).toContain('https://feedback.dova.example/api/sso/jwt?');
-        expect(url).toContain('return_to=%2Froadmap');
-      } finally {
-        if (previousBase === undefined) delete process.env.FEEDLOG_BASE_URL;
-        else process.env.FEEDLOG_BASE_URL = previousBase;
-        if (previousSecret === undefined) delete process.env.FEEDLOG_SSO_SECRET;
-        else process.env.FEEDLOG_SSO_SECRET = previousSecret;
-      }
-    });
-
-    it('throws when FeedLog base URL is not configured', () => {
-      const previousBase = process.env.FEEDLOG_BASE_URL;
-      delete process.env.FEEDLOG_BASE_URL;
-      try {
-        const { service } = makeService();
-        const admin = service.users.find(u => u.role === 'admin')!;
-        expect(() => service.buildFeedlogSsoRedirect(admin)).toThrow('FeedLog is not configured');
-      } finally {
-        if (previousBase === undefined) delete process.env.FEEDLOG_BASE_URL;
-        else process.env.FEEDLOG_BASE_URL = previousBase;
-      }
-    });
-  });
 });

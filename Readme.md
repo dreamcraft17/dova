@@ -44,8 +44,7 @@ Register a customer from `/auth/register`, or apply as supplier at `/auth/suppli
 dova/
 ├── apps/
 │   ├── backend/          # NestJS API (:3000)
-│   ├── frontend/         # Next.js storefront (:3002)
-│   └── feedlog/          # FeedLog Nuxt app (:3010, proxied at /feedback)
+│   └── frontend/         # Next.js storefront (:3002) — includes /feedback
 ├── shared/               # Shared TypeScript types + min-order helpers
 ├── database/migrations/  # SQL schema (001_init, 002_week4, …)
 ├── scripts/              # migrate, seed, smoke-week4
@@ -79,14 +78,8 @@ Internal product docs (PRD/SRS/runbook/changelog) live in a local `docs/` folder
 |----------|---------|
 | `NEXT_PUBLIC_API_URL` | e.g. `http://localhost:3000/api/v1` |
 | `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Optional public key |
-| `NEXT_PUBLIC_FEEDLOG_URL` | FeedLog portal URL (enables Feedback links) |
 
-**Backend FeedLog (optional SSO):**
-
-| Variable | Purpose |
-|----------|---------|
-| `FEEDLOG_BASE_URL` | Same URL as `NEXT_PUBLIC_FEEDLOG_URL` (for SSO redirect) |
-| `FEEDLOG_SSO_SECRET` | HS256 secret from FeedLog dashboard → Developer → SSO |
+No extra env vars are required for the native feedback board — it is always enabled at `/feedback`.
 
 ---
 
@@ -103,8 +96,7 @@ npm run test:backend
 
 # Real database (USE_IN_MEMORY=false)
 npm run db:migrate
-npm run db:migrate:feedlog   # FeedLog tables on same Postgres as DOVA
-npm run db:migrate:all       # both in one command
+npm run db:migrate:all       # alias for db:migrate
 npm run db:seed
 npm run db:seed:week3
 
@@ -127,127 +119,44 @@ DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_U
 | Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` |
 | Customer | `/customer`, `/customer/orders/[id]` |
 | Supplier | `/supplier` — products (image upload), stock, orders |
-| Admin | `/admin` — users, suppliers, products, orders, contacts |
-
-**Feedback (FeedLog):** integrated at **`/feedback`** on the DOVA storefront (same tab).  
-Run `npm run dev` to start API + frontend + FeedLog together.
+| Admin | `/admin` — users, suppliers, products, orders, contacts, **feedback** |
+| Feedback | `/feedback`, `/feedback/roadmap`, `/feedback/changelog`, post detail + comments |
 
 **Minimum order (NGN):** pickup **₦3,000** · delivery **₦5,000**.  
 Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock** flow (no real charges).
 
 ---
 
-## Feedback (FeedLog) — integrated in DOVA (MVP)
+## Feedback board (native in DOVA)
 
-FeedLog runs **inside DOVA** at **`/feedback`** on the same origin as the storefront. Users stay in one app — no new tab, no separate subdomain for MVP.
-
-| Piece | Role |
-|-------|------|
-| DOVA frontend | Proxies `/feedback/*` → FeedLog Nitro server (`:3010`) |
-| DOVA API | `GET /api/v1/feedback/sso` — signs SSO JWT for logged-in users |
-| `apps/feedlog` | FeedLog Nuxt app (symlink to sibling repo) under base path `/feedback` |
-
-### Architecture
-
-```
-Browser  →  localhost:3002/feedback  →  Next.js rewrite  →  FeedLog :3010/feedback
-Browser  →  localhost:3002/api/v1/feedback/sso  →  NestJS  →  redirect /feedback/api/sso/jwt
-```
-
-### One-command local dev
-
-```bash
-npm install
-cp .env.dev .env
-cp apps/backend/.env.dev apps/backend/.env
-cp apps/frontend/.env.dev apps/frontend/.env.local
-cd apps/feedlog && cp .env.dova-integrated.example .env && pnpm install && cd ../..
-npm run dev    # API :3000 + frontend :3002 + FeedLog :3010
-```
+The former external FeedLog app is **fully replaced** by native Next.js pages and NestJS API routes. No proxy, SSO, or sibling Nuxt repo.
 
 | URL | Purpose |
 |-----|---------|
-| http://localhost:3002/feedback | Feedback board (integrated) |
-| http://localhost:3002/feedback/roadmap | Public roadmap |
+| http://localhost:3002/feedback | Submit ideas, vote, search |
+| http://localhost:3002/feedback/roadmap | Public roadmap columns |
 | http://localhost:3002/feedback/changelog | Release notes |
+| http://localhost:3002/feedback/[id] | Idea detail + comments |
 
-Nav/footer **Feedback** links go to `/feedback` in the same tab.
+**API** (prefix `/api/v1`):
 
-### Shared database (recommended)
+- `GET/POST /feedback/posts` — list (sort, search) / create
+- `GET /feedback/posts/:id` — detail
+- `POST /feedback/posts/:id/vote` — vote (auth required)
+- `GET/POST /feedback/posts/:id/comments` — list / add comment
+- `POST /feedback/posts/:id/official-reply` — admin team reply
+- `PUT /feedback/posts/:id/status` — admin roadmap status
+- `GET /feedback/roadmap` — grouped columns
+- `GET/POST /feedback/changelog` — list / admin publish
+- `GET /feedback/changelog/:slug` — changelog detail
 
-DOVA and FeedLog can use **one Postgres instance** — separate tables, no naming conflicts:
-
-| App | Example tables |
-|-----|----------------|
-| DOVA | `users`, `products`, `orders`, `supplier_profiles`, … |
-| FeedLog | `user`, `post`, `board`, `changelog`, `organization`, … |
-
-```bash
-npm run db:migrate          # DOVA SQL migrations (+ pgvector extension)
-npm run db:migrate:feedlog    # FeedLog Drizzle migrations
-# or
-npm run db:migrate:all
-```
-
-Requirements: Postgres **17+** with `vector` extension.
-
-### Environment (integrated MVP)
-
-```bash
-# apps/frontend/.env.local
-NEXT_PUBLIC_FEEDLOG_INTEGRATED=true
-FEEDLOG_INTERNAL_URL=http://localhost:3010
-
-# apps/backend/.env
-FEEDLOG_BASE_URL=http://localhost:3002/feedback
-FEEDLOG_SSO_SECRET=<from FeedLog dashboard → Developer → SSO>
-
-# apps/feedlog/.env  (copy from .env.dova-integrated.example)
-NUXT_APP_BASE_URL=/feedback/
-BETTER_AUTH_URL=http://localhost:3002/feedback
-PORT=3010
-```
-
-### SSO setup
-
-1. Start all apps (`npm run dev`), open http://localhost:3002/feedback
-2. Sign up with `SYSTEM_ADMIN_EMAILS` email (e.g. `admin@dova.local`) → admin
-3. **Developer → SSO** → create signing secret
-4. Copy secret to `apps/backend/.env`: `FEEDLOG_SSO_SECRET=...`
-5. Restart DOVA API
-
-Logged-in DOVA users opening **Feedback** hit `/api/v1/feedback/sso`, get a JWT, and land on `/feedback` signed in.
-
-### Production (same-origin)
-
-Reverse-proxy `/feedback` to the FeedLog Node server on the same domain as DOVA:
-
-```nginx
-location /feedback/ {
-  proxy_pass http://127.0.0.1:3010/feedback/;
-  proxy_set_header Host $host;
-}
-```
-
-Set `FEEDLOG_BASE_URL=https://your-dova-domain/feedback` and `BETTER_AUTH_URL` to the same.
-
-### External FeedLog (optional)
-
-To run FeedLog on a separate domain again:
-
-```bash
-NEXT_PUBLIC_FEEDLOG_INTEGRATED=false
-NEXT_PUBLIC_FEEDLOG_URL=https://feedback.dova.example
-FEEDLOG_BASE_URL=https://feedback.dova.example
-```
-
-Use `npm run dev:web` if you only need API + frontend without FeedLog.
+MVP stores feedback **in memory** (same as other demo data when `USE_IN_MEMORY=true`). Admin manages ideas under **Admin → Feedback**.
 
 ---
 
 ## Deployment
 
-- **Frontend:** Vercel (`vercel.json`). Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`). Optionally set `NEXT_PUBLIC_FEEDLOG_URL` for feedback links.
+- **Frontend:** Vercel (`vercel.json`). Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`). Feedback pages ship with the Next.js app at `/feedback`.
 - **Backend:** Node.js host (e.g. PM2) with `USE_IN_MEMORY=false`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `FRONTEND_URL`, `PAYSTACK_*`.
 - After deploy: `npm run db:migrate`, then `npm run smoke:week4` against the public API.
 - No Docker required for this MVP path.
