@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { Layout } from '../components/Layout';
 import { Loading, LoadingOverlay } from '../components/Loading';
-import { api } from '../lib/api';
+import { RequireAuth } from '../components/RequireAuth';
+import { ApiError, api } from '../lib/api';
 import type { Cart } from 'dova-shared';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function CartPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [cart, setCart] = useState<Cart>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -16,6 +21,7 @@ export default function CartPage() {
 
   const load = () => {
     setLoading(true);
+    setError('');
     return api<Cart>('/cart')
       .then((data) => {
         setCart(data);
@@ -23,13 +29,37 @@ export default function CartPage() {
         data.items.forEach((item) => { inputs[item.id] = item.quantity.toString(); });
         setQtyInputs(inputs);
       })
-      .catch(() => setError('Please log in to view your cart.'))
+      .catch((err: unknown) => {
+        if (err instanceof ApiError) {
+          if (err.status === 401) {
+            setError('Your session expired. Please log in again.');
+            return;
+          }
+          if (err.status === 403) {
+            setError('The cart is available for customer accounts only.');
+            return;
+          }
+          setError(err.message);
+          return;
+        }
+        setError('Unable to load your cart. Please try again.');
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      void router.replace('/auth/login?next=/cart');
+      return;
+    }
+    if (user.role !== 'customer') {
+      setError('The cart is available for customer accounts only.');
+      setLoading(false);
+      return;
+    }
     void load();
-  }, []);
+  }, [authLoading, user?.id, user?.role, router]);
 
   async function update(id: string, quantity: number) {
     setBusy(true);
@@ -59,6 +89,7 @@ export default function CartPage() {
       setBusy(false);
     }
   }
+
   async function remove(id: string) {
     setBusy(true);
     try {
@@ -69,107 +100,123 @@ export default function CartPage() {
     }
   }
 
+  if (authLoading || (loading && !error && !cart)) {
+    return (
+      <Layout>
+        <section className="cart-section">
+          <Loading label="Loading your cart…" block />
+        </section>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
-      <section className="cart-section">
-        <div className="section-head">
-          <h1>Shopping Cart</h1>
-          <p>Review your selected products before checkout.</p>
-        </div>
-
-        {loading ? (
-          <Loading label="Loading your cart…" block />
-        ) : error ? (
-          <div style={{ textAlign: 'center' }}>
-            <p>{error}</p>
-            <Link className="button" href="/auth/login">
-              Log in
-            </Link>
+      <RequireAuth roles={['customer']}>
+        <section className="cart-section">
+          <div className="section-head">
+            <h1>Shopping Cart</h1>
+            <p>Review your selected products before checkout.</p>
           </div>
-        ) : cart?.items.length ? (
-          <>
-            <div className={`cart-wrapper${busy ? ' is-busy' : ''}`}>
-              {busy ? <LoadingOverlay label="Updating cart…" /> : null}
-              {cart.items.map((i) => (
-                <div className="cart-item" key={i.id}>
-                  {i.product.imageUrl ? (
-                    <img src={i.product.imageUrl} alt={i.product.name} />
-                  ) : (
-                    <div className="cart-thumb">🌿</div>
-                  )}
-                  <div className="cart-info">
-                    <h3>{i.product.name}</h3>
-                    <p>Supplier: {i.product.supplierName || 'DOVA Supplier'}</p>
-                    <h4>₦ {i.product.price.toLocaleString('en-NG')}</h4>
-                    <div className="cart-slot">
-                      <span className="cart-slot-label">🚚 Delivery slot:</span>
-                      <button
-                        type="button"
-                        className={`slot-pill${i.deliverySlot === 'morning' ? ' active' : ''}`}
-                        disabled={busy}
-                        onClick={() => void updateSlot(i.id, 'morning')}
-                      >
-                        🌅 Morning
-                      </button>
-                      <button
-                        type="button"
-                        className={`slot-pill${i.deliverySlot === 'evening' ? ' active' : ''}`}
-                        disabled={busy}
-                        onClick={() => void updateSlot(i.id, 'evening')}
-                      >
-                        🌇 Evening
-                      </button>
+
+          {error ? (
+            <div style={{ textAlign: 'center' }}>
+              <p>{error}</p>
+              {error.includes('log in') ? (
+                <Link className="button" href="/auth/login?next=/cart">
+                  Log in
+                </Link>
+              ) : (
+                <button type="button" className="button" onClick={() => void load()}>
+                  Retry
+                </button>
+              )}
+            </div>
+          ) : cart?.items.length ? (
+            <>
+              <div className={`cart-wrapper${busy ? ' is-busy' : ''}`}>
+                {busy ? <LoadingOverlay label="Updating cart…" /> : null}
+                {cart.items.map((i) => (
+                  <div className="cart-item" key={i.id}>
+                    {i.product.imageUrl ? (
+                      <img src={i.product.imageUrl} alt={i.product.name} />
+                    ) : (
+                      <div className="cart-thumb">🌿</div>
+                    )}
+                    <div className="cart-info">
+                      <h3>{i.product.name}</h3>
+                      <p>Supplier: {i.product.supplierName || 'DOVA Supplier'}</p>
+                      <h4>₦ {i.product.price.toLocaleString('en-NG')}</h4>
+                      <div className="cart-slot">
+                        <span className="cart-slot-label">🚚 Delivery slot:</span>
+                        <button
+                          type="button"
+                          className={`slot-pill${i.deliverySlot === 'morning' ? ' active' : ''}`}
+                          disabled={busy}
+                          onClick={() => void updateSlot(i.id, 'morning')}
+                        >
+                          🌅 Morning
+                        </button>
+                        <button
+                          type="button"
+                          className={`slot-pill${i.deliverySlot === 'evening' ? ' active' : ''}`}
+                          disabled={busy}
+                          onClick={() => void updateSlot(i.id, 'evening')}
+                        >
+                          🌇 Evening
+                        </button>
+                      </div>
                     </div>
+                    <div className="cart-quantity">
+                      <input
+                        type="number"
+                        min={1}
+                        max={i.product.stockQuantity}
+                        step={0.01}
+                        value={qtyInputs[i.id] ?? i.quantity.toString()}
+                        disabled={busy}
+                        onChange={(e) => {
+                          setQtyInputs((prev) => ({ ...prev, [i.id]: e.target.value }));
+                        }}
+                        onBlur={(e) => {
+                          const val = parseFloat(e.target.value);
+                          const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(i.product.stockQuantity, Math.round(val * 100) / 100));
+                          setQtyInputs((prev) => ({ ...prev, [i.id]: clamped.toString() }));
+                          if (clamped !== i.quantity) {
+                            void update(i.id, clamped);
+                          }
+                        }}
+                        style={{ width: 80, textAlign: 'center' }}
+                      />
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>kg</span>
+                    </div>
+                    <div className="cart-total">₦ {i.subtotal.toLocaleString('en-NG')}</div>
+                    <button className="remove-btn" disabled={busy} onClick={() => void remove(i.id)}>
+                      Remove
+                    </button>
                   </div>
-                  <div className="cart-quantity">
-                    <input
-                      type="number"
-                      min={1}
-                      max={i.product.stockQuantity}
-                      step={0.01}
-                      value={qtyInputs[i.id] ?? i.quantity.toString()}
-                      disabled={busy}
-                      onChange={(e) => {
-                        setQtyInputs((prev) => ({ ...prev, [i.id]: e.target.value }));
-                      }}
-                      onBlur={(e) => {
-                        const val = parseFloat(e.target.value);
-                        const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(i.product.stockQuantity, Math.round(val * 100) / 100));
-                        setQtyInputs((prev) => ({ ...prev, [i.id]: clamped.toString() }));
-                        if (clamped !== i.quantity) {
-                          void update(i.id, clamped);
-                        }
-                      }}
-                      style={{ width: 80, textAlign: 'center' }}
-                    />
-                    <span style={{ fontSize: 13, color: 'var(--muted)' }}>kg</span>
-                  </div>
-                  <div className="cart-total">₦ {i.subtotal.toLocaleString('en-NG')}</div>
-                  <button className="remove-btn" disabled={busy} onClick={() => void remove(i.id)}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="cart-summary">
-              <h2>Order Summary</h2>
-              <p>
-                Subtotal <span>₦ {cart.total.toLocaleString('en-NG')}</span>
-              </p>
-              <p className="form-hint" style={{ display: 'block', marginBottom: 16 }}>
-                Minimum checkout: pickup ₦3,000 · delivery ₦5,000. Choose at checkout.
-              </p>
-              <Link className="checkout-btn" href="/checkout" style={{ display: 'block', textAlign: 'center' }}>
-                Proceed to Checkout
-              </Link>
-            </div>
-          </>
-        ) : (
-          <p style={{ textAlign: 'center' }}>
-            Your cart is empty. <Link href="/products">Explore products</Link>
-          </p>
-        )}
-      </section>
+                ))}
+              </div>
+              <div className="cart-summary">
+                <h2>Order Summary</h2>
+                <p>
+                  Subtotal <span>₦ {cart.total.toLocaleString('en-NG')}</span>
+                </p>
+                <p className="form-hint" style={{ display: 'block', marginBottom: 16 }}>
+                  Minimum checkout: pickup ₦3,000 · delivery ₦5,000. Choose at checkout.
+                </p>
+                <Link className="checkout-btn" href="/checkout" style={{ display: 'block', textAlign: 'center' }}>
+                  Proceed to Checkout
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p style={{ textAlign: 'center' }}>
+              Your cart is empty. <Link href="/products">Explore products</Link>
+            </p>
+          )}
+        </section>
+      </RequireAuth>
     </Layout>
   );
 }

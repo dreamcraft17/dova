@@ -1,5 +1,10 @@
+/**
+ * AppService unit tests — auth, cart, orders, payments, admin, supplier, FeedLog SSO.
+ * @author Dozer (@dreamraft17) - Software Engineer
+ */
 import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { createHmac } from 'crypto';
 import { AppService } from './app.service';
 
 const SLOT = 'morning' as const;
@@ -116,6 +121,16 @@ describe('AppService', () => {
       const page = await service.listProducts('', '', 2, 12);
       expect(page.pagination.total).toBeGreaterThanOrEqual(20);
       expect(page.data).toHaveLength(8);
+    });
+
+    it('assigns meat products to the Meat category (BUG-001)', () => {
+      const { service } = makeService();
+      const chicken = service.products.find((product) => product.name === 'Chicken Breast');
+      const salmon = service.products.find((product) => product.name === 'Atlantic Salmon');
+      expect(chicken?.categoryName).toBe('Meat');
+      expect(salmon?.categoryName).toBe('Seafood');
+      const vegetables = service.products.filter((product) => product.categoryName === 'Vegetables');
+      expect(vegetables.some((product) => product.name === 'Chicken Breast')).toBe(false);
     });
 
     it('enforces role restrictions', () => {
@@ -310,6 +325,232 @@ describe('AppService', () => {
       await service.approveSupplier(application.id);
       expect(service.suppliers.find(s => s.id === application.id)?.status).toBe('approved');
       await expect(service.makeSupplierUser({ businessName: 'Duplicate', email: 'nina@farms.test', password: 'password123' })).rejects.toThrow('Email already registered');
+    });
+  });
+
+  describe('cart removal and empty checkout', () => {
+    it('removes a cart item and recalculates totals', async () => {
+      const { service } = makeService();
+      const customerId = 'remove-cart-customer';
+      const product = service.products[0];
+      const cart = await addToCart(service, customerId, product.id, 2);
+      expect(cart.items).toHaveLength(1);
+
+      const updated = await service.removeCart(customerId, cart.items[0].id);
+      expect(updated.items).toHaveLength(0);
+      expect(updated.total).toBe(0);
+    });
+
+    it('rejects checkout when the cart is empty', async () => {
+      const { service } = makeService();
+      await expect(
+        service.createOrder('empty-cart-customer', {
+          deliveryName: 'Jane',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+        }),
+      ).rejects.toThrow('Cart is empty');
+    });
+
+    it('rejects checkout with missing delivery details', async () => {
+      const { service } = makeService();
+      const customerId = 'missing-details-customer';
+      await addToCart(service, customerId, service.products[0].id, 1);
+      await expect(
+        service.createOrder(customerId, { deliveryName: '', deliveryPhone: '', fulfillmentType: 'delivery' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('admin operations', () => {
+    it('returns dashboard stats including pending suppliers', async () => {
+      const { service } = makeService();
+      await service.makeSupplierUser({ businessName: 'Pending Farm', email: 'pending@farms.test', password: 'password123' });
+      const stats = await service.adminDashboard();
+      expect(stats.users).toBeGreaterThanOrEqual(3);
+      expect(stats.products).toBeGreaterThanOrEqual(20);
+      expect(stats.pendingSuppliers).toBeGreaterThanOrEqual(1);
+    });
+
+    it('lists admin users without password hashes', async () => {
+      const { service } = makeService();
+      const users = await service.adminUsers();
+      expect(users.length).toBeGreaterThanOrEqual(2);
+      users.forEach(user => expect(user).not.toHaveProperty('passwordHash'));
+    });
+
+    it('deactivates and reactivates a user', async () => {
+      const { service } = makeService();
+      const user = await service.register({ fullName: 'Temp User', email: 'temp@example.com', password: 'password123', confirmPassword: 'password123' });
+      const deactivated = await service.setUserActive(user.id, false);
+      expect(deactivated).toEqual({ id: user.id, isActive: false });
+      const reactivated = await service.setUserActive(user.id, true);
+      expect(reactivated).toEqual({ id: user.id, isActive: true });
+    });
+
+    it('deactivates a product from the admin catalog', async () => {
+      const { service } = makeService();
+      const product = service.products[0];
+      const result = await service.setProductActive(product.id, false);
+      expect(result).toEqual({ id: product.id, isActive: false });
+      expect(product.isActive).toBe(false);
+    });
+
+    it('filters admin orders by status and search term', async () => {
+      const { service } = makeService();
+      const customerId = 'admin-order-customer';
+      await addToCart(service, customerId, service.products[0].id, 1);
+      const order = await service.createOrder(customerId, {
+        deliveryName: 'Admin Buyer',
+        deliveryAddress: 'Lagos',
+        deliveryPhone: '0812345678',
+      });
+
+      const pending = await service.adminOrders('pending');
+      expect(pending.some(o => o.id === order.id)).toBe(true);
+
+      const bySearch = await service.adminOrders('', order.orderNumber.slice(0, 6));
+      expect(bySearch.some(o => o.id === order.id)).toBe(true);
+
+      const noMatch = await service.adminOrders('delivered');
+      expect(noMatch.some(o => o.id === order.id)).toBe(false);
+    });
+
+    it('rejects a pending supplier with reason and deactivates the user', async () => {
+      const notifications = { supplierStatus: jest.fn().mockResolvedValue({ sent: false }) };
+      const { service } = makeService();
+      (service as any).notifications = notifications;
+      const application = await service.makeSupplierUser({
+        businessName: 'Rejected Farm',
+        email: 'rejected@farms.test',
+        password: 'password123',
+      });
+      const result = await service.rejectSupplier(application.id, 'Incomplete documents');
+      expect(result).toEqual({ id: application.id, status: 'rejected', reason: 'Incomplete documents' });
+      const supplier = service.suppliers.find(s => s.id === application.id);
+      expect(supplier?.status).toBe('rejected');
+      expect(supplier?.rejectionReason).toBe('Incomplete documents');
+      const user = service.users.find(u => u.email === 'rejected@farms.test');
+      expect(user?.isActive).toBe(false);
+      expect(notifications.supplierStatus).toHaveBeenCalledWith(
+        'rejected@farms.test',
+        'Rejected Farm',
+        'rejected',
+        'Incomplete documents',
+      );
+    });
+  });
+
+  describe('Paystack webhook security', () => {
+    function paystackSignature(payload: string, secret: string) {
+      return createHmac('sha512', secret).update(payload).digest('hex');
+    }
+
+    it('rejects webhooks without a signature when Paystack secret is set', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
+      try {
+        const { service } = makeService();
+        await expect(service.handlePaystackWebhook(undefined, { event: 'charge.success' })).rejects.toBeInstanceOf(UnauthorizedException);
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+        else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
+    it('rejects webhooks with an invalid signature', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
+      try {
+        const { service } = makeService();
+        const body = { event: 'charge.success', data: { reference: 'DOVA-REF-123' } };
+        const rawBody = Buffer.from(JSON.stringify(body));
+        await expect(service.handlePaystackWebhook('invalid-signature', body, rawBody)).rejects.toThrow('Invalid Paystack signature');
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+        else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
+    it('accepts a valid Paystack webhook and marks the order paid', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ status: true, data: { status: 'success' } }), { status: 200 }),
+      );
+      try {
+        const { service } = makeService();
+        const customerId = 'webhook-customer';
+        await addToCart(service, customerId, service.products[0].id, 1);
+        const order = await service.createOrder(customerId, {
+          deliveryName: 'Webhook Buyer',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+        });
+        const reference = `DOVA-WEBHOOK-${order.id.slice(0, 8)}`;
+        service.payments.set(reference, { orderId: order.id, status: 'pending' });
+        order.paymentReference = reference;
+        const body = { event: 'charge.success', data: { reference } };
+        const rawBody = Buffer.from(JSON.stringify(body));
+        const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
+        const result = await service.handlePaystackWebhook(signature, body, rawBody);
+        expect(result).toMatchObject({ status: 'paid' });
+        expect(order.status).toBe('paid');
+        expect(fetchSpy).toHaveBeenCalled();
+      } finally {
+        fetchSpy.mockRestore();
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+        else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
+    it('ignores non-charge.success webhook events', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
+      try {
+        const { service } = makeService();
+        const body = { event: 'transfer.success', data: {} };
+        const rawBody = Buffer.from(JSON.stringify(body));
+        const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
+        await expect(service.handlePaystackWebhook(signature, body, rawBody)).resolves.toEqual({ received: true });
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+        else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+  });
+
+  describe('FeedLog SSO integration', () => {
+    it('builds an SSO redirect URL when FeedLog is configured', () => {
+      const previousBase = process.env.FEEDLOG_BASE_URL;
+      const previousSecret = process.env.FEEDLOG_SSO_SECRET;
+      process.env.FEEDLOG_BASE_URL = 'https://feedback.dova.example';
+      process.env.FEEDLOG_SSO_SECRET = 'a'.repeat(64);
+      try {
+        const { service } = makeService();
+        const admin = service.users.find(u => u.role === 'admin')!;
+        const url = service.buildFeedlogSsoRedirect(admin, '/roadmap');
+        expect(url).toContain('https://feedback.dova.example/api/sso/jwt?');
+        expect(url).toContain('return_to=%2Froadmap');
+      } finally {
+        if (previousBase === undefined) delete process.env.FEEDLOG_BASE_URL;
+        else process.env.FEEDLOG_BASE_URL = previousBase;
+        if (previousSecret === undefined) delete process.env.FEEDLOG_SSO_SECRET;
+        else process.env.FEEDLOG_SSO_SECRET = previousSecret;
+      }
+    });
+
+    it('throws when FeedLog base URL is not configured', () => {
+      const previousBase = process.env.FEEDLOG_BASE_URL;
+      delete process.env.FEEDLOG_BASE_URL;
+      try {
+        const { service } = makeService();
+        const admin = service.users.find(u => u.role === 'admin')!;
+        expect(() => service.buildFeedlogSsoRedirect(admin)).toThrow('FeedLog is not configured');
+      } finally {
+        if (previousBase === undefined) delete process.env.FEEDLOG_BASE_URL;
+        else process.env.FEEDLOG_BASE_URL = previousBase;
+      }
     });
   });
 });

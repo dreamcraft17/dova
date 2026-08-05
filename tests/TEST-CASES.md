@@ -1,8 +1,10 @@
 # DOVA — Test Cases
 
+**Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
 **Automated:** `npm run test` (Jest unit) · `npm run test:backend` (auth smoke) · `npm run smoke:week4` (API health + contact)  
-**Demo accounts:** see `docs/DEMO-ACCOUNTS.md` (admin / supplier seeded in dev)
+**QA workflow:** see [GUIDE.md](./GUIDE.md)  
+**Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`
 
 ---
 
@@ -37,6 +39,22 @@
 
 ---
 
+## 1b. Automated unit test inventory
+
+| File | Tests | Covers |
+|------|-------|--------|
+| `shared/src/index.spec.ts` | 4 | Email/password validation, roles, min-order helpers |
+| `apps/backend/src/app.service.spec.ts` | 35+ | Auth, cart, orders, payments, admin, supplier, webhook, FeedLog |
+| `apps/backend/src/notification.service.spec.ts` | 7 | Supplier email, contact forwarding, provider errors |
+| `apps/backend/src/feedlog.util.spec.ts` | 5 | SSO JWT, URL sanitize, redirect builder |
+| `apps/frontend/src/lib/api.spec.ts` | 4 | API client, errors, FormData |
+| `apps/frontend/src/lib/feedlog.spec.ts` | 7 | FeedLog URL, SSO href for guest/logged-in |
+| `apps/backend/test/auth.test.js` | 1 flow | Register → duplicate → login → refresh → revoke |
+
+Run: `npm run test` · Coverage: `npm run test:coverage`
+
+---
+
 ## 2. Catalog & search
 
 | ID | Scenario | Steps | Expected |
@@ -63,7 +81,7 @@
 | CART-05 | Stock limit | Quantity > available stock | Error |
 | CART-06 | Empty cart | Remove all items | Empty state; checkout blocked |
 
-**Automated coverage:** `addCart`, `updateCart`, delivery slot merge, quantity validation
+**Automated coverage:** `addCart`, `updateCart`, `removeCart`, delivery slot merge, quantity validation, empty cart guard
 
 ---
 
@@ -92,7 +110,7 @@
 | PAY-04 | Webhook | Paystack `charge.success` to `/payments/webhook` | Order marked paid (signature valid) |
 | PAY-05 | Order history | `/customer` after pay | Order listed with paid status |
 
-**Automated coverage:** mock initialize/verify/webhook in `AppService` specs
+**Automated coverage:** mock initialize/verify/webhook · Paystack HMAC signature validation · idempotency
 
 ---
 
@@ -108,7 +126,7 @@
 | SUP-06 | Fulfillment | pending/paid → processing → shipped → delivered | Valid transitions only |
 | SUP-07 | Stock on purchase | Customer buys product | Supplier stock decreases |
 
-**Automated coverage:** supplier CRUD, stock, fulfillment transitions, approval flow
+**Automated coverage:** supplier CRUD, stock, fulfillment transitions, approval + rejection flow
 
 ---
 
@@ -122,7 +140,7 @@
 | ADM-04 | Users / products / orders | Admin tables | List + toggle active |
 | ADM-05 | Contacts inbox | Submit contact form → admin tab | Message visible |
 
-**Automated coverage:** supplier approval, contact submission
+**Automated coverage:** supplier approval/rejection, admin dashboard/users/products/orders, contact submission
 
 ---
 
@@ -133,10 +151,10 @@
 | PUB-01 | Home | `/` | Hero, featured, CTA |
 | PUB-02 | About / Contact | Static pages | Render; contact persists |
 | PUB-03 | Footer links | All footer links | Correct routes |
-| PUB-04 | Feedback link (guest) | `NEXT_PUBLIC_FEEDLOG_URL` set | Nav + footer **Feedback** opens FeedLog portal |
-| PUB-05 | Feedback SSO (logged in) | `FEEDLOG_SSO_SECRET` + FeedLog SSO secret match | **Feedback** → `/api/v1/feedback/sso` → FeedLog signed in |
-| PUB-06 | No FeedLog URL | Env empty | Feedback links hidden |
-| PUB-07 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry points visible when URL set |
+| PUB-04 | Feedback link (guest) | Integrated MVP (default) | Nav **Feedback** → `/feedback` same tab |
+| PUB-05 | Feedback SSO (logged in) | `FEEDLOG_SSO_SECRET` + FeedLog SSO secret match | **Feedback** → `/api/v1/feedback/sso` → `/feedback` signed in |
+| PUB-06 | External FeedLog mode | `NEXT_PUBLIC_FEEDLOG_INTEGRATED=false` + empty URL | Feedback links hidden |
+| PUB-07 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry points → `/feedback` |
 
 **Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `feedlog.util` JWT · contact smoke script
 

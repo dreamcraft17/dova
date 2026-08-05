@@ -1,5 +1,6 @@
 /**
  * Run FeedLog Drizzle migrations against the same DATABASE_URL as DOVA.
+ * @author Dozer (@dreamraft17) - Software Engineer
  * Usage: npm run db:migrate:feedlog  (from dova/)
  */
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
@@ -12,7 +13,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const feedlogDir = path.resolve(__dirname, '../../feedlog');
+const feedlogDir = path.resolve(__dirname, '../apps/feedlog');
 const result = spawnSync('pnpm', ['migrate'], {
   cwd: feedlogDir,
   stdio: 'inherit',

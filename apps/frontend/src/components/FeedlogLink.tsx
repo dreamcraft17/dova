@@ -1,5 +1,8 @@
+/**
+ * @author Dozer (@dreamraft17) - Software Engineer
+ */
 import { ReactNode } from 'react';
-import { getFeedlogFeedbackHref } from '../lib/feedlog';
+import { getFeedlogFeedbackHref, isFeedlogSameOrigin } from '../lib/feedlog';
 
 type FeedlogLinkProps = {
   isLoggedIn?: boolean;
@@ -19,12 +22,15 @@ export function FeedlogLink({
   const href = getFeedlogFeedbackHref({ isLoggedIn, returnTo });
   if (!href) return null;
 
+  const sameOrigin = isFeedlogSameOrigin();
+
   return (
     <a
       href={href}
       className={className}
-      target="_blank"
-      rel="noopener noreferrer"
+      {...(sameOrigin
+        ? {}
+        : { target: '_blank', rel: 'noopener noreferrer' })}
       onClick={onClick}
     >
       {children}

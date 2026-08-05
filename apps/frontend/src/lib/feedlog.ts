@@ -1,8 +1,22 @@
 /**
- * FeedLog (feedback / roadmap / changelog) runs as a sibling self-hosted app.
- * Set NEXT_PUBLIC_FEEDLOG_URL to enable storefront links (e.g. http://localhost:3010).
+ * FeedLog integration helpers for DOVA frontend.
+ * @author Dozer (@dreamraft17) - Software Engineer
  */
+/** Integrated FeedLog is proxied at /feedback on the DOVA frontend origin. */
+export const FEEDLOG_INTEGRATED_PATH = '/feedback';
+
+/**
+ * FeedLog (feedback / roadmap / changelog) runs inside DOVA at `/feedback` (MVP default).
+ * Set NEXT_PUBLIC_FEEDLOG_INTEGRATED=false and NEXT_PUBLIC_FEEDLOG_URL for external hosting.
+ */
+export function isFeedlogIntegrated(): boolean {
+  return process.env.NEXT_PUBLIC_FEEDLOG_INTEGRATED !== 'false';
+}
+
 export function getFeedlogUrl(): string | null {
+  if (isFeedlogIntegrated()) {
+    return FEEDLOG_INTEGRATED_PATH;
+  }
   const raw = process.env.NEXT_PUBLIC_FEEDLOG_URL?.trim();
   if (!raw) return null;
   return raw.replace(/\/+$/, '');
@@ -36,7 +50,8 @@ export type FeedlogLinkOptions = {
 };
 
 /**
- * Public feedback board URL. Logged-in users go through DOVA SSO redirect when configured.
+ * Feedback board URL. Integrated mode uses same-origin `/feedback`.
+ * Logged-in users go through DOVA SSO redirect when configured.
  */
 export function getFeedlogFeedbackHref(options: FeedlogLinkOptions = {}): string | null {
   const portal = getFeedlogUrl();
@@ -54,4 +69,10 @@ export function getFeedlogFeedbackHref(options: FeedlogLinkOptions = {}): string
 
 export function isFeedlogEnabled(): boolean {
   return getFeedlogUrl() !== null;
+}
+
+/** Same-origin integrated links open in-app; external portal opens a new tab. */
+export function isFeedlogSameOrigin(): boolean {
+  const url = getFeedlogUrl();
+  return Boolean(url?.startsWith('/'));
 }
