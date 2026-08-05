@@ -3,6 +3,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AppService } from './app.service';
 import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
+import { FeedbackService } from './feedback.service';
 
 const imageUpload = FileInterceptor('image', {
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -14,8 +16,13 @@ const imageUpload = FileInterceptor('image', {
 
 @Controller()
 export class AppController {
-  constructor(private readonly service: AppService) {}
+  constructor(private readonly service: AppService, private readonly feedback: FeedbackService) {}
   private auth(req: Request) { const token = req.cookies?.accessToken ?? req.headers.authorization?.replace('Bearer ', ''); return this.service.userFromToken(token); }
+  private async optionalAuth(req: Request) {
+    const token = req.cookies?.accessToken ?? req.headers.authorization?.replace('Bearer ', '');
+    if (!token) return null;
+    try { return await this.service.userFromToken(token); } catch { return null; }
+  }
   private applyImage(b: ProductDto, file?: any) {
     if (file) b.imageUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     return b;
@@ -61,13 +68,38 @@ export class AppController {
   @Get('admin/orders') async adminOrders(@Req() req: Request, @Query('status') status = '', @Query('search') search = '') { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminOrders(status, search); }
   @Get('admin/contacts') async adminContacts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.listContacts(); }
   @Post('contact') contact(@Body() body: ContactDto) { return this.service.submitContact(body); }
-  @Get('feedback/sso') async feedlogSso(@Req() req: Request, @Query('return_to') returnTo = '/', @Res() res: Response) {
-    const u = await this.auth(req);
-    const url = this.service.buildFeedlogSsoRedirect(u, returnTo);
-    return res.redirect(302, url);
+  @Get('feedback/posts') listFeedback(@Query('sort') sort: 'votes' | 'new' = 'votes', @Query('search') search = '') { return this.feedback.list(sort, search); }
+  @Get('feedback/posts/:id') getFeedback(@Param('id') id: string) { return this.feedback.find(id); }
+  @Get('feedback/roadmap') feedbackRoadmap() { return this.feedback.roadmap(); }
+  @Post('feedback/posts') async createFeedback(@Req() req: Request, @Body() body: FeedbackPostDto) {
+    const user = await this.optionalAuth(req);
+    return this.feedback.create(body, user);
   }
-  @Get('feedback/config') feedlogConfig() {
-    const enabled = Boolean(this.service.feedlogBaseUrl());
-    return { enabled, sso: Boolean(process.env.FEEDLOG_SSO_SECRET?.trim()) };
+  @Post('feedback/posts/:id/vote') async voteFeedback(@Req() req: Request, @Param('id') id: string) {
+    const user = await this.auth(req);
+    return this.feedback.vote(id, user);
   }
+  @Put('feedback/posts/:id/status') async feedbackStatus(@Req() req: Request, @Param('id') id: string, @Body() body: FeedbackStatusDto) {
+    const user = await this.auth(req);
+    this.feedback.assertAdmin(user);
+    return this.feedback.setStatus(id, body.status);
+  }
+  @Get('feedback/posts/:id/comments') feedbackComments(@Param('id') id: string) { return this.feedback.listComments(id); }
+  @Post('feedback/posts/:id/comments') async addFeedbackComment(@Req() req: Request, @Param('id') id: string, @Body() body: FeedbackCommentDto) {
+    const user = await this.optionalAuth(req);
+    return this.feedback.addComment(id, body, user, false);
+  }
+  @Post('feedback/posts/:id/official-reply') async officialReply(@Req() req: Request, @Param('id') id: string, @Body() body: FeedbackCommentDto) {
+    const user = await this.auth(req);
+    this.feedback.assertAdmin(user);
+    return this.feedback.addComment(id, body, user, true);
+  }
+  @Get('feedback/changelog') listChangelog() { return this.feedback.listChangelogs(); }
+  @Get('feedback/changelog/:slug') getChangelog(@Param('slug') slug: string) { return this.feedback.getChangelog(slug); }
+  @Post('feedback/changelog') async createChangelog(@Req() req: Request, @Body() body: ChangelogDto) {
+    const user = await this.auth(req);
+    this.feedback.assertAdmin(user);
+    return this.feedback.createChangelog(body);
+  }
+  @Get('feedback/config') feedbackConfig() { return { enabled: true, native: true, features: ['board', 'votes', 'comments', 'roadmap', 'changelog', 'admin'] }; }
 }

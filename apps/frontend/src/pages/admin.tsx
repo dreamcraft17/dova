@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { RequireAuth } from '../components/RequireAuth';
 import { DashboardShell } from '../components/DashboardShell';
@@ -13,7 +14,8 @@ import {
   IconUsers,
 } from '../components/DashboardIcons';
 import { api } from '../lib/api';
-import type { Order, Product } from 'dova-shared';
+import type { FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
+import { FEEDBACK_STATUSES, feedbackStatusLabel } from 'dova-shared';
 
 type Stats = {
   users: number;
@@ -44,6 +46,7 @@ const NAV = [
   { id: 'orders', label: 'Orders', icon: <IconCart /> },
   { id: 'users', label: 'Users', icon: <IconUsers /> },
   { id: 'contacts', label: 'Contacts', icon: <IconMail /> },
+  { id: 'feedback', label: 'Feedback', icon: <IconMail /> },
 ];
 
 function userStatusClass(u: AdminUser) {
@@ -65,18 +68,22 @@ export default function Admin() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [contacts, setContacts] = useState<AdminContact[]>([]);
+  const [feedbackPosts, setFeedbackPosts] = useState<FeedbackPost[]>([]);
+  const [officialReplies, setOfficialReplies] = useState<Record<string, string>>({});
+  const [changelogForm, setChangelogForm] = useState({ title: '', summary: '', body: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
 
   const load = async () => {
-    const [s, p, u, pr, o, c] = await Promise.all([
+    const [s, p, u, pr, o, c, fb] = await Promise.all([
       api<Stats>('/admin/dashboard'),
       api<Supplier[]>('/admin/suppliers/pending'),
       api<AdminUser[]>('/admin/users'),
       api<Product[]>('/admin/products'),
       api<AdminOrder[]>('/admin/orders'),
       api<AdminContact[]>('/admin/contacts'),
+      api<FeedbackPost[]>('/feedback/posts?sort=new'),
     ]);
     setStats(s);
     setPending(p);
@@ -84,6 +91,7 @@ export default function Admin() {
     setProducts(pr);
     setOrders(o);
     setContacts(c);
+    setFeedbackPosts(fb);
   };
 
   useEffect(() => {
@@ -128,6 +136,50 @@ export default function Admin() {
         body: JSON.stringify({ active: !product.isActive }),
       });
       await load();
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function setFeedbackStatus(postId: string, status: FeedbackStatus) {
+    setActionBusy(true);
+    try {
+      await api(`/feedback/posts/${postId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function sendOfficialReply(postId: string) {
+    const body = officialReplies[postId]?.trim();
+    if (!body) return;
+    setActionBusy(true);
+    try {
+      await api(`/feedback/posts/${postId}/official-reply`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      });
+      setOfficialReplies((prev) => ({ ...prev, [postId]: '' }));
+      setMessage('Official reply posted.');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function publishChangelog(e: FormEvent) {
+    e.preventDefault();
+    setActionBusy(true);
+    try {
+      await api('/feedback/changelog', {
+        method: 'POST',
+        body: JSON.stringify(changelogForm),
+      });
+      setChangelogForm({ title: '', summary: '', body: '' });
+      setMessage('Changelog entry published.');
     } finally {
       setActionBusy(false);
     }
@@ -467,6 +519,113 @@ export default function Admin() {
                         </tbody>
                       </table>
                     )}
+                  </section>
+                </>
+              )}
+
+              {tab === 'feedback' && (
+                <>
+                  <div className="admin-dash-page-title">
+                    <h1>Feedback board</h1>
+                    <p>Move ideas across the roadmap, reply officially, and publish changelog entries.</p>
+                  </div>
+
+                  <section className={`admin-dash-table-section${actionBusy ? ' admin-dash-busy' : ''}`}>
+                    {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
+                    {feedbackPosts.length === 0 ? (
+                      <p className="admin-dash-empty">No feedback posts yet.</p>
+                    ) : (
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Idea</th>
+                            <th>Votes</th>
+                            <th>Status</th>
+                            <th>Official reply</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {feedbackPosts.map((post) => (
+                            <tr key={post.id}>
+                              <td>
+                                <Link href={`/feedback/${post.id}`}>{post.title}</Link>
+                                <br />
+                                <span className="muted">{post.authorName}</span>
+                              </td>
+                              <td>{post.votes}</td>
+                              <td>
+                                <select
+                                  value={post.status}
+                                  disabled={actionBusy}
+                                  onChange={(e) => void setFeedbackStatus(post.id, e.target.value as FeedbackStatus)}
+                                >
+                                  {FEEDBACK_STATUSES.map((status) => (
+                                    <option key={status} value={status}>
+                                      {feedbackStatusLabel(status)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td>
+                                <textarea
+                                  rows={2}
+                                  placeholder="Team response…"
+                                  value={officialReplies[post.id] ?? ''}
+                                  onChange={(e) =>
+                                    setOfficialReplies((prev) => ({ ...prev, [post.id]: e.target.value }))
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="admin-dash-btn admin-dash-btn-primary"
+                                  disabled={actionBusy}
+                                  onClick={() => void sendOfficialReply(post.id)}
+                                >
+                                  Post reply
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </section>
+
+                  <section className="card feedback-form" style={{ marginTop: 24 }}>
+                    <h2>Publish changelog</h2>
+                    <form onSubmit={(e) => void publishChangelog(e)}>
+                      <label>
+                        Title
+                        <input
+                          value={changelogForm.title}
+                          onChange={(e) => setChangelogForm((f) => ({ ...f, title: e.target.value }))}
+                          required
+                          minLength={3}
+                        />
+                      </label>
+                      <label>
+                        Summary
+                        <input
+                          value={changelogForm.summary}
+                          onChange={(e) => setChangelogForm((f) => ({ ...f, summary: e.target.value }))}
+                          required
+                          minLength={10}
+                        />
+                      </label>
+                      <label>
+                        Body
+                        <textarea
+                          value={changelogForm.body}
+                          onChange={(e) => setChangelogForm((f) => ({ ...f, body: e.target.value }))}
+                          required
+                          minLength={10}
+                          rows={4}
+                        />
+                      </label>
+                      <button type="submit" className="admin-dash-btn admin-dash-btn-primary" disabled={actionBusy}>
+                        Publish
+                      </button>
+                    </form>
                   </section>
                 </>
               )}

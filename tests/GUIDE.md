@@ -15,7 +15,7 @@ DOVA is an agricultural marketplace MVP:
 |-------|-------------|------|
 | **Storefront** | http://localhost:3002 | Customer shopping, auth, checkout |
 | **API** | http://localhost:3000/api/v1 | Backend for all data & payments |
-| **FeedLog** | http://localhost:3002/feedback | Integrated feedback / roadmap / changelog |
+| **Feedback board** | http://localhost:3002/feedback | Native ideas, votes, roadmap, changelog |
 
 Three user roles: **customer**, **supplier**, **admin**.
 
@@ -36,7 +36,6 @@ npm install
 cp .env.dev .env
 cp apps/backend/.env.dev apps/backend/.env
 cp apps/frontend/.env.dev apps/frontend/.env.local
-cd apps/feedlog && cp .env.dova-integrated.example .env && pnpm install && cd ../..
 npm run dev
 ```
 
@@ -116,8 +115,8 @@ Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (
 5. **Checkout** — CHK-01 → CHK-06
 6. **Payments** — PAY-01 → PAY-05
 7. **Supplier** — SUP-01 → SUP-07
-8. **Admin** — ADM-01 → ADM-05
-9. **Public & FeedLog** — PUB-01 → PUB-07
+8. **Admin** — ADM-01 → ADM-06
+9. **Public & feedback** — PUB-01 → PUB-08
 10. **Mobile regression** — OPS-04 (full journey on phone width)
 
 ### Pass criteria (global)
@@ -173,25 +172,21 @@ When Paystack keys are configured:
 
 ---
 
-## 7. FeedLog / Feedback testing (integrated)
+## 7. Native feedback board testing
 
-FeedLog is at **`/feedback`** on the DOVA storefront — same tab, one app for MVP.
-
-| Env variable | Where | Effect |
-|--------------|-------|--------|
-| `NEXT_PUBLIC_FEEDLOG_INTEGRATED=true` | Frontend | Feedback links → `/feedback` (default) |
-| `FEEDLOG_INTERNAL_URL` | Frontend (dev) | Proxy target (`http://localhost:3010`) |
-| `FEEDLOG_BASE_URL` | Backend | SSO redirect (`http://localhost:3002/feedback`) |
-| `FEEDLOG_SSO_SECRET` | Backend + FeedLog | Auto sign-in for logged-in DOVA users |
+Feedback lives entirely inside DOVA at **`/feedback`** — no external app, proxy, or SSO.
 
 | Case | Steps | Expected |
 |------|-------|----------|
-| Guest | Click **Feedback** in nav | Opens `/feedback` in same tab |
-| Logged in + SSO | Click **Feedback** while logged in | `/api/v1/feedback/sso` → signed into `/feedback` |
-| Roadmap | Visit `/feedback/roadmap` | Public roadmap loads |
-| FeedLog not running | Click Feedback | Error — ensure `npm run dev` includes FeedLog |
+| Guest submit | `/feedback` → submit idea with name | Idea appears in list |
+| Vote | Log in → vote on idea | Vote count +1; duplicate vote blocked |
+| Search | Search box on board | Filters by title/description |
+| Detail + comments | Open `/feedback/[id]` | Post + comment thread |
+| Roadmap | `/feedback/roadmap` | Columns: open → planned → in progress → done |
+| Changelog | `/feedback/changelog` | Release notes list + detail |
+| Admin | `/admin` → Feedback tab | Change status, official reply, publish changelog |
 
-Test cases: PUB-04 → PUB-07
+Test cases: PUB-04 → PUB-08 · Automated: `feedback.service.spec.ts` + `frontend/src/lib/feedlog.spec.ts`
 
 ---
 
@@ -233,7 +228,7 @@ When a manual case fails, check if automation already covers it:
 | SUP-01, SUP-06–07 | `app.service.spec.ts` — supplier CRUD/fulfillment |
 | ADM-02–03 | `app.service.spec.ts` — approve/reject supplier |
 | ADM-04 | `app.service.spec.ts` — admin users/products/orders |
-| PUB-04–05 | `feedlog.util.spec.ts` + `frontend/src/lib/feedlog.spec.ts` |
+| PUB-04–08 | `feedback.service.spec.ts` + `frontend/src/lib/feedlog.spec.ts` |
 | OPS-01–02 | `scripts/smoke-week4.js` |
 
 If automation passes but manual fails → likely a **frontend/UI bug**.  

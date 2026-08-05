@@ -48,3 +48,46 @@ export const minOrderMessage = (total: number, fulfillment: FulfillmentType) => 
 
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 export const isValidPassword = (password: string) => password.length >= 8;
+
+/** Built-in DOVA feedback board (MVP — no external FeedLog app). */
+export type FeedbackStatus = 'open' | 'planned' | 'in_progress' | 'done';
+
+export interface FeedbackPost {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  status: FeedbackStatus;
+  authorName: string;
+  authorEmail?: string;
+  userId?: string;
+  votes: number;
+  voterIds: string[];
+  commentCount: number;
+  createdAt: string;
+}
+
+export interface FeedbackComment {
+  id: string;
+  postId: string;
+  body: string;
+  authorName: string;
+  userId?: string;
+  isOfficial: boolean;
+  createdAt: string;
+}
+
+export interface ChangelogEntry {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  body: string;
+  publishedAt: string;
+  createdAt: string;
+}
+
+export const FEEDBACK_STATUSES: FeedbackStatus[] = ['open', 'planned', 'in_progress', 'done'];
+
+export const feedbackStatusLabel = (status: FeedbackStatus) =>
+  ({ open: 'Open', planned: 'Planned', in_progress: 'In progress', done: 'Done' })[status];

@@ -44,11 +44,11 @@
 | File | Tests | Covers |
 |------|-------|--------|
 | `shared/src/index.spec.ts` | 4 | Email/password validation, roles, min-order helpers |
-| `apps/backend/src/app.service.spec.ts` | 35+ | Auth, cart, orders, payments, admin, supplier, webhook, FeedLog |
+| `apps/backend/src/app.service.spec.ts` | 33+ | Auth, cart, orders, payments, admin, supplier, webhook |
+| `apps/backend/src/feedback.service.spec.ts` | 6 | Posts, votes, comments, changelog, roadmap, admin guard |
 | `apps/backend/src/notification.service.spec.ts` | 7 | Supplier email, contact forwarding, provider errors |
-| `apps/backend/src/feedlog.util.spec.ts` | 5 | SSO JWT, URL sanitize, redirect builder |
 | `apps/frontend/src/lib/api.spec.ts` | 4 | API client, errors, FormData |
-| `apps/frontend/src/lib/feedlog.spec.ts` | 7 | FeedLog URL, SSO href for guest/logged-in |
+| `apps/frontend/src/lib/feedlog.spec.ts` | 3 | Native `/feedback` link helpers |
 | `apps/backend/test/auth.test.js` | 1 flow | Register → duplicate → login → refresh → revoke |
 
 Run: `npm run test` · Coverage: `npm run test:coverage`
@@ -139,24 +139,26 @@ Run: `npm run test` · Coverage: `npm run test:coverage`
 | ADM-03 | Reject supplier | Reject with reason | Supplier inactive |
 | ADM-04 | Users / products / orders | Admin tables | List + toggle active |
 | ADM-05 | Contacts inbox | Submit contact form → admin tab | Message visible |
+| ADM-06 | Feedback admin | Admin → Feedback | Status change, official reply, changelog publish |
 
-**Automated coverage:** supplier approval/rejection, admin dashboard/users/products/orders, contact submission
+**Automated coverage:** supplier approval/rejection, admin dashboard/users/products/orders, contact submission, `FeedbackService`
 
 ---
 
-## 8. Public pages & FeedLog
+## 8. Public pages & feedback
 
 | ID | Scenario | Steps | Expected |
 |----|----------|-------|----------|
 | PUB-01 | Home | `/` | Hero, featured, CTA |
 | PUB-02 | About / Contact | Static pages | Render; contact persists |
 | PUB-03 | Footer links | All footer links | Correct routes |
-| PUB-04 | Feedback link (guest) | Integrated MVP (default) | Nav **Feedback** → `/feedback` same tab |
-| PUB-05 | Feedback SSO (logged in) | `FEEDLOG_SSO_SECRET` + FeedLog SSO secret match | **Feedback** → `/api/v1/feedback/sso` → `/feedback` signed in |
-| PUB-06 | External FeedLog mode | `NEXT_PUBLIC_FEEDLOG_INTEGRATED=false` + empty URL | Feedback links hidden |
-| PUB-07 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry points → `/feedback` |
+| PUB-04 | Feedback link | Nav **Feedback** | `/feedback` same tab |
+| PUB-05 | Submit + vote | Guest submit; logged-in vote | Idea listed; vote increments once |
+| PUB-06 | Roadmap / changelog | `/feedback/roadmap`, `/feedback/changelog` | Columns + release notes |
+| PUB-07 | Post detail | `/feedback/[id]` | Comments thread |
+| PUB-08 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry → `/feedback` |
 
-**Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `feedlog.util` JWT · contact smoke script
+**Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `FeedbackService` · contact smoke script
 
 ---
 

@@ -2521,3 +2521,186 @@ form .button {
     max-width: 100%;
   }
 }
+
+/* ========== NATIVE FEEDBACK BOARD ========== */
+.feedback-section .feedback-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.feedback-form label {
+  display: block;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.feedback-form input,
+.feedback-form textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.feedback-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.feedback-sort button {
+  border: 1px solid var(--line);
+  background: var(--white);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.feedback-sort button.active {
+  background: var(--green);
+  color: var(--white);
+  border-color: var(--green);
+}
+
+.feedback-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedback-card {
+  padding: 20px 22px;
+}
+
+.feedback-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.feedback-badge {
+  background: var(--mint);
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.feedback-meta {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  margin: 12px 0;
+}
+
+.feedback-vote {
+  border: 1px solid var(--line);
+  background: var(--white);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.roadmap-column {
+  padding: 18px;
+}
+
+.roadmap-column h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+  color: var(--green);
+}
+
+.roadmap-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roadmap-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.roadmap-votes {
+  color: var(--green);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.feedback-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.feedback-search input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.feedback-detail h1 {
+  margin: 0 0 12px;
+}
+
+.feedback-comments {
+  max-width: 760px;
+  margin: 24px auto 0;
+}
+
+.feedback-comment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feedback-comment.official {
+  border-left: 3px solid var(--green);
+}
+
+.changelog-summary {
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.changelog-body p {
+  margin: 12px 0;
+}
+
+@media (max-width: 900px) {
+  .feedback-section .feedback-layout {
+    grid-template-columns: 1fr;
+  }
+}
