@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Layout } from '../../components/Layout';
-import { Loading } from '../../components/Loading';
-import { api } from '../../lib/api';
+import { Layout } from '../../../components/Layout';
+import { Loading } from '../../../components/Loading';
+import { api } from '../../../lib/api';
 import type { ChangelogEntry } from 'dova-shared';
 
 export default function ChangelogListPage() {
