@@ -29,8 +29,11 @@ export default function FeedbackPage() {
   };
 
   useEffect(() => {
-    void load();
-  }, [sort]);
+    const handler = setTimeout(() => {
+      void load();
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [sort, search]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -92,10 +95,7 @@ export default function FeedbackPage() {
               </div>
               <form
                 className="fb-search-bar"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void load();
-                }}
+                onSubmit={(e) => e.preventDefault()}
               >
                 <input
                   value={search}
