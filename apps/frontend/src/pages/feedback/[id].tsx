@@ -72,64 +72,83 @@ export default function FeedbackDetailPage() {
   return (
     <Layout>
       <section className="cart-section feedback-section">
-        <p style={{ marginBottom: 16 }}>
-          <Link href="/feedback">← Back to feedback board</Link>
-        </p>
+        <div className="feedback-back-nav">
+          <Link href="/feedback" className="feedback-back-link">
+            ← Back to feedback board
+          </Link>
+        </div>
         {loading || !post ? (
           <Loading label="Loading idea…" block />
         ) : (
-          <>
+          <div className="feedback-detail-container">
             <article className="card feedback-detail">
-              <div className="feedback-card-head">
-                <h1>{post.title}</h1>
-                <span className="feedback-badge">{feedbackStatusLabel(post.status)}</span>
+              <div className="feedback-detail-layout">
+                <button
+                  type="button"
+                  className="feedback-vote-btn detail-vote-btn"
+                  onClick={() => void vote()}
+                  title="Vote for this idea"
+                  aria-label={`Vote for ${post.title}`}
+                >
+                  <span className="vote-arrow">▲</span>
+                  <span className="vote-count">{post.votes}</span>
+                </button>
+                <div className="feedback-detail-content">
+                  <div className="feedback-card-head">
+                    <h1>{post.title}</h1>
+                    <span className={`feedback-badge status-${post.status}`}>{feedbackStatusLabel(post.status)}</span>
+                  </div>
+                  <p className="feedback-detail-desc">{post.description}</p>
+                  <div className="feedback-meta">
+                    <span>By {post.authorName}</span>
+                    <span>•</span>
+                    <span>{new Date(post.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
               </div>
-              <p>{post.description}</p>
-              <div className="feedback-meta">
-                <span>{post.authorName}</span>
-                <span>{new Date(post.createdAt).toLocaleDateString('en-NG')}</span>
-              </div>
-              <button type="button" className="feedback-vote" onClick={() => void vote()}>
-                ▲ {post.votes}
-              </button>
             </article>
 
             <section className="feedback-comments">
               <h2>Comments ({comments.length})</h2>
-              <ul className="feedback-comment-list">
-                {comments.map((comment) => (
-                  <li key={comment.id} className={`card feedback-comment${comment.isOfficial ? ' official' : ''}`}>
-                    <p>{comment.body}</p>
-                    <div className="feedback-meta">
-                      <span>
-                        {comment.authorName}
-                        {comment.isOfficial ? ' · DOVA team' : ''}
-                      </span>
-                      <span>{new Date(comment.createdAt).toLocaleDateString('en-NG')}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {comments.length ? (
+                <ul className="feedback-comment-list">
+                  {comments.map((comment) => (
+                    <li key={comment.id} className={`card feedback-comment${comment.isOfficial ? ' official' : ''}`}>
+                      <p>{comment.body}</p>
+                      <div className="feedback-meta">
+                        <span className="comment-author">
+                          {comment.authorName}
+                          {comment.isOfficial ? <span className="official-badge">DOVA Team</span> : null}
+                        </span>
+                        <span>•</span>
+                        <span>{new Date(comment.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="feedback-no-comments">No comments yet. Start the conversation below!</p>
+              )}
               <form className="card feedback-form" onSubmit={submitComment}>
                 <h3>Add a comment</h3>
                 {!user ? (
                   <label>
                     Your name
-                    <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} required minLength={2} />
+                    <input value={authorName} onChange={(e) => setAuthorName(e.target.value)} required minLength={2} placeholder="e.g. Alex" />
                   </label>
                 ) : (
-                  <p className="form-hint">Commenting as {user.fullName}</p>
+                  <p className="form-hint">Commenting as <strong>{user.fullName}</strong></p>
                 )}
                 <label>
                   Comment
-                  <textarea value={body} onChange={(e) => setBody(e.target.value)} required minLength={2} rows={3} />
+                  <textarea value={body} onChange={(e) => setBody(e.target.value)} required minLength={2} rows={3} placeholder="Share your thoughts or feedback..." />
                 </label>
                 <button className="button" type="submit" disabled={busy}>
                   {busy ? <Loading label="Posting…" inline size="sm" /> : 'Post comment'}
                 </button>
               </form>
             </section>
-          </>
+          </div>
         )}
       </section>
     </Layout>
