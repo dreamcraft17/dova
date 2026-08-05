@@ -40,6 +40,11 @@ export default function Detail() {
       return;
     }
 
+    if (user.role !== 'customer') {
+      showToast('Only customer accounts can add items to the cart.', 'error');
+      return;
+    }
+
     if (!deliverySlot) {
       showToast('Please select a delivery slot.', 'error');
       return;

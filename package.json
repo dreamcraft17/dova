@@ -4,9 +4,10 @@
   "private": true,
   "workspaces": ["shared", "apps/backend", "apps/frontend"],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
-    "dev:feedlog": "pnpm --dir ../feedlog dev --port 3010",
-    "dev:all": "concurrently -n api,web,feedlog -c green,blue,magenta \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\" \"npm run dev:feedlog\"",
+    "dev": "concurrently -n api,web,feedlog -c green,blue,magenta \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\" \"npm run dev:feedlog\"",
+    "dev:web": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
+    "dev:feedlog": "pnpm --dir apps/feedlog dev --port 3010",
+    "dev:all": "npm run dev",
     "build": "npm run build -w shared && npm run build -w apps/backend && npm run build -w apps/frontend",
     "test": "npm run test:unit && npm run test:backend",
     "test:unit": "npm run build -w shared && jest --config jest.config.js --runInBand",

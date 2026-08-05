@@ -22,10 +22,33 @@ export class AppService {
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
     const supplier = { id: randomUUID(), userId: supplierUser.id, businessName: 'Green Valley Farms', phone: '+62000000000', status: 'approved' as SupplierStatus }; this.suppliers.push(supplier);
-    const products = [
-      ['Fresh Tomatoes',25000],['Organic Bananas',18000],['Farm Milk',22000],['Premium Rice',75000],['Crisp Carrots',16000],['Avocado Hass',30000],['Free Range Eggs',28000],['Whole Wheat Flour',42000],['Chicken Breast',68000],['Atlantic Salmon',125000],['Palm Sugar',24000],['Coconut Water',32000],['Red Onions',19000],['Sweet Potatoes',23000],['Greek Yogurt',36000],['Arabica Coffee',95000],['Fresh Spinach',17000],['Mango Harum Manis',35000],['Black Pepper',27000],['Cooking Oil',58000],
-    ] as const;
-    products.forEach(([name, price], index) => { const category = this.categories[index % this.categories.length]; this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80', isActive: true }); });
+    const products: Array<[string, number, string]> = [
+      ['Fresh Tomatoes', 25000, 'Vegetables'],
+      ['Organic Bananas', 18000, 'Fruits'],
+      ['Farm Milk', 22000, 'Dairy'],
+      ['Premium Rice', 75000, 'Grains'],
+      ['Crisp Carrots', 16000, 'Vegetables'],
+      ['Avocado Hass', 30000, 'Fruits'],
+      ['Free Range Eggs', 28000, 'Dairy'],
+      ['Whole Wheat Flour', 42000, 'Grains'],
+      ['Chicken Breast', 68000, 'Meat'],
+      ['Atlantic Salmon', 125000, 'Seafood'],
+      ['Palm Sugar', 24000, 'Pantry'],
+      ['Coconut Water', 32000, 'Beverages'],
+      ['Red Onions', 19000, 'Vegetables'],
+      ['Sweet Potatoes', 23000, 'Vegetables'],
+      ['Greek Yogurt', 36000, 'Dairy'],
+      ['Arabica Coffee', 95000, 'Beverages'],
+      ['Fresh Spinach', 17000, 'Vegetables'],
+      ['Mango Harum Manis', 35000, 'Fruits'],
+      ['Black Pepper', 27000, 'Pantry'],
+      ['Cooking Oil', 58000, 'Pantry'],
+    ];
+    products.forEach(([name, price, categoryName], index) => {
+      const category = this.categories.find((item) => item.name === categoryName);
+      if (!category) throw new Error(`Missing category: ${categoryName}`);
+      this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80', isActive: true });
+    });
   }
   private makeUser(email: string, fullName: string, role: Role, password: string): UserRecord { return { id: randomUUID(), email, fullName, role, isActive: true, createdAt: new Date().toISOString(), passwordHash: bcrypt.hashSync(password, 12) }; }
   publicUser(u: UserRecord): User { const { passwordHash, ...user } = u; return user; }

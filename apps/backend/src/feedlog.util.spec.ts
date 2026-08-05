@@ -1,5 +1,6 @@
 import {
   buildFeedlogSsoRedirectUrl,
+  normalizeFeedlogBaseUrl,
   sanitizeFeedlogReturnTo,
   signFeedlogSsoJwt,
 } from './feedlog.util';
@@ -44,6 +45,13 @@ describe('feedlog.util', () => {
     expect(url.startsWith('https://feedback.dova.example/api/sso/jwt?')).toBe(true);
     expect(url).toContain('return_to=%2Froadmap');
     expect(url).toContain('jwt=');
+  });
+
+  it('normalizes FeedLog base URLs', () => {
+    expect(normalizeFeedlogBaseUrl('https://feedback.dova.example/')).toBe('https://feedback.dova.example');
+    expect(normalizeFeedlogBaseUrl('  http://localhost:3010///  ')).toBe('http://localhost:3010');
+    expect(normalizeFeedlogBaseUrl('')).toBeNull();
+    expect(normalizeFeedlogBaseUrl(undefined)).toBeNull();
   });
 
   it('falls back to plain portal URL without SSO secret', () => {

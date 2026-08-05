@@ -1,4 +1,4 @@
-import { api } from './api';
+import { ApiError, api } from './api';
 
 describe('frontend api client', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -9,9 +9,22 @@ describe('frontend api client', () => {
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/health'), expect.objectContaining({ credentials: 'include' }));
   });
 
-  it('converts API errors into readable exceptions', async () => {
+  it('converts API errors into readable exceptions with status', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ message: 'Invalid credentials' }), { status: 401 }));
-    await expect(api('/auth/login', { method: 'POST' })).rejects.toThrow('Invalid credentials');
+    await expect(api('/auth/login', { method: 'POST' })).rejects.toMatchObject({ message: 'Invalid credentials', status: 401 });
+    await expect(api('/auth/login', { method: 'POST' })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('retries protected requests once after a successful refresh', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ items: [], total: 0 }), { status: 200 }));
+
+    await expect(api('/cart')).resolves.toEqual({ items: [], total: 0 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toContain('/auth/refresh');
   });
 
   it('falls back to a generic message when the API body has no message', async () => {
