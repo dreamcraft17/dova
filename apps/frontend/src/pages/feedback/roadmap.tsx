@@ -20,42 +20,46 @@ export default function FeedbackRoadmapPage() {
 
   return (
     <Layout>
-      <section className="cart-section feedback-section">
-        <div className="section-head">
-          <p className="eyebrow">Roadmap</p>
-          <h1>What we&apos;re building</h1>
-          <p>Community-voted ideas moving from open → planned → in progress → done.</p>
-          <p style={{ marginTop: 12 }}>
-            <Link href="/feedback">← Back to feedback board</Link>
-          </p>
+      <div className="fb-container">
+        <div className="fb-hero">
+          <div className="fb-hero-text">
+            <h1>Product Roadmap</h1>
+            <p>Community-voted ideas moving from open → planned → in progress → done.</p>
+          </div>
+          <div className="fb-hero-links">
+            <Link href="/feedback" className="fb-link-btn secondary">← Back to Feedback</Link>
+          </div>
         </div>
 
         {loading || !columns ? (
           <Loading label="Loading roadmap…" block />
         ) : (
-          <div className="roadmap-grid">
+          <div className="fb-roadmap">
             {FEEDBACK_STATUSES.map((status) => (
-              <div key={status} className="roadmap-column card">
-                <h2>{feedbackStatusLabel(status)}</h2>
+              <div key={status} className={`fb-rm-col s-${status}`}>
+                <div className="fb-rm-head">
+                  <h2>{feedbackStatusLabel(status)}</h2>
+                  <span className="fb-rm-count">{columns[status].length}</span>
+                </div>
                 {columns[status].length ? (
-                  <ul className="roadmap-list">
+                  <div className="fb-rm-list">
                     {columns[status].map((post) => (
-                      <li key={post.id}>
-                        <Link href={`/feedback/${post.id}`}>
-                          <strong>{post.title}</strong>
-                        </Link>
-                        <span className="roadmap-votes">▲ {post.votes}</span>
-                      </li>
+                      <div key={post.id} className="fb-rm-card">
+                        <div className="fb-rm-top">
+                          <Link href={`/feedback/${post.id}`} className="fb-rm-title">{post.title}</Link>
+                          <span className="fb-rm-votes">▲ {post.votes}</span>
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="muted">Nothing here yet.</p>
+                  <p className="fb-rm-empty">Nothing here yet.</p>
                 )}
               </div>
             ))}
           </div>
         )}
-      </section>
+      </div>
     </Layout>
   );
 }
