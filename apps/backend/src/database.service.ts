@@ -75,5 +75,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date(row.created_at).toISOString(),
     }));
   }
-  private async bootstrap() { if (!this.pool) return; const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12); await this.pool.query(`INSERT INTO users (email,password_hash,full_name,role) VALUES ('admin@dova.local',$1,'DOVA Admin','admin') ON CONFLICT (email) DO NOTHING`, [adminPassword]); }
+  private async bootstrap() {
+    if (!this.pool) return;
+    const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12);
+    await this.pool.query(`INSERT INTO users (email,password_hash,full_name,role) VALUES ('admin@dova.local',$1,'DOVA Admin','admin') ON CONFLICT (email) DO NOTHING`, [adminPassword]);
+    await this.pool.query(
+      `UPDATE products p SET category_id = c.id, updated_at = NOW()
+       FROM categories c
+       WHERE c.name = 'Meat'
+         AND LOWER(p.name) LIKE '%chicken%breast%'
+         AND p.category_id <> c.id`,
+    );
+  }
 }
