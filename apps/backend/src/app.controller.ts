@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Pos
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 
@@ -27,11 +27,37 @@ export class AppController {
     if (file) b.imageUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     return b;
   }
+  private cookieOptions(maxAge: number) {
+    const crossSite = process.env.COOKIE_SAMESITE === 'none' || process.env.CROSS_SITE_COOKIES === 'true';
+    const secure = process.env.NODE_ENV === 'production' || crossSite;
+    return { httpOnly: true, sameSite: (crossSite ? 'none' : 'lax') as 'none' | 'lax', secure, maxAge };
+  }
+  private bearerToken(req: Request) {
+    return req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  }
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
   @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
-  @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) { const result = await this.service.login(body.email, body.password); res.cookie('accessToken', result.accessToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900000 }); res.cookie('refreshToken', result.refreshToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 604800000 }); return result; }
-  @Post('auth/logout') async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) { await this.service.revoke(req.cookies?.accessToken, req.cookies?.refreshToken); res.clearCookie('accessToken'); res.clearCookie('refreshToken'); return { message: 'Logged out' }; }
-  @Post('auth/refresh') async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) { const result = await this.service.refresh(req.cookies?.refreshToken); res.cookie('accessToken', result.accessToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900000 }); return result; }
+  @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.service.login(body.email, body.password);
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
+    return result;
+  }
+  @Post('auth/logout') async logout(@Req() req: Request, @Body() body: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
+    const accessToken = req.cookies?.accessToken ?? this.bearerToken(req);
+    const refreshToken = req.cookies?.refreshToken ?? body.refreshToken;
+    await this.service.revoke(accessToken, refreshToken);
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    return { message: 'Logged out' };
+  }
+  @Post('auth/refresh') async refresh(@Req() req: Request, @Body() body: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies?.refreshToken ?? body.refreshToken;
+    const result = await this.service.refresh(refreshToken);
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
+    return result;
+  }
   @Get('auth/me') async me(@Req() req: Request) { return this.service.publicUser(await this.auth(req)); }
   @Get('categories') categories() { return this.service.listCategories(); }
   @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '20') { return this.service.listProducts(search, categoryId, Number(page), Number(limit)); }

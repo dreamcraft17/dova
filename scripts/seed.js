@@ -74,9 +74,11 @@ const PRODUCT_CATALOG = [
     }
 
     await pool.query(
-      `UPDATE products p SET category_id = c.id
+      `UPDATE products p SET category_id = c.id, updated_at = NOW()
        FROM categories c
-       WHERE p.name = 'Chicken Breast' AND c.name = 'Meat'`,
+       WHERE c.name = 'Meat'
+         AND LOWER(p.name) LIKE '%chicken%breast%'
+         AND p.category_id <> c.id`,
     );
 
     console.log('Database seed completed with 20 products');
