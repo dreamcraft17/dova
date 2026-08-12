@@ -6,17 +6,18 @@ import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMes
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { PaystackService } from './paystack.service';
+import { createHash } from 'crypto';
 
 type UserRecord = StoredUser;
 type Supplier = { id: string; userId: string; businessName: string; phone: string; status: SupplierStatus; documentUrl?: string; };
 @Injectable()
 export class AppService {
-  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string }>(); stockAdjustments: any[] = [];
+  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string; authorization_url?: string }>(); stockAdjustments: any[] = [];
   contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
   revokedTokens = new Set<string>();
   categories: Category[] = ['Vegetables','Fruits','Dairy','Grains','Meat','Seafood','Beverages','Pantry'].map(name => ({ id: randomUUID(), name }));
-  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, @Optional() private readonly notifications?: NotificationService) {
+  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, @Optional() private readonly notifications?: NotificationService) {
     const admin = this.makeUser('admin@dova.local', 'DOVA Admin', 'admin', 'admin1234');
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
@@ -180,10 +181,118 @@ export class AppService {
     return (await this.database.listContactSubmissions()) ?? this.contacts;
   }
 
-  async initializePayment(userId: string, orderId: string, amount?: number) { const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId); if (!order) throw new NotFoundException('Order not found'); if (order.status !== 'pending') throw new BadRequestException('Order is not payable'); if (amount !== undefined && Number(amount) !== order.totalAmount) throw new BadRequestException('Payment amount mismatch'); if (order.paymentReference && this.payments.get(order.paymentReference)?.status === 'pending' && !process.env.PAYSTACK_SECRET_KEY) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`, reference: order.paymentReference, mode: 'mock' }; const reference = `DOVA-${order.orderNumber}-${randomUUID().slice(0, 8)}`; this.payments.set(reference, { orderId, status: 'pending' }); order.paymentReference = reference; await this.database.setOrderPaymentReference(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated'); const secret = process.env.PAYSTACK_SECRET_KEY; if (!secret) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`, reference, mode: 'mock' };
-    const customer = await this.findUser(userId, true); return fetch('https://api.paystack.co/transaction/initialize', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: customer?.email, amount: Math.round(order.totalAmount * 100), currency: process.env.PAYSTACK_CURRENCY || 'NGN', reference, metadata: { orderId } }) }).then(async response => { const result = await response.json() as any; if (!response.ok || !result.status) throw new BadRequestException(result.message || 'Payment initialization failed'); return { authorization_url: result.data.authorization_url, reference: result.data.reference, mode: 'paystack' }; }); }
-  async verifyPayment(userId: string, reference: string) { const payment = this.payments.get(reference); const storedOrders = await this.database.listOrders(userId); const order = payment ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId)) : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId)); if (!order) throw new NotFoundException('Payment reference not found'); let successful = false; let response: unknown; if (!process.env.PAYSTACK_SECRET_KEY && (payment || order.paymentReference === reference)) successful = true; else if (process.env.PAYSTACK_SECRET_KEY) { const resultResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }); response = await resultResponse.json(); const result = response as any; successful = resultResponse.ok && result.status === true && result.data?.status === 'success'; } if (!successful) { await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response); throw new BadRequestException('Payment verification failed'); } order.status = 'paid'; order.paymentVerifiedAt = new Date().toISOString(); await this.database.markOrderPaid(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response); if (payment) payment.status = 'success'; return { orderId: order.id, orderNumber: order.orderNumber, status: order.status }; }
-  async handlePaystackWebhook(signature: string | undefined, body: any, rawBody?: Buffer) { const secret = process.env.PAYSTACK_SECRET_KEY; if (!secret) return { received: true, mode: 'mock' }; if (!signature) throw new UnauthorizedException('Missing Paystack signature'); const payload = rawBody?.toString('utf8') ?? JSON.stringify(body); const expected = createHmac('sha512', secret).update(payload).digest('hex'); const valid = signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected)); if (!valid) throw new UnauthorizedException('Invalid Paystack signature'); if (body.event !== 'charge.success') return { received: true }; const reference = body.data?.reference; const payment = this.payments.get(reference); if (payment?.status === 'success') return { received: true, duplicate: true }; const order = payment ? (this.orders.find(item => item.id === payment.orderId) ?? await this.database.findOrderByPaymentReference(reference)) : (this.orders.find(item => item.paymentReference === reference) ?? await this.database.findOrderByPaymentReference(reference)); if (!order) throw new NotFoundException('Order not found'); if (order.status === 'paid') return { received: true, duplicate: true }; return this.verifyPayment(order.customerId, reference); }
+  async initializePayment(userId: string, orderId: string, amount?: number) {
+    const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId);
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status !== 'pending') throw new BadRequestException('Order is not payable');
+    if (amount !== undefined && Number(amount) !== order.totalAmount) throw new BadRequestException('Payment amount mismatch');
+
+    if (order.paymentReference) {
+      const existing = this.payments.get(order.paymentReference);
+      if (existing?.status === 'pending') {
+        if (!this.paystack.enabled()) {
+          return {
+            authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`,
+            reference: order.paymentReference,
+            mode: 'mock',
+          };
+        }
+        if (existing.authorization_url) {
+          return {
+            authorization_url: existing.authorization_url,
+            reference: order.paymentReference,
+            mode: this.paystack.isTestMode() ? 'paystack_test' : 'paystack',
+          };
+        }
+      }
+    }
+
+    const reference = `DOVA-${order.orderNumber}-${randomUUID().slice(0, 8)}`;
+    this.payments.set(reference, { orderId: order.id, status: 'pending' });
+    order.paymentReference = reference;
+    await this.database.setOrderPaymentReference(order.id, reference);
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated');
+
+    if (!this.paystack.enabled()) {
+      return {
+        authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`,
+        reference,
+        mode: 'mock',
+      };
+    }
+
+    const customer = await this.findUser(userId, true);
+    if (!customer?.email) throw new BadRequestException('Customer email is required for Paystack checkout');
+    const initialized = await this.paystack.initializeTransaction({
+      email: customer.email,
+      amountMajor: order.totalAmount,
+      reference,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerName: customer.fullName,
+    });
+    this.payments.set(reference, { orderId: order.id, status: 'pending', authorization_url: initialized.authorization_url });
+    return { authorization_url: initialized.authorization_url, reference: initialized.reference, mode: this.paystack.isTestMode() ? 'paystack_test' : 'paystack' };
+  }
+
+  async verifyPayment(userId: string, reference: string) {
+    const payment = this.payments.get(reference);
+    const storedOrders = await this.database.listOrders(userId);
+    const order = payment
+      ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId))
+      : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId));
+    if (!order) throw new NotFoundException('Payment reference not found');
+
+    let successful = false;
+    let response: unknown;
+    const expected = {
+      reference,
+      amountSubunit: this.paystack.amountToSubunit(order.totalAmount),
+      currency: this.paystack.currency(),
+    };
+
+    if (!this.paystack.enabled() && (payment || order.paymentReference === reference)) {
+      successful = true;
+    } else if (this.paystack.enabled()) {
+      const verified = await this.paystack.verifyTransaction(reference);
+      response = verified.raw;
+      successful = verified.ok && this.paystack.isSuccessfulCharge(verified.data, expected);
+    }
+
+    if (!successful) {
+      await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response);
+      throw new BadRequestException('Payment verification failed');
+    }
+
+    order.status = 'paid';
+    order.paymentVerifiedAt = new Date().toISOString();
+    await this.database.markOrderPaid(order.id, reference);
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response);
+    if (payment) payment.status = 'success';
+    return { orderId: order.id, orderNumber: order.orderNumber, status: order.status };
+  }
+
+  async handlePaystackWebhook(signature: string | undefined, body: any, rawBody?: Buffer) {
+    if (!this.paystack.enabled()) return { received: true, mode: 'mock' };
+    const payload = rawBody?.toString('utf8') ?? JSON.stringify(body);
+    if (!this.paystack.verifyWebhookSignature(signature, payload)) {
+      throw new UnauthorizedException('Invalid Paystack signature');
+    }
+    if (body.event !== 'charge.success') return { received: true };
+    const reference = body.data?.reference;
+    if (!reference) throw new BadRequestException('Missing payment reference');
+
+    const payment = this.payments.get(reference);
+    if (payment?.status === 'success') return { received: true, duplicate: true };
+
+    const order = payment
+      ? (this.orders.find(item => item.id === payment.orderId) ?? await this.database.findOrderByPaymentReference(reference))
+      : (this.orders.find(item => item.paymentReference === reference) ?? await this.database.findOrderByPaymentReference(reference));
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status === 'paid') return { received: true, duplicate: true };
+
+    return this.verifyPayment(order.customerId, reference);
+  }
   async supplierFor(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s || s.status !== 'approved') throw new ForbiddenException('Supplier approval required'); return s; }
   async supplierStatus(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s) throw new NotFoundException('Supplier application not found'); return { id: s.id, businessName: s.businessName, status: s.status, rejectionReason: (s as any).rejectionReason, documentUrl: s.documentUrl }; }
   async supplierProducts(userId: string) { const s = await this.supplierFor(userId); return (await this.database.listSupplierProducts(s.id)) ?? this.products.filter(p => p.supplierId === s.id); }

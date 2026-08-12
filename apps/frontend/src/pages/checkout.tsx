@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
+import { resolvePaymentRedirectUrl } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
 import { minOrderFor, minOrderMessage } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
@@ -62,7 +63,7 @@ export default function Checkout() {
         method: 'POST',
         body: JSON.stringify({ orderId: order.id, amount: order.totalAmount }),
       });
-      window.location.href = payment.authorization_url;
+      window.location.href = resolvePaymentRedirectUrl(payment.authorization_url);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

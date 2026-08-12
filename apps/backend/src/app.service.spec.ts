@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { AppService } from './app.service';
+import { PaystackService } from './paystack.service';
 
 const SLOT = 'morning' as const;
 
@@ -56,7 +57,7 @@ function makeService() {
     listContactSubmissions: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
-  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never);
+  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService());
   return { service, database, redis };
 }
 
@@ -475,9 +476,7 @@ describe('AppService', () => {
     it('accepts a valid Paystack webhook and marks the order paid', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ status: true, data: { status: 'success' } }), { status: 200 }),
-      );
+      let fetchSpy: jest.SpyInstance | undefined;
       try {
         const { service } = makeService();
         const customerId = 'webhook-customer';
@@ -488,6 +487,10 @@ describe('AppService', () => {
           deliveryPhone: '0812345678',
         });
         const reference = `DOVA-WEBHOOK-${order.id.slice(0, 8)}`;
+        const amountSubunit = Math.round(order.totalAmount * 100);
+        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+          new Response(JSON.stringify({ status: true, data: { status: 'success', reference, amount: amountSubunit, currency: 'NGN' } }), { status: 200 }),
+        );
         service.payments.set(reference, { orderId: order.id, status: 'pending' });
         order.paymentReference = reference;
         const body = { event: 'charge.success', data: { reference } };
@@ -498,7 +501,7 @@ describe('AppService', () => {
         expect(order.status).toBe('paid');
         expect(fetchSpy).toHaveBeenCalled();
       } finally {
-        fetchSpy.mockRestore();
+        fetchSpy?.mockRestore();
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
         else process.env.PAYSTACK_SECRET_KEY = previousKey;
       }
