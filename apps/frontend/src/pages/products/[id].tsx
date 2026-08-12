@@ -170,7 +170,7 @@ export default function Detail() {
                 <span className="muted" style={{ fontSize: 13 }}>kg</span>
               </div>
               <div style={{ marginTop: 12 }}>
-                <button className="button" disabled={busy || !deliverySlot} onClick={addToCart}>
+                <button className="button" disabled={busy} onClick={addToCart}>
                   {busy ? <Loading label="Adding…" inline size="sm" /> : 'Add to cart'}
                 </button>
               </div>
