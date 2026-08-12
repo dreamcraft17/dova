@@ -7,7 +7,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client?: RedisClientType;
 
   constructor() {
-    if (this.active) this.client = createClient({ url: process.env.REDIS_URL });
+    if (!this.active) return;
+    this.client = createClient({
+      url: process.env.REDIS_URL,
+      socket: { reconnectStrategy: false },
+    });
+    // Prevent ECONNREFUSED from crashing the process via uncaught 'error' events.
+    this.client.on('error', () => {});
   }
 
   get enabled() {
@@ -20,13 +26,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       await this.client.connect();
     } catch (error) {
       console.warn('[Redis] unavailable — continuing without cache:', (error as Error).message);
+      await this.disconnectQuietly();
       this.active = false;
       this.client = undefined;
     }
   }
 
   async onModuleDestroy() {
-    if (this.client?.isOpen) await this.client.quit();
+    await this.disconnectQuietly();
+  }
+
+  private async disconnectQuietly() {
+    if (!this.client?.isOpen) return;
+    try {
+      await this.client.quit();
+    } catch {
+      /* already disconnected */
+    }
   }
 
   async set(key: string, value: string, ttlSeconds: number) {
