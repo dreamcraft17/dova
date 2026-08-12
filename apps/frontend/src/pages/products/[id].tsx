@@ -50,6 +50,11 @@ export default function Detail() {
       return;
     }
 
+    if (qty > p!.stockQuantity) {
+      showToast(`Quantity exceeds available stock (${p!.stockQuantity} kg).`, 'error');
+      return;
+    }
+
     setBusy(true);
     try {
       await api('/cart/add', {
@@ -155,13 +160,13 @@ export default function Detail() {
                   onChange={(e) => {
                     setQtyInput(e.target.value);
                     const val = parseFloat(e.target.value);
-                    if (!isNaN(val) && val >= 1 && val <= p.stockQuantity) {
+                    if (!isNaN(val) && val >= 1) {
                       setQty(Math.round(val * 100) / 100);
                     }
                   }}
                   onBlur={() => {
                     const val = parseFloat(qtyInput);
-                    const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(p.stockQuantity, Math.round(val * 100) / 100));
+                    const clamped = isNaN(val) ? 1 : Math.max(1, Math.round(val * 100) / 100);
                     setQty(clamped);
                     setQtyInput(clamped.toString());
                   }}
