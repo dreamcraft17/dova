@@ -13,6 +13,9 @@ export default function Document() {
           name="description"
           content="DOVA — buy fresh agricultural products from verified suppliers."
         />
+        <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/images/logo.jpg" type="image/jpeg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </Head>
       <body>
         <Main />
