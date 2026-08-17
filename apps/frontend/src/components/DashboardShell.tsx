@@ -37,7 +37,7 @@ export function DashboardShell({
     return (
       <div className="admin-dash">
         <header className="admin-dash-header">
-          <div className="admin-dash-top-bar">
+          <div className="admin-dash-bar">
             <div className="admin-dash-logo">
               <button
                 type="button"
@@ -54,37 +54,31 @@ export function DashboardShell({
               </div>
             </div>
 
-            <nav className={navOpen ? 'show' : undefined}>
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={active === item.id ? 'active' : undefined}
-                  onClick={() => select(item.id)}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-
-            <div className="admin-dash-sub-menu">
+            <div className="admin-dash-utilities">
               <Link href="/">
                 <IconShop />
                 Storefront
               </Link>
-              {feedlogEnabled ? (
-                <FeedlogLink isLoggedIn={Boolean(user)} className="admin-dash-feedlog-link">
-                  <IconMail />
-                  Feedback
-                </FeedlogLink>
-              ) : null}
               <button type="button" onClick={() => void logout()}>
                 <IconLogout />
                 Logout
               </button>
             </div>
           </div>
+
+          <nav className={`admin-dash-nav-bar${navOpen ? ' show' : ''}`}>
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={active === item.id ? 'active' : undefined}
+                onClick={() => select(item.id)}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </nav>
         </header>
         <main className="admin-dash-container">{children}</main>
       </div>
