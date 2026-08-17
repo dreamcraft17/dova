@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from 'next/router';
+import { PasswordInput } from './PasswordInput';
 
 interface LoginModalProps {
   open: boolean;
@@ -102,9 +103,8 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             onChange={(e) => setEmail(e.target.value)}
           />
           <label htmlFor="modal-password">Password</label>
-          <input
+          <PasswordInput
             id="modal-password"
-            type="password"
             required
             placeholder="Enter your password"
             value={password}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
+import { PasswordInput } from '../../components/PasswordInput';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -52,16 +53,14 @@ export default function Register() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <label>Password</label>
-          <input
-            type="password"
+          <PasswordInput
             required
             placeholder="Create a password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <label>Confirm Password</label>
-          <input
-            type="password"
+          <PasswordInput
             required
             placeholder="Confirm your password"
             value={form.confirmPassword}

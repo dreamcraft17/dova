@@ -6,6 +6,7 @@ import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { PasswordInput } from '../../components/PasswordInput';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -48,8 +49,7 @@ export default function Login() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <label>Password</label>
-          <input
-            type="password"
+          <PasswordInput
             required
             placeholder="Enter your password"
             value={password}
