@@ -41,11 +41,25 @@ const PRODUCT_CATALOG = [
     const supplierUserId = randomUUID();
 
     await pool.query(
-      `INSERT INTO users (id,email,password_hash,full_name,role) VALUES ($1,'admin@dova.local',$2,'DOVA Admin','admin') ON CONFLICT (email) DO NOTHING`,
+      `INSERT INTO users (id,email,password_hash,full_name,role,is_active)
+       VALUES ($1,'admin@dova.local',$2,'DOVA Admin','admin',TRUE)
+       ON CONFLICT (email) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         full_name = EXCLUDED.full_name,
+         role = EXCLUDED.role,
+         is_active = TRUE,
+         updated_at = NOW()`,
       [adminId, adminPassword],
     );
     await pool.query(
-      `INSERT INTO users (id,email,password_hash,full_name,role) VALUES ($1,'supplier@dova.local',$2,'Demo Supplier','supplier') ON CONFLICT (email) DO NOTHING`,
+      `INSERT INTO users (id,email,password_hash,full_name,role,is_active)
+       VALUES ($1,'supplier@dova.local',$2,'Demo Supplier','supplier',TRUE)
+       ON CONFLICT (email) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         full_name = EXCLUDED.full_name,
+         role = EXCLUDED.role,
+         is_active = TRUE,
+         updated_at = NOW()`,
       [supplierUserId, supplierPassword],
     );
 
@@ -91,6 +105,9 @@ const PRODUCT_CATALOG = [
     );
 
     console.log('Database seed completed with 20 products');
+    console.log('Demo logins (from ADMIN_PASSWORD / SUPPLIER_PASSWORD env):');
+    console.log(`  admin@dova.local     → ${process.env.ADMIN_PASSWORD || 'admin1234'}`);
+    console.log(`  supplier@dova.local  → ${process.env.SUPPLIER_PASSWORD || 'supplier1234'}`);
   } finally {
     await pool.end();
   }
