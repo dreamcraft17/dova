@@ -2,6 +2,7 @@ require('./load-env').loadDovaEnv();
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
+const { productImageUrl } = require('dova-shared');
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required');
@@ -58,7 +59,6 @@ const PRODUCT_CATALOG = [
     const supplier = await pool.query(`SELECT id FROM supplier_profiles WHERE user_id=$1`, [supplierUser.rows[0].id]);
     const cats = await pool.query('SELECT id,name FROM categories');
     const categoryByName = Object.fromEntries(cats.rows.map((row) => [row.name, row.id]));
-    const imageUrl = 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80';
 
     const count = await pool.query('SELECT COUNT(*)::int AS count FROM products');
     if (count.rows[0].count < 20) {
@@ -68,9 +68,18 @@ const PRODUCT_CATALOG = [
         if (!categoryId) throw new Error(`Missing category: ${categoryName}`);
         await pool.query(
           'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-          [supplier.rows[0].id, name, 'Freshly sourced quality produce for your business.', price, 20 + (i % 5) * 10, categoryId, imageUrl],
+          [supplier.rows[0].id, name, 'Freshly sourced quality produce for your business.', price, 20 + (i % 5) * 10, categoryId, productImageUrl(name, categoryName)],
         );
       }
+    }
+
+    const existing = await pool.query('SELECT p.id, p.name, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id');
+    for (const row of existing.rows) {
+      const url = productImageUrl(row.name, row.category_name);
+      await pool.query(
+        'UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2 AND (image_url IS NULL OR image_url LIKE $3)',
+        [url, row.id, '%1542838132%'],
+      );
     }
 
     await pool.query(
