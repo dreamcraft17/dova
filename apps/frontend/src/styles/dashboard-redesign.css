@@ -16,21 +16,24 @@
   z-index: 1000;
 }
 
-.admin-dash-top-bar {
+.admin-dash-top-bar,
+.admin-dash-bar {
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 18px;
+  padding: 14px 18px;
 }
 
 .admin-dash-logo {
   display: flex;
   align-items: center;
   gap: 15px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .admin-dash-menu-toggle {
@@ -42,11 +45,12 @@
   cursor: pointer;
   padding: 4px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .admin-dash-logo-text h2 {
   color: #fff;
-  font-size: 26px;
+  font-size: clamp(20px, 2.5vw, 26px);
   letter-spacing: 1px;
   font-weight: 700;
   margin: 0;
@@ -60,9 +64,93 @@
   margin: 0;
 }
 
+.admin-dash-utilities {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-dash-utilities a,
+.admin-dash-utilities button {
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-dash-utilities a:hover,
+.admin-dash-utilities button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.admin-dash-nav-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 18px 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+.admin-dash-nav-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.admin-dash-nav-bar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+}
+
+.admin-dash-nav-bar button {
+  color: #fff;
+  border: none;
+  background: transparent;
+  transition: 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.admin-dash-nav-bar button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.admin-dash-nav-bar button.active {
+  background: #d7b75b;
+  color: #222;
+  font-weight: 600;
+}
+
+/* legacy selectors — keep for any stale markup */
 .admin-dash-top-bar nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
 }
@@ -95,7 +183,7 @@
 
 .admin-dash-sub-menu {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
 }
 
@@ -841,6 +929,28 @@
   .admin-dash-menu-toggle,
   .supplier-dash-toggler {
     display: block;
+  }
+
+  .admin-dash-bar {
+    width: 100%;
+  }
+
+  .admin-dash-nav-bar {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 18px 16px;
+    overflow-x: visible;
+  }
+
+  .admin-dash-nav-bar.show {
+    display: flex;
+  }
+
+  .admin-dash-nav-bar button {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .admin-dash-top-bar nav {
