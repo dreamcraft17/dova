@@ -18,6 +18,7 @@ export default function Detail() {
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening' | ''>('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [slotError, setSlotError] = useState('');
   const [qtyError, setQtyError] = useState('');
   const { refresh: refreshCart } = useCart();
@@ -63,11 +64,6 @@ export default function Detail() {
     setQtyError('');
     setQty(finalQty);
     setQtyInput(finalQty.toString());
-
-    if (qty > p!.stockQuantity) {
-      showToast(`Quantity exceeds available stock (${p!.stockQuantity} kg).`, 'error');
-      return;
-    }
 
     setBusy(true);
     try {
