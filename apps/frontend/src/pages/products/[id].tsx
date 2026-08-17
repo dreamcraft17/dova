@@ -18,7 +18,8 @@ export default function Detail() {
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening' | ''>('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [slotError, setSlotError] = useState('');
+  const [qtyError, setQtyError] = useState('');
   const { refresh: refreshCart } = useCart();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -46,9 +47,22 @@ export default function Detail() {
     }
 
     if (!deliverySlot) {
+      setSlotError('Please select a delivery slot (Morning or Evening).');
       showToast('Please select a delivery slot.', 'error');
       return;
     }
+    setSlotError('');
+
+    const requested = parseFloat(qtyInput);
+    const finalQty = !isNaN(requested) && requested >= 1 ? Math.round(requested * 100) / 100 : qty;
+    if (finalQty > p!.stockQuantity) {
+      setQtyError(`Only ${p!.stockQuantity} kg available in stock.`);
+      showToast(`Only ${p!.stockQuantity} kg available in stock.`, 'error');
+      return;
+    }
+    setQtyError('');
+    setQty(finalQty);
+    setQtyInput(finalQty.toString());
 
     if (qty > p!.stockQuantity) {
       showToast(`Quantity exceeds available stock (${p!.stockQuantity} kg).`, 'error');
@@ -59,7 +73,7 @@ export default function Detail() {
     try {
       await api('/cart/add', {
         method: 'POST',
-        body: JSON.stringify({ productId: p!.id, quantity: qty, deliverySlot }),
+        body: JSON.stringify({ productId: p!.id, quantity: finalQty, deliverySlot }),
       });
       await refreshCart();
       showToast(`${p!.name} added to cart!`, 'success');
@@ -117,18 +131,25 @@ export default function Detail() {
                   <button
                     type="button"
                     className={`slot-btn${deliverySlot === 'morning' ? ' active' : ''}`}
-                    onClick={() => setDeliverySlot('morning')}
+                    onClick={() => {
+                      setDeliverySlot('morning');
+                      setSlotError('');
+                    }}
                   >
                     🌅 Morning <span className="slot-time">07:00 – 12:00</span>
                   </button>
                   <button
                     type="button"
                     className={`slot-btn${deliverySlot === 'evening' ? ' active' : ''}`}
-                    onClick={() => setDeliverySlot('evening')}
+                    onClick={() => {
+                      setDeliverySlot('evening');
+                      setSlotError('');
+                    }}
                   >
                     🌇 Evening <span className="slot-time">15:00 – 20:00</span>
                   </button>
                 </div>
+                {slotError ? <p className="error">{slotError}</p> : null}
               </div>
               <div className="qty-select">
                 <label className="delivery-slot-label">Quantity (kg) <span className="required">*</span></label>
@@ -142,6 +163,7 @@ export default function Detail() {
                       onClick={() => {
                         setQty(preset);
                         setQtyInput(preset.toString());
+                        setQtyError('');
                       }}
                     >
                       {preset} kg
@@ -159,6 +181,7 @@ export default function Detail() {
                   value={qtyInput}
                   onChange={(e) => {
                     setQtyInput(e.target.value);
+                    setQtyError('');
                     const val = parseFloat(e.target.value);
                     if (!isNaN(val) && val >= 1) {
                       setQty(Math.round(val * 100) / 100);
@@ -166,7 +189,11 @@ export default function Detail() {
                   }}
                   onBlur={() => {
                     const val = parseFloat(qtyInput);
-                    const clamped = isNaN(val) ? 1 : Math.max(1, Math.round(val * 100) / 100);
+                    if (!isNaN(val) && val > p.stockQuantity) {
+                      setQtyError(`Only ${p.stockQuantity} kg available in stock.`);
+                      showToast(`Only ${p.stockQuantity} kg available in stock.`, 'warning');
+                    }
+                    const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(p.stockQuantity, Math.round(val * 100) / 100));
                     setQty(clamped);
                     setQtyInput(clamped.toString());
                   }}
@@ -179,6 +206,7 @@ export default function Detail() {
                   {busy ? <Loading label="Adding…" inline size="sm" /> : 'Add to cart'}
                 </button>
               </div>
+              {qtyError ? <p className="error">{qtyError}</p> : null}
               {qty > 0 && (
               <p style={{ marginTop: 10, fontSize: 15, color: 'var(--green)', fontWeight: 600 }}>
                 Total: ₦ {(p.price * qty).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
