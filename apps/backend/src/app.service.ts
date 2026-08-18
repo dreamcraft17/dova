@@ -2,21 +2,22 @@ import { Injectable, UnauthorizedException, ForbiddenException, NotFoundExceptio
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { PaystackService } from './paystack.service';
+import { createHash } from 'crypto';
 
 type UserRecord = StoredUser;
 type Supplier = { id: string; userId: string; businessName: string; phone: string; status: SupplierStatus; documentUrl?: string; };
 @Injectable()
 export class AppService {
-  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string }>(); stockAdjustments: any[] = [];
+  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string; authorization_url?: string }>(); stockAdjustments: any[] = [];
   contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
   revokedTokens = new Set<string>();
   categories: Category[] = ['Vegetables','Fruits','Dairy','Grains','Meat','Seafood','Beverages','Pantry'].map(name => ({ id: randomUUID(), name }));
-  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, @Optional() private readonly notifications?: NotificationService) {
+  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, @Optional() private readonly notifications?: NotificationService) {
     const admin = this.makeUser('admin@dova.local', 'DOVA Admin', 'admin', 'admin1234');
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
@@ -46,7 +47,7 @@ export class AppService {
     products.forEach(([name, price, categoryName], index) => {
       const category = this.categories.find((item) => item.name === categoryName);
       if (!category) throw new Error(`Missing category: ${categoryName}`);
-      this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&q=80', isActive: true });
+      this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: productImageUrl(name, categoryName), isActive: true });
     });
   }
   private makeUser(email: string, fullName: string, role: Role, password: string): UserRecord { return { id: randomUUID(), email, fullName, role, isActive: true, createdAt: new Date().toISOString(), passwordHash: bcrypt.hashSync(password, 12) }; }
@@ -69,7 +70,24 @@ export class AppService {
   private cartKey(userId: string) { return `dova:cart:${userId}`; }
   async cart(userId: string): Promise<Cart> { const stored = await this.database.getCart(userId); if (stored) { this.carts.set(userId, stored); return stored; } const existing = this.carts.get(userId); if (existing) return existing; if (this.redis.enabled) { const cached = await this.redis.get(this.cartKey(userId)); if (cached) { const cart = JSON.parse(cached) as Cart; this.carts.set(userId, cart); return cart; } } return { items: [], total: 0 }; }
   private async saveCart(userId: string, cart: Cart) { this.carts.set(userId, cart); await this.database.saveCart(userId, cart); if (this.redis.enabled) await this.redis.set(this.cartKey(userId), JSON.stringify(cart), 604800); return cart; }
-  async addCart(userId: string, productId: string, quantity: number, deliverySlot: 'morning' | 'evening') { const p = await this.product(productId); if (!Number.isInteger(quantity) || quantity < 1 || quantity > p.stockQuantity) throw new BadRequestException('Quantity exceeds available stock'); const cart = await this.cart(userId); const existing = cart.items.find(i => i.product.id === productId); if (existing) { existing.quantity = Math.min(existing.quantity + quantity, p.stockQuantity); existing.deliverySlot = deliverySlot; } else cart.items.push({ id: randomUUID(), product: p, quantity, subtotal: 0, deliverySlot }); this.recalculate(cart); return this.saveCart(userId, cart); }
+  async addCart(userId: string, productId: string, quantity: number, deliverySlot: 'morning' | 'evening') {
+    if (!deliverySlot) throw new BadRequestException('Please select a delivery slot');
+    const p = await this.product(productId);
+    const cart = await this.cart(userId);
+    const existing = cart.items.find(i => i.product.id === productId);
+    const newQty = (existing?.quantity || 0) + quantity;
+    if (!Number.isFinite(quantity) || quantity < 1 || newQty > p.stockQuantity) {
+      throw new BadRequestException(`Only ${p.stockQuantity} kg available in stock`);
+    }
+    if (existing) {
+      existing.quantity = newQty;
+      existing.deliverySlot = deliverySlot;
+    } else {
+      cart.items.push({ id: randomUUID(), product: p, quantity, subtotal: 0, deliverySlot });
+    }
+    this.recalculate(cart);
+    return this.saveCart(userId, cart);
+  }
   recalculate(cart: Cart) { cart.items.forEach(i => i.subtotal = i.quantity * i.product.price); cart.total = cart.items.reduce((sum, i) => sum + i.subtotal, 0); }
   async updateCart(userId: string, itemId: string, quantity?: number, deliverySlot?: 'morning' | 'evening') { const cart = await this.cart(userId); const item = cart.items.find(i => i.id === itemId); if (!item) throw new NotFoundException('Cart item not found'); if (quantity !== undefined) { if (quantity < 1 || quantity > item.product.stockQuantity) throw new BadRequestException('Invalid quantity'); item.quantity = quantity; } if (deliverySlot !== undefined) { item.deliverySlot = deliverySlot; } this.recalculate(cart); return this.saveCart(userId, cart); }
   async removeCart(userId: string, itemId: string) { const cart = await this.cart(userId); cart.items = cart.items.filter(i => i.id !== itemId); this.recalculate(cart); return this.saveCart(userId, cart); }
@@ -83,7 +101,11 @@ export class AppService {
         }
       } catch (error) {
         if (error instanceof BadRequestException) throw error;
-        throw new BadRequestException(error instanceof Error ? error.message : 'Unable to create order');
+        const message = error instanceof Error ? error.message : 'Unable to create order';
+        if (/duplicate key|unique constraint/i.test(message)) {
+          throw new BadRequestException('Unable to create order. Please refresh your cart and try again.');
+        }
+        throw new BadRequestException(message);
       }
     }
     const cart = await this.cart(userId);
@@ -124,7 +146,7 @@ export class AppService {
       deliveryPhone: body.deliveryPhone,
       fulfillmentType,
       items: cart.items.map((i) => ({
-        id: i.id,
+        id: randomUUID(),
         product: i.product,
         quantity: i.quantity,
         unitPrice: i.product.price,
@@ -180,13 +202,125 @@ export class AppService {
     return (await this.database.listContactSubmissions()) ?? this.contacts;
   }
 
-  async initializePayment(userId: string, orderId: string, amount?: number) { const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId); if (!order) throw new NotFoundException('Order not found'); if (order.status !== 'pending') throw new BadRequestException('Order is not payable'); if (amount !== undefined && Number(amount) !== order.totalAmount) throw new BadRequestException('Payment amount mismatch'); if (order.paymentReference && this.payments.get(order.paymentReference)?.status === 'pending' && !process.env.PAYSTACK_SECRET_KEY) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`, reference: order.paymentReference, mode: 'mock' }; const reference = `DOVA-${order.orderNumber}-${randomUUID().slice(0, 8)}`; this.payments.set(reference, { orderId, status: 'pending' }); order.paymentReference = reference; await this.database.setOrderPaymentReference(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated'); const secret = process.env.PAYSTACK_SECRET_KEY; if (!secret) return { authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`, reference, mode: 'mock' };
-    const customer = await this.findUser(userId, true); return fetch('https://api.paystack.co/transaction/initialize', { method: 'POST', headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: customer?.email, amount: Math.round(order.totalAmount * 100), currency: process.env.PAYSTACK_CURRENCY || 'NGN', reference, metadata: { orderId } }) }).then(async response => { const result = await response.json() as any; if (!response.ok || !result.status) throw new BadRequestException(result.message || 'Payment initialization failed'); return { authorization_url: result.data.authorization_url, reference: result.data.reference, mode: 'paystack' }; }); }
-  async verifyPayment(userId: string, reference: string) { const payment = this.payments.get(reference); const storedOrders = await this.database.listOrders(userId); const order = payment ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId)) : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId)); if (!order) throw new NotFoundException('Payment reference not found'); let successful = false; let response: unknown; if (!process.env.PAYSTACK_SECRET_KEY && (payment || order.paymentReference === reference)) successful = true; else if (process.env.PAYSTACK_SECRET_KEY) { const resultResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }); response = await resultResponse.json(); const result = response as any; successful = resultResponse.ok && result.status === true && result.data?.status === 'success'; } if (!successful) { await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response); throw new BadRequestException('Payment verification failed'); } order.status = 'paid'; order.paymentVerifiedAt = new Date().toISOString(); await this.database.markOrderPaid(order.id, reference); await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response); if (payment) payment.status = 'success'; return { orderId: order.id, orderNumber: order.orderNumber, status: order.status }; }
-  async handlePaystackWebhook(signature: string | undefined, body: any, rawBody?: Buffer) { const secret = process.env.PAYSTACK_SECRET_KEY; if (!secret) return { received: true, mode: 'mock' }; if (!signature) throw new UnauthorizedException('Missing Paystack signature'); const payload = rawBody?.toString('utf8') ?? JSON.stringify(body); const expected = createHmac('sha512', secret).update(payload).digest('hex'); const valid = signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected)); if (!valid) throw new UnauthorizedException('Invalid Paystack signature'); if (body.event !== 'charge.success') return { received: true }; const reference = body.data?.reference; const payment = this.payments.get(reference); if (payment?.status === 'success') return { received: true, duplicate: true }; const order = payment ? (this.orders.find(item => item.id === payment.orderId) ?? await this.database.findOrderByPaymentReference(reference)) : (this.orders.find(item => item.paymentReference === reference) ?? await this.database.findOrderByPaymentReference(reference)); if (!order) throw new NotFoundException('Order not found'); if (order.status === 'paid') return { received: true, duplicate: true }; return this.verifyPayment(order.customerId, reference); }
+  async initializePayment(userId: string, orderId: string, amount?: number) {
+    const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId);
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status !== 'pending') throw new BadRequestException('Order is not payable');
+    if (amount !== undefined && Number(amount) !== order.totalAmount) throw new BadRequestException('Payment amount mismatch');
+
+    if (order.paymentReference && order.status === 'pending') {
+      let existing = this.payments.get(order.paymentReference);
+      if (!existing) {
+        existing = { orderId: order.id, status: 'pending' };
+        this.payments.set(order.paymentReference, existing);
+      }
+      if (existing.status === 'pending') {
+        if (!this.paystack.enabled()) {
+          return {
+            authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`,
+            reference: order.paymentReference,
+            mode: 'mock',
+          };
+        }
+        if (existing.authorization_url) {
+          return {
+            authorization_url: existing.authorization_url,
+            reference: order.paymentReference,
+            mode: this.paystack.isTestMode() ? 'paystack_test' : 'paystack',
+          };
+        }
+      }
+    }
+
+    const reference = `DOVA-${order.orderNumber}-${randomUUID().slice(0, 8)}`;
+    this.payments.set(reference, { orderId: order.id, status: 'pending' });
+    order.paymentReference = reference;
+    await this.database.setOrderPaymentReference(order.id, reference);
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated');
+
+    if (!this.paystack.enabled()) {
+      return {
+        authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`,
+        reference,
+        mode: 'mock',
+      };
+    }
+
+    const customer = await this.findUser(userId, true);
+    if (!customer?.email) throw new BadRequestException('Customer email is required for Paystack checkout');
+    const initialized = await this.paystack.initializeTransaction({
+      email: customer.email,
+      amountMajor: order.totalAmount,
+      reference,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerName: customer.fullName,
+    });
+    this.payments.set(reference, { orderId: order.id, status: 'pending', authorization_url: initialized.authorization_url });
+    return { authorization_url: initialized.authorization_url, reference: initialized.reference, mode: this.paystack.isTestMode() ? 'paystack_test' : 'paystack' };
+  }
+
+  async verifyPayment(userId: string, reference: string) {
+    const payment = this.payments.get(reference);
+    const storedOrders = await this.database.listOrders(userId);
+    const order = payment
+      ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId))
+      : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId));
+    if (!order) throw new NotFoundException('Payment reference not found');
+
+    let successful = false;
+    let response: unknown;
+    const expected = {
+      reference,
+      amountSubunit: this.paystack.amountToSubunit(order.totalAmount),
+      currency: this.paystack.currency(),
+    };
+
+    if (!this.paystack.enabled() && (payment || order.paymentReference === reference)) {
+      successful = true;
+    } else if (this.paystack.enabled()) {
+      const verified = await this.paystack.verifyTransaction(reference);
+      response = verified.raw;
+      successful = verified.ok && this.paystack.isSuccessfulCharge(verified.data, expected);
+    }
+
+    if (!successful) {
+      await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response);
+      throw new BadRequestException('Payment verification failed');
+    }
+
+    order.status = 'paid';
+    order.paymentVerifiedAt = new Date().toISOString();
+    await this.database.markOrderPaid(order.id, reference);
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response);
+    if (payment) payment.status = 'success';
+    return { orderId: order.id, orderNumber: order.orderNumber, status: order.status };
+  }
+
+  async handlePaystackWebhook(signature: string | undefined, body: any, rawBody?: Buffer) {
+    if (!this.paystack.enabled()) return { received: true, mode: 'mock' };
+    const payload = rawBody?.toString('utf8') ?? JSON.stringify(body);
+    if (!this.paystack.verifyWebhookSignature(signature, payload)) {
+      throw new UnauthorizedException('Invalid Paystack signature');
+    }
+    if (body.event !== 'charge.success') return { received: true };
+    const reference = body.data?.reference;
+    if (!reference) throw new BadRequestException('Missing payment reference');
+
+    const payment = this.payments.get(reference);
+    if (payment?.status === 'success') return { received: true, duplicate: true };
+
+    const order = payment
+      ? (this.orders.find(item => item.id === payment.orderId) ?? await this.database.findOrderByPaymentReference(reference))
+      : (this.orders.find(item => item.paymentReference === reference) ?? await this.database.findOrderByPaymentReference(reference));
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.status === 'paid') return { received: true, duplicate: true };
+
+    return this.verifyPayment(order.customerId, reference);
+  }
   async supplierFor(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s || s.status !== 'approved') throw new ForbiddenException('Supplier approval required'); return s; }
   async supplierStatus(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s) throw new NotFoundException('Supplier application not found'); return { id: s.id, businessName: s.businessName, status: s.status, rejectionReason: (s as any).rejectionReason, documentUrl: s.documentUrl }; }
-  async supplierProducts(userId: string) { const s = await this.supplierFor(userId); return (await this.database.listSupplierProducts(s.id)) ?? this.products.filter(p => p.supplierId === s.id); }
+  async supplierProducts(userId: string) { const s = await this.supplierFor(userId); if (this.database.enabled) return (await this.database.listSupplierProducts(s.id)) ?? []; return this.products.filter(p => p.supplierId === s.id && p.isActive); }
   async addSupplierProduct(userId: string, body: any) { const s = await this.supplierFor(userId); this.validateProduct(body); const stored = await this.database.createSupplierProduct(s.id, body); if (stored) return stored; const category = this.categories.find(c => c.id === body.categoryId); if (!category) throw new BadRequestException('Invalid category'); const product: Product = { id: randomUUID(), supplierId: s.id, supplierName: s.businessName, name: body.name, description: body.description, price: Number(body.price), stockQuantity: Number(body.quantity), categoryId: category.id, categoryName: category.name, imageUrl: body.imageUrl, isActive: true }; this.products.unshift(product); return product; }
   async updateSupplierProduct(userId: string, productId: string, body: any) { const s = await this.supplierFor(userId); this.validateProduct(body); const stored = await this.database.updateSupplierProduct(s.id, productId, body); if (stored) return stored; const product = this.products.find(p => p.id === productId && p.supplierId === s.id && p.isActive); if (!product) throw new NotFoundException('Product not found'); const category = this.categories.find(c => c.id === body.categoryId); if (!category) throw new BadRequestException('Invalid category'); Object.assign(product, { name: body.name, description: body.description, price: Number(body.price), stockQuantity: Number(body.quantity), categoryId: category.id, categoryName: category.name, imageUrl: body.imageUrl }); return product; }
   async removeSupplierProduct(userId: string, productId: string) { const s = await this.supplierFor(userId); await this.database.deleteSupplierProduct(s.id, productId); const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (!product && !this.database.enabled) throw new NotFoundException('Product not found'); if (product) product.isActive = false; return { message: 'Product removed' }; }

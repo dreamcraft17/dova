@@ -190,7 +190,7 @@ export default function Supplier() {
   if (loading) {
     return (
       <Layout chrome="none">
-        <RequireAuth roles={['supplier', 'admin']}>
+        <RequireAuth roles={['supplier']}>
           <Loading label="Loading supplier dashboard…" block />
         </RequireAuth>
       </Layout>
@@ -222,7 +222,7 @@ export default function Supplier() {
 
   return (
     <Layout chrome="none">
-      <RequireAuth roles={['supplier', 'admin']}>
+      <RequireAuth roles={['supplier']}>
         <DashboardShell
           variant="supplier"
           title="DOVA SUPPLIER"

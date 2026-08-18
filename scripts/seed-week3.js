@@ -1,4 +1,4 @@
-require('dotenv/config');
+require('./load-env').loadDovaEnv();
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 

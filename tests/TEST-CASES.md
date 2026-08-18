@@ -2,9 +2,10 @@
 
 **Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
-**Automated:** `npm run test` (Jest unit) · `npm run test:backend` (auth smoke) · `npm run smoke:week4` (API health + contact)  
+**Automated:** `npm run test` — **63 tests / 6 suites** · `npm run test:backend` (auth smoke) · `npm run smoke:week4` (API health + contact)  
 **QA workflow:** see [GUIDE.md](./GUIDE.md)  
-**Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`
+**Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`  
+**Local URLs:** storefront http://localhost:3001 · API http://localhost:3000/api/v1 · feedback http://localhost:3001/feedback
 
 ---
 
@@ -17,7 +18,7 @@
 | **API smoke** | `scripts/smoke-week4.js` | After deploy / with `npm run dev` |
 | **Manual UAT** | Tables below | Staging soft-launch, mobile + desktop |
 
-**Pass criteria:** expected result matches; no 5xx; auth cookies set on login; ₦ amounts correct.
+**Pass criteria:** expected result matches; no 5xx; auth cookies set on login; ₦ amounts correct; feedback stays on native `/feedback` (no external FeedLog).
 
 ---
 
@@ -39,17 +40,18 @@
 
 ---
 
-## 1b. Automated unit test inventory
+## 1b. Automated unit test inventory (Aug 2026)
 
 | File | Tests | Covers |
 |------|-------|--------|
 | `shared/src/index.spec.ts` | 4 | Email/password validation, roles, min-order helpers |
-| `apps/backend/src/app.service.spec.ts` | 33+ | Auth, cart, orders, payments, admin, supplier, webhook |
+| `apps/backend/src/app.service.spec.ts` | 35 | Auth, cart, orders, payments, admin, supplier, webhook |
 | `apps/backend/src/feedback.service.spec.ts` | 6 | Posts, votes, comments, changelog, roadmap, admin guard |
 | `apps/backend/src/notification.service.spec.ts` | 7 | Supplier email, contact forwarding, provider errors |
 | `apps/frontend/src/lib/api.spec.ts` | 4 | API client, errors, FormData |
-| `apps/frontend/src/lib/feedlog.spec.ts` | 3 | Native `/feedback` link helpers |
+| `apps/frontend/src/lib/feedlog.spec.ts` | 3 | Native `/feedback` link helpers (`FeedlogLink` contract) |
 | `apps/backend/test/auth.test.js` | 1 flow | Register → duplicate → login → refresh → revoke |
+| **Total** | **63** | 6 Jest suites + backend auth script |
 
 Run: `npm run test` · Coverage: `npm run test:coverage`
 
@@ -64,7 +66,7 @@ Run: `npm run test` · Coverage: `npm run test:coverage`
 | CAT-03 | Category filter | Select category | List filters |
 | CAT-04 | Product detail | Open `/products/[id]` | Name, price, stock, supplier, description |
 | CAT-05 | Verified badge | Product from approved supplier | Verified indicator where applicable |
-| CAT-06 | Mobile layout | `/products` on phone width | Hamburger nav; readable cards |
+| CAT-06 | Mobile layout | `/products` on phone width | Hamburger nav; readable cards; loading spinner while fetch |
 
 **Automated coverage:** `listProducts` pagination (≥20 seed products)
 
@@ -139,49 +141,90 @@ Run: `npm run test` · Coverage: `npm run test:coverage`
 | ADM-03 | Reject supplier | Reject with reason | Supplier inactive |
 | ADM-04 | Users / products / orders | Admin tables | List + toggle active |
 | ADM-05 | Contacts inbox | Submit contact form → admin tab | Message visible |
-| ADM-06 | Feedback admin | Admin → Feedback | Status change, official reply, changelog publish |
+| ADM-06 | Feedback — status & reply | Admin → **Feedback** tab | Change status dropdown; official reply posts to idea |
+| ADM-07 | Feedback — publish changelog | Admin → Feedback → Publish changelog form | New entry on `/feedback/changelog` |
 
 **Automated coverage:** supplier approval/rejection, admin dashboard/users/products/orders, contact submission, `FeedbackService`
 
 ---
 
-## 8. Public pages & feedback
+## 8. Public pages & navigation
 
 | ID | Scenario | Steps | Expected |
 |----|----------|-------|----------|
 | PUB-01 | Home | `/` | Hero, featured, CTA |
 | PUB-02 | About / Contact | Static pages | Render; contact persists |
 | PUB-03 | Footer links | All footer links | Correct routes |
-| PUB-04 | Feedback link | Nav **Feedback** | `/feedback` same tab |
-| PUB-05 | Submit + vote | Guest submit; logged-in vote | Idea listed; vote increments once |
-| PUB-06 | Roadmap / changelog | `/feedback/roadmap`, `/feedback/changelog` | Columns + release notes |
-| PUB-07 | Post detail | `/feedback/[id]` | Comments thread |
-| PUB-08 | Dashboard Feedback | Admin / supplier / customer logged in | Feedback entry → `/feedback` |
+| PUB-04 | Feedback nav link | Header **Feedback** (`FeedlogLink`) | `/feedback` same tab, same origin |
+| PUB-05 | Customer dashboard CTA | `/customer` → feedback callout | Opens `/feedback` |
+| PUB-06 | Supplier/admin shell link | Logged-in supplier or admin sidebar | **Feedback** → `/feedback` |
+| PUB-07 | Roadmap / changelog | `/feedback/roadmap`, `/feedback/changelog` | Columns + release notes |
+| PUB-08 | Loading states | Open cart, product, feedback pages | Spinner/skeleton; no indefinite blank |
 
-**Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `FeedbackService` · contact smoke script
+**Automated coverage:** `getFeedlogUrl()` · `getFeedlogFeedbackHref()` · `isFeedlogSameOrigin()` · contact smoke script
 
 ---
 
-## 9. Staging go-live (ops)
+## 9. Native feedback board (Feedlog integrated)
+
+> External FeedLog app removed. All cases use **`/feedback`** on the DOVA storefront. No SSO / proxy / `NEXT_PUBLIC_FEEDLOG_*` env.
+
+| ID | Scenario | Steps | Expected |
+|----|----------|-------|----------|
+| FEED-01 | Board loads | Open `/feedback` | List of ideas; sort controls; search |
+| FEED-02 | Guest submit | Submit idea with name (not logged in) | Idea appears; default status **open** |
+| FEED-03 | Auth submit | Submit while logged in | Author tied to account |
+| FEED-04 | Vote once | Log in → vote | Count +1 |
+| FEED-05 | Duplicate vote | Vote same idea again | Error / no double count |
+| FEED-06 | Search | Search keyword | Filters title/description |
+| FEED-07 | Post detail | `/feedback/[id]` | Description, votes, status badge |
+| FEED-08 | Comments | Add comment on detail page | Thread updates; guest or auth |
+| FEED-09 | Roadmap columns | `/feedback/roadmap` | Ideas grouped: open, planned, in_progress, done |
+| FEED-10 | Changelog detail | Click entry on `/feedback/changelog` | `/feedback/changelog/[slug]` full body |
+
+**API routes (prefix `/api/v1`):**  
+`GET/POST /feedback/posts` · `GET /feedback/posts/:id` · `POST .../vote` · `GET/POST .../comments` · `POST .../official-reply` · `PUT .../status` · `GET /feedback/roadmap` · `GET/POST /feedback/changelog` · `GET /feedback/changelog/:slug`
+
+**Automated coverage:** `FeedbackService` (6 tests) · `feedlog.spec.ts` (3 tests)
+
+**Storage (MVP):** in-memory when `USE_IN_MEMORY=true` (default dev). PostgreSQL migration `003_feedlog_extensions.sql` documents optional shared DB with legacy FeedLog schema — not required for UAT.
+
+---
+
+## 10. Staging go-live (ops)
 
 | ID | Scenario | Expected |
 |----|----------|----------|
 | OPS-01 | `GET /api/v1/health` | `{ status: "ok" }` |
 | OPS-02 | `npm run smoke:week4` against staging API | Pass |
 | OPS-03 | ≥10 Paystack test transactions | All verify + webhook |
-| OPS-04 | Mobile smoke customer → supplier → admin | Full journey on phone |
+| OPS-04 | Mobile smoke customer → supplier → admin → feedback | Full journey on phone |
 
-See also `docs/STAGING-GO-LIVE.md` (wiki mirror).
+See also internal runbook / staging docs (wiki mirror if available).
 
 ---
 
 ## Running automated tests
 
 ```bash
-npm run test              # all unit tests
+npm run test              # all unit tests (63)
 npm run test:coverage     # with coverage report
 npm run test:backend      # compiled auth integration
 npm run smoke:week4       # requires API on :3000
 ```
 
 **CI:** `.github/workflows/ci.yml` runs build, typecheck, unit + backend tests on every push/PR.
+
+---
+
+## Feedlog helper reference (for dev/QA)
+
+| Function | Behavior |
+|----------|----------|
+| `isFeedlogEnabled()` | Always `true` (native board) |
+| `getFeedlogUrl()` | Returns `/feedback` |
+| `getFeedlogFeedbackHref()` | Same-origin href; `/roadmap` return → `/feedback/roadmap` |
+| `isFeedlogSameOrigin()` | Always `true` |
+| `getFeedlogSsoPath()` | **Deprecated** — returns `null` |
+
+UI component: `FeedlogLink` — used in `Layout`, `DashboardShell`, `customer.tsx`.

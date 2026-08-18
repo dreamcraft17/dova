@@ -91,3 +91,5 @@ export const FEEDBACK_STATUSES: FeedbackStatus[] = ['open', 'planned', 'in_progr
 
 export const feedbackStatusLabel = (status: FeedbackStatus) =>
   ({ open: 'Open', planned: 'Planned', in_progress: 'In progress', done: 'Done' })[status];
+
+export { productImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES } from './product-images';

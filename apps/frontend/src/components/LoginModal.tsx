@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from 'next/router';
+import { PasswordInput } from './PasswordInput';
 
 interface LoginModalProps {
   open: boolean;
