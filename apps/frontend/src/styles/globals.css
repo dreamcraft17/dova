@@ -1359,6 +1359,33 @@ form .button {
   min-width: 0;
 }
 
+/* Password show/hide toggle */
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 46px !important;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+.password-toggle-btn:hover {
+  color: var(--green);
+}
+
 @media (max-width: 639px) {
   .orders-table table,
   .admin-table table,
@@ -1519,9 +1546,9 @@ form .button {
   box-shadow: 0 0 8px rgba(15, 107, 67, 0.15);
 }
 
-.login-card button,
-.register-card button,
-.supplier-card button,
+.login-card button:not(.password-toggle-btn),
+.register-card button:not(.password-toggle-btn),
+.supplier-card button:not(.password-toggle-btn),
 .confirm-btn,
 .checkout-btn {
   width: 100%;
@@ -1538,9 +1565,9 @@ form .button {
   font-family: inherit;
 }
 
-.login-card button:hover,
-.register-card button:hover,
-.supplier-card button:hover,
+.login-card button:not(.password-toggle-btn):hover,
+.register-card button:not(.password-toggle-btn):hover,
+.supplier-card button:not(.password-toggle-btn):hover,
 .confirm-btn:hover,
 .checkout-btn:hover {
   background: var(--green-dark);
