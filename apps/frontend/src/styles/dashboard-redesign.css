@@ -317,6 +317,8 @@
   padding: 30px;
   box-shadow: 0 12px 25px rgba(0, 0, 0, 0.08);
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
   animation: dashFadeUp 0.6s ease;
 }
 
@@ -354,7 +356,12 @@
 .admin-dash-table-section table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 560px;
+}
+
+@media (min-width: 768px) {
+  .admin-dash-table-section table {
+    min-width: 560px;
+  }
 }
 
 .admin-dash-table-section thead {
@@ -718,7 +725,12 @@
   width: 100%;
   border-collapse: collapse;
   margin: 0;
-  min-width: 700px;
+}
+
+@media (min-width: 768px) {
+  .supplier-dash-panel table {
+    min-width: 700px;
+  }
 }
 
 .supplier-dash-panel thead {

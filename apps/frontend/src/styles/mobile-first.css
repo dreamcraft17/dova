@@ -1,0 +1,232 @@
+/* DOVA — mobile-first polish (all pages usable on small screens) */
+
+@media (max-width: 767px) {
+  .cart-section,
+  .checkout-section,
+  .form-page {
+    padding-top: 32px;
+    padding-bottom: 64px;
+  }
+
+  .checkout-form {
+    padding: 20px 16px;
+  }
+
+  .admin-dash-container,
+  .supplier-dash-container {
+    padding: 24px 14px 48px;
+  }
+
+  .admin-dash-table-section {
+    padding: 18px 14px;
+  }
+
+  .supplier-dash-main {
+    padding: 24px 0 48px;
+  }
+
+  .page-content {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    padding: 20px 0;
+  }
+
+  .detail {
+    margin-top: 20px;
+    gap: 20px;
+  }
+
+  .product-image.large {
+    height: 220px;
+    font-size: 72px;
+  }
+
+  .feedlog-callout {
+    padding: 18px 16px;
+  }
+
+  .trust-strip {
+    gap: 20px;
+    padding-left: var(--pad-x);
+    padding-right: var(--pad-x);
+  }
+
+  .card:hover,
+  .admin-dash-card:hover,
+  .supplier-dash-stat-card:hover {
+    transform: none;
+  }
+
+  .toast {
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+  }
+
+  .feedback-detail-layout {
+    flex-direction: column;
+  }
+
+  .feedback-vote-btn.detail-vote-btn {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .supplier-dash-stats {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .supplier-dash-stat-body {
+    padding: 24px 18px;
+  }
+
+  .supplier-dash-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .supplier-dash-profile-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .supplier-dash-profile-row dd {
+    text-align: left;
+  }
+
+  .supplier-dash-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .supplier-dash-panel-header .supplier-dash-view-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Dashboard tables → stacked cards */
+  .admin-dash-table-section,
+  .supplier-dash-table-wrap {
+    overflow-x: visible;
+    max-width: 100%;
+  }
+
+  .admin-dash-table-section table,
+  .supplier-dash-panel table {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .admin-dash-table-section thead,
+  .supplier-dash-panel thead {
+    display: none;
+  }
+
+  .admin-dash-table-section tbody tr,
+  .supplier-dash-panel tbody tr {
+    display: block;
+    border: 1px solid #ececec;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+    background: #fff;
+  }
+
+  .admin-dash-table-section tbody tr:hover,
+  .supplier-dash-panel tbody tr:hover {
+    background: #fff;
+  }
+
+  .admin-dash-table-section tbody td,
+  .supplier-dash-panel tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    text-align: right;
+  }
+
+  .admin-dash-table-section tbody td:last-child,
+  .supplier-dash-panel tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .admin-dash-table-section tbody td::before,
+  .supplier-dash-panel tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #0d6a43;
+    text-align: left;
+    flex-shrink: 0;
+    max-width: 42%;
+  }
+
+  .admin-dash-table-section tbody td:not([data-label])::before,
+  .supplier-dash-panel tbody td:not([data-label])::before,
+  .admin-dash-table-section tbody td[data-label='']::before,
+  .supplier-dash-panel tbody td[data-label='']::before {
+    content: none;
+  }
+
+  .admin-dash-table-section tbody td[colspan],
+  .supplier-dash-panel tbody td[colspan] {
+    display: block;
+    text-align: center;
+  }
+
+  .admin-dash-table-section tbody td[colspan]::before,
+  .supplier-dash-panel tbody td[colspan]::before {
+    content: none;
+  }
+
+  .admin-dash-actions,
+  .supplier-dash-actions-row {
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .admin-dash-actions button,
+  .supplier-dash-actions-row button {
+    width: 100%;
+  }
+
+  .admin-dash-table-section select,
+  .admin-dash-table-section textarea {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .admin-dash-table-header h2 {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero h1 {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+
+  .site-footer .footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal-card {
+    max-height: 92dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}

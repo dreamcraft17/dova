@@ -270,10 +270,10 @@ export default function Admin() {
                       <tbody>
                         {users.slice(0, 8).map((u) => (
                           <tr key={u.id}>
-                            <td>{u.fullName}</td>
-                            <td>{u.email}</td>
-                            <td>{u.role}</td>
-                            <td>
+                            <td data-label="Name">{u.fullName}</td>
+                            <td data-label="Email">{u.email}</td>
+                            <td data-label="Role">{u.role}</td>
+                            <td data-label="Status">
                               <span className={`admin-dash-status ${userStatusClass(u)}`}>
                                 {userStatusLabel(u)}
                               </span>
@@ -309,8 +309,8 @@ export default function Admin() {
                         <tbody>
                           {pending.map((s) => (
                             <tr key={s.id}>
-                              <td>{s.businessName}</td>
-                              <td>
+                              <td data-label="Business">{s.businessName}</td>
+                              <td data-label="Contact">
                                 {s.contactName} · {s.email}
                                 {s.documentUrl && (
                                   <>
@@ -321,10 +321,10 @@ export default function Admin() {
                                   </>
                                 )}
                               </td>
-                              <td>
+                              <td data-label="Status">
                                 <span className="admin-dash-status pending">{s.status}</span>
                               </td>
-                              <td>
+                              <td data-label="Actions">
                                 <div className="admin-dash-actions">
                                   <button
                                     type="button"
@@ -374,15 +374,15 @@ export default function Admin() {
                       <tbody>
                         {products.map((p) => (
                           <tr key={p.id}>
-                            <td>{p.name}</td>
-                            <td>{p.supplierName}</td>
-                            <td>{p.stockQuantity}</td>
-                            <td>
+                            <td data-label="Product">{p.name}</td>
+                            <td data-label="Supplier">{p.supplierName}</td>
+                            <td data-label="Stock">{p.stockQuantity}</td>
+                            <td data-label="Status">
                               <span className={`admin-dash-status ${p.isActive ? 'active' : 'inactive'}`}>
                                 {p.isActive ? 'Active' : 'Hidden'}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="">
                               <button
                                 type="button"
                                 className="admin-dash-btn admin-dash-btn-primary"
@@ -422,10 +422,10 @@ export default function Admin() {
                         <tbody>
                           {orders.map((o) => (
                             <tr key={o.id}>
-                              <td>{o.orderNumber}</td>
-                              <td>{o.customerName}</td>
-                              <td>₦ {o.totalAmount.toLocaleString('en-NG')}</td>
-                              <td>
+                              <td data-label="Order">{o.orderNumber}</td>
+                              <td data-label="Customer">{o.customerName}</td>
+                              <td data-label="Total">₦ {o.totalAmount.toLocaleString('en-NG')}</td>
+                              <td data-label="Status">
                                 <span className="admin-dash-status pending">{o.status}</span>
                               </td>
                             </tr>
@@ -458,15 +458,15 @@ export default function Admin() {
                       <tbody>
                         {users.map((u) => (
                           <tr key={u.id}>
-                            <td>{u.fullName}</td>
-                            <td>{u.email}</td>
-                            <td>{u.role}</td>
-                            <td>
+                            <td data-label="Name">{u.fullName}</td>
+                            <td data-label="Email">{u.email}</td>
+                            <td data-label="Role">{u.role}</td>
+                            <td data-label="Status">
                               <span className={`admin-dash-status ${userStatusClass(u)}`}>
                                 {userStatusLabel(u)}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="">
                               <button
                                 type="button"
                                 className="admin-dash-btn admin-dash-btn-primary"
@@ -507,13 +507,13 @@ export default function Admin() {
                         <tbody>
                           {contacts.map((c) => (
                             <tr key={c.id}>
-                              <td>{c.name}</td>
-                              <td>{c.email}</td>
-                              <td>{c.message}</td>
-                              <td>
+                              <td data-label="Name">{c.name}</td>
+                              <td data-label="Email">{c.email}</td>
+                              <td data-label="Message">{c.message}</td>
+                              <td data-label="Status">
                                 <span className="admin-dash-status pending">{c.status}</span>
                               </td>
-                              <td>{new Date(c.createdAt).toLocaleString('en-NG')}</td>
+                              <td data-label="Date">{new Date(c.createdAt).toLocaleString('en-NG')}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -547,13 +547,13 @@ export default function Admin() {
                         <tbody>
                           {feedbackPosts.map((post) => (
                             <tr key={post.id}>
-                              <td>
+                              <td data-label="Idea">
                                 <Link href={`/feedback/${post.id}`}>{post.title}</Link>
                                 <br />
                                 <span className="muted">{post.authorName}</span>
                               </td>
-                              <td>{post.votes}</td>
-                              <td>
+                              <td data-label="Votes">{post.votes}</td>
+                              <td data-label="Status">
                                 <select
                                   value={post.status}
                                   disabled={actionBusy}
@@ -566,7 +566,7 @@ export default function Admin() {
                                   ))}
                                 </select>
                               </td>
-                              <td>
+                              <td data-label="Official reply">
                                 <textarea
                                   rows={2}
                                   placeholder="Team response…"

@@ -297,10 +297,10 @@ export default function Supplier() {
                         const badge = productBadge(p);
                         return (
                           <tr key={p.id}>
-                            <td>{p.name}</td>
-                            <td>{p.categoryName}</td>
-                            <td>{p.stockQuantity}</td>
-                            <td>
+                            <td data-label="Product">{p.name}</td>
+                            <td data-label="Category">{p.categoryName}</td>
+                            <td data-label="Stock">{p.stockQuantity}</td>
+                            <td data-label="Status">
                               <span className={`supplier-dash-badge ${badge.className}`}>
                                 {badge.label}
                               </span>
@@ -342,15 +342,15 @@ export default function Supplier() {
                         const badge = productBadge(p);
                         return (
                           <tr key={p.id}>
-                            <td>{p.name}</td>
-                            <td>₦ {p.price.toLocaleString('en-NG')}</td>
-                            <td>{p.stockQuantity}</td>
-                            <td>
+                            <td data-label="Product">{p.name}</td>
+                            <td data-label="Price">₦ {p.price.toLocaleString('en-NG')}</td>
+                            <td data-label="Stock">{p.stockQuantity}</td>
+                            <td data-label="Status">
                               <span className={`supplier-dash-badge ${badge.className}`}>
                                 {badge.label}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Actions">
                               <div className="supplier-dash-actions-row">
                                 <button
                                   type="button"
@@ -514,16 +514,16 @@ export default function Supplier() {
                       <tbody>
                         {orders.map((o) => (
                           <tr key={o.itemId}>
-                            <td>{o.orderNumber}</td>
-                            <td>
+                            <td data-label="Order ID">{o.orderNumber}</td>
+                            <td data-label="Customer">
                               {o.customerName}
                               <br />
                               <small className="muted">{o.deliveryAddress}</small>
                             </td>
-                            <td>{o.productName}</td>
-                            <td>{o.quantity}</td>
-                            <td>₦ {o.subtotal.toLocaleString('en-NG')}</td>
-                            <td>
+                            <td data-label="Product">{o.productName}</td>
+                            <td data-label="Qty">{o.quantity}</td>
+                            <td data-label="Total">₦ {o.subtotal.toLocaleString('en-NG')}</td>
+                            <td data-label="Status">
                               {o.status === 'delivered' ? (
                                 <span className="supplier-dash-badge success">{o.status}</span>
                               ) : (
