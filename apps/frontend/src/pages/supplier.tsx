@@ -51,6 +51,7 @@ function supplierStatusBadge(status: string) {
 export default function Supplier() {
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');
+  const [productTab, setProductTab] = useState<'available' | 'low_stock' | 'hidden'>('available');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -131,11 +132,25 @@ export default function Supplier() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Remove this product?')) return;
+    if (!window.confirm('Remove this product? It will be hidden from the catalogue.')) return;
     setActionBusy(true);
     try {
       await api(`/suppliers/products/${id}`, { method: 'DELETE' });
       await load();
+      setProductTab('hidden');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function activate(id: string) {
+    setActionBusy(true);
+    try {
+      await api(`/suppliers/products/${id}/activate`, { method: 'PUT' });
+      await load();
+      setProductTab('available');
+    } catch (err) {
+      setMessage((err as Error).message);
     } finally {
       setActionBusy(false);
     }
@@ -324,6 +339,28 @@ export default function Supplier() {
             <>
               <h2 className="supplier-dash-title">Your Products</h2>
               <p className="supplier-dash-subtitle">Manage stock and listings ({products.length}).</p>
+
+              {/* Product status tabs */}
+              <div className="supplier-product-tabs">
+                {(
+                  [
+                    { key: 'available', label: 'Available', count: products.filter(p => p.isActive && p.stockQuantity >= 20).length },
+                    { key: 'low_stock', label: 'Low Stock', count: products.filter(p => p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20).length },
+                    { key: 'hidden',    label: 'Hidden',    count: products.filter(p => !p.isActive).length },
+                  ] as const
+                ).map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`supplier-product-tab${productTab === key ? ' active' : ''}`}
+                    onClick={() => setProductTab(key)}
+                  >
+                    {label}
+                    <span className="supplier-product-tab-count">{count}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className={`supplier-dash-panel${actionBusy ? ' supplier-dash-busy' : ''}`}>
                 {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 <div className="supplier-dash-table-wrap">
@@ -338,57 +375,91 @@ export default function Supplier() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((p) => {
-                        const badge = productBadge(p);
-                        return (
-                          <tr key={p.id}>
-                            <td>{p.name}</td>
-                            <td>₦ {p.price.toLocaleString('en-NG')}</td>
-                            <td>{p.stockQuantity}</td>
-                            <td>
-                              <span className={`supplier-dash-badge ${badge.className}`}>
-                                {badge.label}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="supplier-dash-actions-row">
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => startEdit(p)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => void stock(p.id, 'restock')}
-                                >
-                                  + Stock
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => void stock(p.id, 'damage')}
-                                >
-                                  − Stock
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-danger"
-                                  disabled={actionBusy}
-                                  onClick={() => void remove(p.id)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {products
+                        .filter(p => {
+                          if (productTab === 'available') return p.isActive && p.stockQuantity >= 20;
+                          if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
+                          return !p.isActive;
+                        })
+                        .map((p) => {
+                          const badge = productBadge(p);
+                          const isHidden = !p.isActive;
+                          return (
+                            <tr key={p.id}>
+                              <td>{p.name}</td>
+                              <td>₦ {p.price.toLocaleString('en-NG')}</td>
+                              <td>{p.stockQuantity}</td>
+                              <td>
+                                <span className={`supplier-dash-badge ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="supplier-dash-actions-row">
+                                  {!isHidden && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                        disabled={actionBusy}
+                                        onClick={() => startEdit(p)}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                        disabled={actionBusy}
+                                        onClick={() => void stock(p.id, 'restock')}
+                                      >
+                                        + Stock
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                        disabled={actionBusy}
+                                        onClick={() => void stock(p.id, 'damage')}
+                                      >
+                                        − Stock
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="supplier-dash-btn-sm supplier-dash-btn-danger"
+                                        disabled={actionBusy}
+                                        onClick={() => void remove(p.id)}
+                                      >
+                                        Remove
+                                      </button>
+                                    </>
+                                  )}
+                                  {isHidden && (
+                                    <button
+                                      type="button"
+                                      className="supplier-dash-btn-sm supplier-dash-btn-success"
+                                      disabled={actionBusy}
+                                      onClick={() => void activate(p.id)}
+                                    >
+                                      Set to Active
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {products.filter(p => {
+                        if (productTab === 'available') return p.isActive && p.stockQuantity >= 20;
+                        if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
+                        return !p.isActive;
+                      }).length === 0 && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)' }}>
+                            {productTab === 'available' && 'No available products.'}
+                            {productTab === 'low_stock' && 'No low stock products.'}
+                            {productTab === 'hidden' && 'No hidden products.'}
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
