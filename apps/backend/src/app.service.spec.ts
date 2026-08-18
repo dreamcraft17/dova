@@ -6,6 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import { AppService } from './app.service';
+import { PaystackService } from './paystack.service';
 
 const SLOT = 'morning' as const;
 
@@ -56,7 +57,7 @@ function makeService() {
     listContactSubmissions: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
-  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never);
+  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService());
   return { service, database, redis };
 }
 
@@ -279,6 +280,36 @@ describe('AppService', () => {
       }
     });
 
+    it('reuses a pending payment reference loaded from the database', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      delete process.env.PAYSTACK_SECRET_KEY;
+      try {
+        const { service, database } = makeService();
+        database.enabled = true;
+        const pendingRef = 'DOVA-TEST-REF-001';
+        database.findOrder = jest.fn().mockResolvedValue({
+          id: 'order-db-1',
+          orderNumber: 'DOVA-DB1',
+          customerId: 'db-payment-customer',
+          status: 'pending',
+          totalAmount: 25000,
+          deliveryName: 'Jane',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+          paymentReference: pendingRef,
+          items: [],
+          createdAt: new Date().toISOString(),
+        });
+        const first = await service.initializePayment('db-payment-customer', 'order-db-1', 25000);
+        service.payments.clear();
+        const second = await service.initializePayment('db-payment-customer', 'order-db-1', 25000);
+        expect(first.reference).toBe(pendingRef);
+        expect(second.reference).toBe(pendingRef);
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
     it('accepts a mock payment webhook without requiring a secret', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       delete process.env.PAYSTACK_SECRET_KEY;
@@ -300,6 +331,8 @@ describe('AppService', () => {
       const updated = await service.updateSupplierProduct(supplier.id, product.id, { name: 'Updated Greens', description: 'Better greens', price: 14000, quantity: 8, categoryId: service.categories[0].id });
       expect(updated.name).toBe('Updated Greens');
       await service.removeSupplierProduct(supplier.id, product.id);
+      const remaining = await service.supplierProducts(supplier.id);
+      expect(remaining.some(item => item.id === product.id)).toBe(false);
       await expect(service.product(product.id)).rejects.toThrow('Product not found');
     });
 
@@ -326,9 +359,51 @@ describe('AppService', () => {
       expect(service.suppliers.find(s => s.id === application.id)?.status).toBe('approved');
       await expect(service.makeSupplierUser({ businessName: 'Duplicate', email: 'nina@farms.test', password: 'password123' })).rejects.toThrow('Email already registered');
     });
+
+    it('returns only the logged-in supplier products when database mode is enabled', async () => {
+      const { service, database } = makeService();
+      database.enabled = true;
+      database.findSupplierByUser = jest.fn().mockResolvedValue({ id: 'supplier-b', userId: 'user-b', businessName: 'Farm B', status: 'approved' });
+      database.listSupplierProducts = jest.fn().mockResolvedValue([{ id: 'p1', supplierId: 'supplier-b', supplierName: 'Farm B', name: 'My Beans', description: 'x', price: 1000, stockQuantity: 5, categoryId: 'c1', categoryName: 'Pantry', isActive: true }]);
+      service.products.push({
+        id: 'other',
+        supplierId: 'supplier-a',
+        supplierName: 'Farm A',
+        name: 'Tomatoes',
+        description: 'x',
+        price: 1000,
+        stockQuantity: 5,
+        categoryId: 'c1',
+        categoryName: 'Vegetables',
+        isActive: true,
+      });
+      const products = await service.supplierProducts('user-b');
+      expect(products).toHaveLength(1);
+      expect(products[0].name).toBe('My Beans');
+      expect(database.listSupplierProducts).toHaveBeenCalledWith('supplier-b');
+    });
   });
 
   describe('cart removal and empty checkout', () => {
+    it('rejects add to cart when quantity exceeds available stock', async () => {
+      const { service } = makeService();
+      const customerId = 'stock-limit-customer';
+      const product = service.products[0];
+      await expect(addToCart(service, customerId, product.id, product.stockQuantity + 1)).rejects.toThrow(
+        `Only ${product.stockQuantity} kg available in stock`,
+      );
+    });
+
+    it('rejects cumulative cart quantity above available stock', async () => {
+      const { service } = makeService();
+      const customerId = 'stock-merge-customer';
+      const product = service.products[0];
+      await addToCart(service, customerId, product.id, product.stockQuantity - 1);
+      await expect(addToCart(service, customerId, product.id, 2)).rejects.toThrow(
+        `Only ${product.stockQuantity} kg available in stock`,
+      );
+    });
+
     it('removes a cart item and recalculates totals', async () => {
       const { service } = makeService();
       const customerId = 'remove-cart-customer';
@@ -475,9 +550,7 @@ describe('AppService', () => {
     it('accepts a valid Paystack webhook and marks the order paid', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
-      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ status: true, data: { status: 'success' } }), { status: 200 }),
-      );
+      let fetchSpy: jest.SpyInstance | undefined;
       try {
         const { service } = makeService();
         const customerId = 'webhook-customer';
@@ -488,6 +561,10 @@ describe('AppService', () => {
           deliveryPhone: '0812345678',
         });
         const reference = `DOVA-WEBHOOK-${order.id.slice(0, 8)}`;
+        const amountSubunit = Math.round(order.totalAmount * 100);
+        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+          new Response(JSON.stringify({ status: true, data: { status: 'success', reference, amount: amountSubunit, currency: 'NGN' } }), { status: 200 }),
+        );
         service.payments.set(reference, { orderId: order.id, status: 'pending' });
         order.paymentReference = reference;
         const body = { event: 'charge.success', data: { reference } };
@@ -498,7 +575,7 @@ describe('AppService', () => {
         expect(order.status).toBe('paid');
         expect(fetchSpy).toHaveBeenCalled();
       } finally {
-        fetchSpy.mockRestore();
+        fetchSpy?.mockRestore();
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
         else process.env.PAYSTACK_SECRET_KEY = previousKey;
       }

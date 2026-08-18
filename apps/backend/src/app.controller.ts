@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Pos
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 
@@ -27,11 +27,37 @@ export class AppController {
     if (file) b.imageUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
     return b;
   }
+  private cookieOptions(maxAge: number) {
+    const crossSite = process.env.COOKIE_SAMESITE === 'none' || process.env.CROSS_SITE_COOKIES === 'true';
+    const secure = process.env.NODE_ENV === 'production' || crossSite;
+    return { httpOnly: true, sameSite: (crossSite ? 'none' : 'lax') as 'none' | 'lax', secure, maxAge };
+  }
+  private bearerToken(req: Request) {
+    return req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  }
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
   @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
-  @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) { const result = await this.service.login(body.email, body.password); res.cookie('accessToken', result.accessToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900000 }); res.cookie('refreshToken', result.refreshToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 604800000 }); return result; }
-  @Post('auth/logout') async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) { await this.service.revoke(req.cookies?.accessToken, req.cookies?.refreshToken); res.clearCookie('accessToken'); res.clearCookie('refreshToken'); return { message: 'Logged out' }; }
-  @Post('auth/refresh') async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) { const result = await this.service.refresh(req.cookies?.refreshToken); res.cookie('accessToken', result.accessToken, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 900000 }); return result; }
+  @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.service.login(body.email, body.password);
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
+    return result;
+  }
+  @Post('auth/logout') async logout(@Req() req: Request, @Body() body: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
+    const accessToken = req.cookies?.accessToken ?? this.bearerToken(req);
+    const refreshToken = req.cookies?.refreshToken ?? body.refreshToken;
+    await this.service.revoke(accessToken, refreshToken);
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    return { message: 'Logged out' };
+  }
+  @Post('auth/refresh') async refresh(@Req() req: Request, @Body() body: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies?.refreshToken ?? body.refreshToken;
+    const result = await this.service.refresh(refreshToken);
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
+    return result;
+  }
   @Get('auth/me') async me(@Req() req: Request) { return this.service.publicUser(await this.auth(req)); }
   @Get('categories') categories() { return this.service.listCategories(); }
   @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '20') { return this.service.listProducts(search, categoryId, Number(page), Number(limit)); }
@@ -49,14 +75,14 @@ export class AppController {
   @Post('payments/webhook') webhook(@Req() req: Request, @Headers('x-paystack-signature') signature: string | undefined, @Body() body: any) { return this.service.handlePaystackWebhook(signature, body, (req as Request & { rawBody?: Buffer }).rawBody); }
   @Post('suppliers/register') @UseInterceptors(FileInterceptor('verificationDocs', { limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype) ? callback(null, true) : callback(new BadRequestException('Document must be PDF, JPG, or PNG'), false) })) supplierRegister(@Body() b: SupplierRegisterDto, @UploadedFile() file?: any) { if (file) b.documentUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`; return this.service.makeSupplierUser(b); }
   @Get('suppliers/status') async supplierStatus(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierStatus(u.id); }
-  @Get('suppliers/products') async supplierProducts(@Req() req: Request) { const u = await this.auth(req); return this.service.supplierProducts(u.id); }
-  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@Req() req: Request, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); return this.service.addSupplierProduct(u.id, this.applyImage(b, file)); }
-  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@Req() req: Request, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); return this.service.updateSupplierProduct(u.id, id, this.applyImage(b, file)); }
-  @Delete('suppliers/products/:id') async supplierProductDelete(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.removeSupplierProduct(u.id, id); }
-  @Put('suppliers/products/:id/stock') async supplierStock(@Req() req: Request, @Param('id') id: string, @Body() b: StockDto) { const u = await this.auth(req); return this.service.adjustSupplierStock(u.id, id, b.quantity, b.reason); }
-  @Get('suppliers/products/:id/stock-history') async supplierStockHistory(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); return this.service.supplierStockHistory(u.id, id); }
-  @Get('suppliers/orders') async supplierOrders(@Req() req: Request) { const u = await this.auth(req); return this.service.supplierOrders(u.id); }
-  @Put('suppliers/orders/:itemId/status') async supplierOrderStatus(@Req() req: Request, @Param('itemId') itemId: string, @Body() b: OrderStatusDto) { const u = await this.auth(req); return this.service.updateSupplierOrderStatus(u.id, itemId, b.status); }
+  @Get('suppliers/products') async supplierProducts(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierProducts(u.id); }
+  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@Req() req: Request, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.addSupplierProduct(u.id, this.applyImage(b, file)); }
+  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@Req() req: Request, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: any) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.updateSupplierProduct(u.id, id, this.applyImage(b, file)); }
+  @Delete('suppliers/products/:id') async supplierProductDelete(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.removeSupplierProduct(u.id, id); }
+  @Put('suppliers/products/:id/stock') async supplierStock(@Req() req: Request, @Param('id') id: string, @Body() b: StockDto) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.adjustSupplierStock(u.id, id, b.quantity, b.reason); }
+  @Get('suppliers/products/:id/stock-history') async supplierStockHistory(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierStockHistory(u.id, id); }
+  @Get('suppliers/orders') async supplierOrders(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.supplierOrders(u.id); }
+  @Put('suppliers/orders/:itemId/status') async supplierOrderStatus(@Req() req: Request, @Param('itemId') itemId: string, @Body() b: OrderStatusDto) { const u = await this.auth(req); this.service.requireRole(u, ['supplier']); return this.service.updateSupplierOrderStatus(u.id, itemId, b.status); }
   @Get('admin/dashboard') async admin(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.adminDashboard(); }
   @Get('admin/suppliers/pending') async pendingSuppliers(@Req() req: Request) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.pendingSuppliers(); }
   @Post('admin/suppliers/:id/approve') async approveSupplier(@Req() req: Request, @Param('id') id: string) { const u = await this.auth(req); this.service.requireRole(u, ['admin']); return this.service.approveSupplier(id); }

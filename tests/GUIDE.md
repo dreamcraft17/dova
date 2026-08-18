@@ -9,15 +9,36 @@
 
 ## 1. What you are testing
 
-DOVA is an agricultural marketplace MVP:
+DOVA is an agricultural marketplace MVP with a **native feedback board** (formerly external FeedLog — now fully inside DOVA):
 
-| Layer | URL (local) | Role |
-|-------|-------------|------|
-| **Storefront** | http://localhost:3002 | Customer shopping, auth, checkout |
+| Layer | URL (local `npm run dev`) | Role |
+|-------|---------------------------|------|
+| **Storefront** | http://localhost:3001 | Customer shopping, auth, checkout |
 | **API** | http://localhost:3000/api/v1 | Backend for all data & payments |
-| **Feedback board** | http://localhost:3002/feedback | Native ideas, votes, roadmap, changelog |
+| **Feedback board** | http://localhost:3001/feedback | Ideas, votes, roadmap, changelog (native) |
+
+> Production `npm start` serves the frontend on **port 3002**; local dev uses **3001** (`apps/frontend/package.json`).
 
 Three user roles: **customer**, **supplier**, **admin**.
+
+### Feedlog → native feedback (current state)
+
+| Before | Now |
+|--------|-----|
+| Separate FeedLog / Nuxt app, proxy, SSO env vars | **Native** Next.js pages + NestJS `FeedbackService` |
+| External URL / iframe | Always **`/feedback`** on the storefront (same origin) |
+| `NEXT_PUBLIC_FEEDLOG_*` env | **Not required** — board always enabled |
+
+**Key files (for triage):**
+
+| Area | Path |
+|------|------|
+| Link helpers | `apps/frontend/src/lib/feedlog.ts` |
+| Nav / dashboard link | `apps/frontend/src/components/FeedlogLink.tsx` |
+| Public UI | `apps/frontend/src/pages/feedback/**` |
+| API | `apps/backend/src/feedback.service.ts` + `/api/v1/feedback/*` |
+| Shared types | `shared/src/index.ts` — `FeedbackStatus`, labels |
+| DB note (future) | `database/migrations/003_feedlog_extensions.sql` (shared Postgres; MVP uses in-memory) |
 
 ---
 
@@ -43,8 +64,8 @@ Wait until both services are up:
 
 | Check | Expected |
 |-------|----------|
-| http://localhost:3002 | Homepage loads |
-| http://localhost:3002/feedback | Feedback board loads |
+| http://localhost:3001 | Homepage loads |
+| http://localhost:3001/feedback | Feedback board loads (native) |
 | http://localhost:3000/api/v1/health | `{ "status": "ok" }` |
 
 ### Demo accounts (seeded in dev)
@@ -68,8 +89,8 @@ Use the staging URL provided by the dev team. Confirm `NEXT_PUBLIC_API_URL` poin
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Layer 1 — Automated unit tests (Jest)                      │
-│  npm run test          → dev runs before every PR         │
-│  QA: run once after checkout / before manual UAT            │
+│  npm run test          → 63 tests / 6 suites (Aug 2026)     │
+│  QA: run once after checkout / before manual UAT              │
 ├─────────────────────────────────────────────────────────────┤
 │  Layer 2 — Auth integration smoke                           │
 │  npm run test:backend  → register/login/refresh/revoke      │
@@ -104,7 +125,7 @@ npm run smoke:week4
 
 ## 4. Manual UAT workflow
 
-Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (e.g. `AUTH-01`) — log pass/fail against that ID.
+Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (e.g. `AUTH-01`, `FEED-03`) — log pass/fail against that ID.
 
 ### Recommended test order
 
@@ -115,8 +136,8 @@ Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (
 5. **Checkout** — CHK-01 → CHK-06
 6. **Payments** — PAY-01 → PAY-05
 7. **Supplier** — SUP-01 → SUP-07
-8. **Admin** — ADM-01 → ADM-06
-9. **Public & feedback** — PUB-01 → PUB-08
+8. **Admin** — ADM-01 → ADM-07
+9. **Public & feedback** — PUB-01 → PUB-08, **FEED-01 → FEED-10**
 10. **Mobile regression** — OPS-04 (full journey on phone width)
 
 ### Pass criteria (global)
@@ -126,6 +147,7 @@ Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (
 - Login sets auth cookies; logout clears them
 - All ₦ amounts display and calculate correctly
 - Minimum order rules: **delivery ≥ ₦5,000** · **pickup ≥ ₦3,000**
+- Loading states show spinner/skeleton (no blank flash) on cart, products, feedback, admin tabs
 
 ### Fail criteria — log a bug when
 
@@ -134,6 +156,7 @@ Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (
 - Stock not decremented after purchase
 - Supplier approval/rejection not reflected in UI
 - Mobile layout broken (overflow, unreadable text, nav not working)
+- Feedback link opens wrong origin or 404 (must stay on `/feedback`)
 
 ---
 
@@ -146,6 +169,8 @@ Use [TEST-CASES.md](./TEST-CASES.md) as your checklist. Each row has an **ID** (
 | Pending supplier | `/auth/supplier-register` with new email → login before admin approval |
 | Paid order | Checkout → mock payment (no Paystack key in dev) → verify at `/checkout/verify` |
 | Admin inbox | Submit `/contact` form → check Admin → Contacts tab |
+| Feedback idea | `/feedback` → submit as guest or logged-in user |
+| Changelog entry | Admin → Feedback tab → **Publish changelog** form |
 
 **Reset local data:** restart `npm run dev` (in-memory mode clears on restart). With PostgreSQL, ask dev to re-seed.
 
@@ -172,21 +197,43 @@ When Paystack keys are configured:
 
 ---
 
-## 7. Native feedback board testing
+## 7. Native feedback board (Feedlog integrated)
 
-Feedback lives entirely inside DOVA at **`/feedback`** — no external app, proxy, or SSO.
+Feedback lives **entirely inside DOVA** at **`/feedback`** — no external app, proxy, SSO, or extra env vars.
+
+### Where users find it
+
+| Entry point | Component | Destination |
+|-------------|-----------|-------------|
+| Main nav (desktop + mobile) | `FeedlogLink` in `Layout.tsx` | `/feedback` |
+| Footer | Feedback & Roadmap link | `/feedback` |
+| Customer dashboard | `feedlog-callout` + `FeedlogLink` | `/feedback` |
+| Admin / supplier shell | `DashboardShell` sidebar | `/feedback` |
+
+All links are **same-tab, same-origin** (`isFeedlogSameOrigin() === true`).
+
+### Manual smoke matrix
 
 | Case | Steps | Expected |
 |------|-------|----------|
-| Guest submit | `/feedback` → submit idea with name | Idea appears in list |
-| Vote | Log in → vote on idea | Vote count +1; duplicate vote blocked |
-| Search | Search box on board | Filters by title/description |
-| Detail + comments | Open `/feedback/[id]` | Post + comment thread |
+| Guest submit | `/feedback` → title + description + name | Idea in list; status **open** |
+| Sort / search | Toggle sort; type in search | List reorders / filters |
+| Vote | Log in → vote on idea | Count +1; second vote blocked |
+| Detail + comments | `/feedback/[id]` | Post, thread, add comment |
 | Roadmap | `/feedback/roadmap` | Columns: open → planned → in progress → done |
-| Changelog | `/feedback/changelog` | Release notes list + detail |
-| Admin | `/admin` → Feedback tab | Change status, official reply, publish changelog |
+| Changelog list | `/feedback/changelog` | Release notes with links |
+| Changelog detail | `/feedback/changelog/[slug]` | Full body renders |
+| Admin status | Admin → **Feedback** tab → change status dropdown | Roadmap column updates |
+| Official reply | Admin → Feedback → textarea + Post reply | Shows as official comment on post |
+| Publish changelog | Admin → Feedback → Publish changelog form | New entry on `/feedback/changelog` |
 
-Test cases: PUB-04 → PUB-08 · Automated: `feedback.service.spec.ts` + `frontend/src/lib/feedlog.spec.ts`
+Test cases: **FEED-01 → FEED-10** · **PUB-04 → PUB-08** · **ADM-06, ADM-07**
+
+Automated: `feedback.service.spec.ts` (6) · `frontend/src/lib/feedlog.spec.ts` (3)
+
+### Loading UX on feedback pages
+
+Each feedback route shows `Loading` spinner while fetching (`Loading…`, `Loading roadmap…`, etc.). Comment submit shows inline **Posting…** spinner. Fail if page stays blank with no spinner.
 
 ---
 
@@ -195,7 +242,7 @@ Test cases: PUB-04 → PUB-08 · Automated: `feedback.service.spec.ts` + `fronte
 Copy this when filing issues:
 
 ```
-**Test ID:** AUTH-04 (from TEST-CASES.md)
+**Test ID:** FEED-04 (from TEST-CASES.md)
 **Environment:** local / staging
 **Browser / device:** Chrome 128 / iPhone 15 Safari
 **Account used:** customer@test.com
@@ -227,8 +274,8 @@ When a manual case fails, check if automation already covers it:
 | PAY-01–02, PAY-04 | `app.service.spec.ts` — mock + webhook |
 | SUP-01, SUP-06–07 | `app.service.spec.ts` — supplier CRUD/fulfillment |
 | ADM-02–03 | `app.service.spec.ts` — approve/reject supplier |
-| ADM-04 | `app.service.spec.ts` — admin users/products/orders |
-| PUB-04–08 | `feedback.service.spec.ts` + `frontend/src/lib/feedlog.spec.ts` |
+| ADM-04–05 | `app.service.spec.ts` — admin users/products/orders/contacts |
+| FEED-01–10, PUB-04–08 | `feedback.service.spec.ts` + `feedlog.spec.ts` |
 | OPS-01–02 | `scripts/smoke-week4.js` |
 
 If automation passes but manual fails → likely a **frontend/UI bug**.  
@@ -240,9 +287,10 @@ If both fail → likely a **backend/logic bug**.
 
 Before approving a release:
 
-- [ ] `npm run test` — all green
+- [ ] `npm run test` — all green (63 tests)
 - [ ] `npm run smoke:week4` against target environment — pass
 - [ ] All P0 manual cases in TEST-CASES.md — pass (desktop)
+- [ ] FEED-01 → FEED-10 — pass (native feedback / ex-Feedlog)
 - [ ] OPS-04 mobile smoke — pass
 - [ ] Paystack test transactions (staging) — ≥10 successful (OPS-03)
 - [ ] No open P0/P1 bugs for auth, checkout, or payment

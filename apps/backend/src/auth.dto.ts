@@ -13,6 +13,10 @@ export class LoginDto {
   @IsString() @MinLength(8) password!: string;
 }
 
+export class RefreshTokenDto {
+  @IsOptional() @IsString() refreshToken?: string;
+}
+
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
+import { PasswordInput } from '../../components/PasswordInput';
 
 export default function Register() {
   const [form, setForm] = useState({

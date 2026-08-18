@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { api } from '../../lib/api';
+import { PasswordInput } from '../../components/PasswordInput';
 
 export default function SupplierRegister() {
   const router = useRouter();
@@ -77,8 +78,7 @@ export default function SupplierRegister() {
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
           <label>Password</label>
-          <input
-            type="password"
+          <PasswordInput
             minLength={8}
             required
             placeholder="Create a password"

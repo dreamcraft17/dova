@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-import 'dotenv/config';
+import { loadBackendEnv } from './load-env';
+loadBackendEnv();
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -18,7 +19,14 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
-  app.enableCors({ origin: corsOrigins(), credentials: true });
-  await app.listen(Number(process.env.PORT ?? 3000));
+  app.enableCors({
+    origin: corsOrigins(),
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  });
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port);
+  console.log(`DOVA API listening on :${port} | CORS: ${process.env.FRONTEND_URL ?? 'default localhost'}`);
 }
 bootstrap();
