@@ -2,7 +2,7 @@ require('./load-env').loadDovaEnv();
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
-const { productImageUrl } = require('dova-shared');
+const { productImageUrl, shouldRefreshCatalogImage } = require('dova-shared');
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required');
@@ -87,13 +87,14 @@ const PRODUCT_CATALOG = [
       }
     }
 
-    const existing = await pool.query('SELECT p.id, p.name, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id');
+    const existing = await pool.query(
+      'SELECT p.id, p.name, p.image_url, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id',
+    );
     for (const row of existing.rows) {
       const url = productImageUrl(row.name, row.category_name);
-      await pool.query(
-        'UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2 AND (image_url IS NULL OR image_url LIKE $3)',
-        [url, row.id, '%1542838132%'],
-      );
+      if (shouldRefreshCatalogImage(row.name, row.image_url)) {
+        await pool.query('UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2', [url, row.id]);
+      }
     }
 
     await pool.query(

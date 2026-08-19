@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { ProductImage } from './ProductImage';
 import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shared';
 
 export type ProductCardItem = {
@@ -31,7 +31,7 @@ export function ProductCard({ product, variant = 'grid' }: ProductCardProps) {
       aria-label={`View ${name}`}
     >
       <div className="pc-image">
-        {imageUrl ? <img src={imageUrl} alt={name} /> : <span aria-hidden="true">🌿</span>}
+        <ProductImage name={name} imageUrl={imageUrl} categoryName={categoryName} />
       </div>
       <div className="pc-body">
         {variant === 'grid' && categoryName && (
