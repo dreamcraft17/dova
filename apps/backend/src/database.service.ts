@@ -79,7 +79,32 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private async bootstrap() {
     if (!this.pool) return;
     const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12);
-    await this.pool.query(`INSERT INTO users (email,password_hash,full_name,role) VALUES ('admin@dova.local',$1,'DOVA Admin','admin') ON CONFLICT (email) DO NOTHING`, [adminPassword]);
+    const supplierPassword = bcrypt.hashSync(process.env.SUPPLIER_PASSWORD ?? 'supplier1234', 12);
+    await this.pool.query(
+      `INSERT INTO users (email,password_hash,full_name,role,is_active)
+       VALUES ('admin@dova.local',$1,'DOVA Admin','admin',TRUE)
+       ON CONFLICT (email) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         is_active = TRUE,
+         updated_at = NOW()`,
+      [adminPassword],
+    );
+    const supplierUser = await this.pool.query(
+      `INSERT INTO users (email,password_hash,full_name,role,is_active)
+       VALUES ('supplier@dova.local',$1,'Demo Supplier','supplier',TRUE)
+       ON CONFLICT (email) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         is_active = TRUE,
+         updated_at = NOW()
+       RETURNING id`,
+      [supplierPassword],
+    );
+    await this.pool.query(
+      `INSERT INTO supplier_profiles (user_id,business_name,business_phone,verification_status)
+       VALUES ($1,'Green Valley Farms','+62000000000','approved')
+       ON CONFLICT (user_id) DO UPDATE SET verification_status='approved', updated_at=NOW()`,
+      [supplierUser.rows[0].id],
+    );
     await this.pool.query(
       `UPDATE products p SET category_id = c.id, updated_at = NOW()
        FROM categories c
