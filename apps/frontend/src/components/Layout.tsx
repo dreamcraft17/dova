@@ -67,7 +67,7 @@ export function Layout({
         Cart{count > 0 && <sup className="cart-count">{count}</sup>}
       </Link>
       {user ? (
-        <>
+        <span className="header-auth">
           <Link href={dash} onClick={() => setMenuOpen(false)} className="nav-account">
             {user.fullName}
           </Link>
@@ -81,9 +81,9 @@ export function Layout({
           >
             Logout
           </button>
-        </>
+        </span>
       ) : (
-        <>
+        <span className="header-auth">
           <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
             Login
           </Link>
@@ -94,7 +94,7 @@ export function Layout({
           >
             Register
           </Link>
-        </>
+        </span>
       )}
     </>
   );

@@ -1172,6 +1172,10 @@ form .button {
   }
 
   .header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 24px;
     min-height: 76px;
     padding: 10px var(--pad-x);
   }
@@ -1193,9 +1197,19 @@ form .button {
   .nav-desktop {
     display: flex;
     align-items: center;
-    gap: 22px;
+    justify-content: flex-end;
+    gap: 28px;
+    min-width: 0;
     font-size: 15px;
     font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .header-auth {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
   }
 
   .nav-desktop a:not(.button):hover {
