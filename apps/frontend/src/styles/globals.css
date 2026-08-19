@@ -110,7 +110,9 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  z-index: 2;
+  position: relative;
+  z-index: 170;
+  flex-shrink: 0;
 }
 
 .header-cart-btn {
@@ -136,6 +138,10 @@ textarea {
   gap: 5px;
   cursor: pointer;
   padding: 0;
+  position: relative;
+  z-index: 171;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .menu-toggle span {
@@ -169,6 +175,7 @@ textarea {
   background: rgba(15, 40, 28, 0.45);
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
   transition: 0.25s;
   z-index: 150;
 }
@@ -176,6 +183,7 @@ textarea {
 .nav-backdrop.is-open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
 }
 
 .nav-drawer {
@@ -194,10 +202,14 @@ textarea {
   transition: transform 0.28s ease;
   box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
   overflow-y: auto;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .nav-drawer.is-open {
   transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .nav-drawer-head {
