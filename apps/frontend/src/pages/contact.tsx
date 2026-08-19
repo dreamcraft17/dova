@@ -31,7 +31,7 @@ export default function Contact() {
         <p className="form-hint">
           Email: <a href="mailto:support@dova.com">support@dova.com</a>
           <br />
-          Phone: +234 800 000 0000
+          Phone: <a href="tel:+2349032696825">+234 903 269 6825</a>
         </p>
         {done ? (
           <p>Thanks — your message has been received. We’ll get back to you soon.</p>
