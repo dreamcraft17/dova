@@ -51,6 +51,7 @@ function supplierStatusBadge(status: string) {
 export default function Supplier() {
   const { user } = useAuth();
   const [tab, setTab] = useState('overview');
+  const [productTab, setProductTab] = useState<'available' | 'low_stock' | 'hidden'>('available');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -131,11 +132,25 @@ export default function Supplier() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Remove this product?')) return;
+    if (!window.confirm('Remove this product? It will be hidden from the catalogue.')) return;
     setActionBusy(true);
     try {
       await api(`/suppliers/products/${id}`, { method: 'DELETE' });
       await load();
+      setProductTab('hidden');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function activate(id: string) {
+    setActionBusy(true);
+    try {
+      await api(`/suppliers/products/${id}/activate`, { method: 'PUT' });
+      await load();
+      setProductTab('available');
+    } catch (err) {
+      setMessage((err as Error).message);
     } finally {
       setActionBusy(false);
     }
@@ -324,6 +339,28 @@ export default function Supplier() {
             <>
               <h2 className="supplier-dash-title">Your Products</h2>
               <p className="supplier-dash-subtitle">Manage stock and listings ({products.length}).</p>
+
+              {/* Product status tabs */}
+              <div className="supplier-product-tabs">
+                {(
+                  [
+                    { key: 'available', label: 'Available', count: products.filter(p => p.isActive && p.stockQuantity >= 20).length },
+                    { key: 'low_stock', label: 'Low Stock', count: products.filter(p => p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20).length },
+                    { key: 'hidden',    label: 'Hidden',    count: products.filter(p => !p.isActive).length },
+                  ] as const
+                ).map(({ key, label, count }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`supplier-product-tab${productTab === key ? ' active' : ''}`}
+                    onClick={() => setProductTab(key)}
+                  >
+                    {label}
+                    <span className="supplier-product-tab-count">{count}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className={`supplier-dash-panel${actionBusy ? ' supplier-dash-busy' : ''}`}>
                 {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                 <div className="supplier-dash-table-wrap">

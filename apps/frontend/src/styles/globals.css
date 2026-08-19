@@ -37,7 +37,7 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--cream);
-  font: 400 16px/1.6 'Poppins', sans-serif;
+  font: 400 clamp(14px, 4vw, 16px)/1.6 'Poppins', sans-serif;
 }
 
 body.menu-open {
@@ -1359,6 +1359,33 @@ form .button {
   min-width: 0;
 }
 
+/* Password show/hide toggle */
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 46px !important;
+}
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+.password-toggle-btn:hover {
+  color: var(--green);
+}
+
 @media (max-width: 639px) {
   .orders-table table,
   .admin-table table,
@@ -1418,6 +1445,41 @@ form .button {
   .admin-table td[data-label='']::before,
   .recent-products td[data-label='']::before {
     content: none;
+  }
+}
+
+/* ========== EXTRA SMALL SCREENS (< 400px / heavy text scaling) ========== */
+@media (max-width: 400px) {
+  :root {
+    --pad-x: 12px;
+  }
+
+  .checkout-form,
+  .cart-summary,
+  .order-summary {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .summary-item {
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  .checkout-btn,
+  .confirm-btn {
+    font-size: 15px;
+    padding: 13px;
+  }
+
+  .cart-item {
+    padding: 12px;
+    gap: 10px 10px;
+  }
+
+  .fulfillment-option {
+    padding: 10px 12px;
+    font-size: 14px !important;
   }
 }
 
@@ -1519,9 +1581,9 @@ form .button {
   box-shadow: 0 0 8px rgba(15, 107, 67, 0.15);
 }
 
-.login-card button[type='submit'],
-.register-card button[type='submit'],
-.supplier-card button[type='submit'],
+.login-card button:not(.password-toggle-btn),
+.register-card button:not(.password-toggle-btn),
+.supplier-card button:not(.password-toggle-btn),
 .confirm-btn,
 .checkout-btn {
   width: 100%;
@@ -1538,9 +1600,9 @@ form .button {
   font-family: inherit;
 }
 
-.login-card button[type='submit']:hover,
-.register-card button[type='submit']:hover,
-.supplier-card button[type='submit']:hover,
+.login-card button:not(.password-toggle-btn):hover,
+.register-card button:not(.password-toggle-btn):hover,
+.supplier-card button:not(.password-toggle-btn):hover,
 .confirm-btn:hover,
 .checkout-btn:hover {
   background: var(--green-dark);
@@ -2016,7 +2078,7 @@ form .button {
   width: 100%;
   margin: 28px 0 0;
   background: #fff;
-  padding: 22px;
+  padding: clamp(14px, 3vw, 22px);
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
@@ -2026,7 +2088,7 @@ form .button {
   width: 100%;
   margin: 28px 0 0;
   background: #fff;
-  padding: 22px;
+  padding: clamp(14px, 3vw, 22px);
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
@@ -2041,9 +2103,26 @@ form .button {
 .summary-item {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   font-size: 16px;
   margin: 0 0 14px;
   color: #555;
+}
+
+.cart-summary p span:last-child,
+.summary-item span:last-child,
+.summary-item strong:last-child {
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cart-summary p span:first-child,
+.summary-item span:first-child,
+.summary-item strong:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cart-summary span,
@@ -2062,7 +2141,7 @@ form .button {
 
 .checkout-form {
   background: #fff;
-  padding: 32px;
+  padding: clamp(16px, 4vw, 32px);
   border-radius: 18px;
   box-shadow: var(--shadow);
 }

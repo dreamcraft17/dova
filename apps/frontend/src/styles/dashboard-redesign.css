@@ -819,6 +819,68 @@
   transform: translateY(-2px);
 }
 
+.supplier-dash-btn-success {
+  background: #176b4b;
+  color: #fff;
+}
+
+.supplier-dash-btn-success:hover:not(:disabled) {
+  background: #0f5239;
+  transform: translateY(-2px);
+}
+
+/* Product status tabs */
+.supplier-product-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.supplier-product-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1.5px solid var(--line, #e5e7eb);
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: 0.2s;
+  font-family: inherit;
+}
+
+.supplier-product-tab:hover {
+  border-color: #176b4b;
+  color: #176b4b;
+}
+
+.supplier-product-tab.active {
+  background: #176b4b;
+  border-color: #176b4b;
+  color: #fff;
+}
+
+.supplier-product-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.12);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.supplier-product-tab.active .supplier-product-tab-count {
+  background: rgba(255,255,255,0.25);
+}
+
 .supplier-dash-form-panel {
   background: #fff;
   border-radius: 20px;
