@@ -1,11 +1,85 @@
 /* DOVA — mobile-first polish (all pages usable on small screens) */
 
+/* Safe area + prevent horizontal bleed */
+.header {
+  padding-left: max(8px, env(safe-area-inset-left));
+  padding-right: max(8px, env(safe-area-inset-right));
+}
+
+.site-footer {
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
+}
+
+.qty-custom-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.qty-custom-row label {
+  font-weight: 600;
+}
+
+.qty-custom-row input {
+  width: min(100px, 32vw);
+}
+
+.cart-quantity input {
+  width: min(80px, 28vw);
+  text-align: center;
+}
+
+.admin-dash-container .feedback-form form {
+  max-width: none;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .fb-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fb-form {
+    position: static;
+  }
+
+  .fb-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fb-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .fb-search-bar {
+    flex: 1 1 100%;
+  }
+
+  .fb-search-bar input {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 @media (max-width: 767px) {
   .cart-section,
   .checkout-section,
-  .form-page {
+  .form-page,
+  .page-head {
     padding-top: 32px;
     padding-bottom: 64px;
+    padding-inline: var(--pad-x);
+  }
+
+  .section {
+    padding: 48px var(--pad-x);
+  }
+
+  .site-footer {
+    margin-top: 40px;
+    padding: 40px var(--pad-x) 24px;
   }
 
   .checkout-form {
@@ -23,6 +97,10 @@
 
   .supplier-dash-main {
     padding: 24px 0 48px;
+  }
+
+  .supplier-dash-form-panel {
+    padding: 20px 16px;
   }
 
   .page-content {
@@ -50,9 +128,20 @@
   }
 
   .trust-strip {
-    gap: 20px;
+    gap: 16px;
     padding-left: var(--pad-x);
     padding-right: var(--pad-x);
+  }
+
+  .delivery-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .hero .lead,
+  .hero p {
+    font-size: clamp(15px, 4vw, 18px);
   }
 
   .card:hover,
@@ -63,7 +152,7 @@
 
   .toast {
     min-width: 0;
-    max-width: calc(100vw - 32px);
+    max-width: min(360px, calc(100% - 32px));
   }
 
   .feedback-detail-layout {
@@ -110,6 +199,28 @@
     justify-content: center;
   }
 
+  .admin-dash-bar {
+    gap: 10px;
+  }
+
+  .admin-dash-utilities {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .admin-dash-utilities a,
+  .admin-dash-utilities button {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .orders-table,
+  .admin-table,
+  .recent-products {
+    padding: 16px 14px 64px;
+    overflow-x: visible;
+  }
+
   /* Dashboard tables → stacked cards */
   .admin-dash-table-section,
   .supplier-dash-table-wrap {
@@ -152,6 +263,16 @@
     padding: 8px 0;
     border-bottom: 1px solid #eee;
     text-align: right;
+  }
+
+  .admin-dash-table-section tbody td[data-label='Official reply'] {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .admin-dash-table-section tbody td[data-label='Official reply']::before {
+    margin-bottom: 4px;
   }
 
   .admin-dash-table-section tbody td:last-child,
@@ -208,6 +329,12 @@
   .admin-dash-table-header h2 {
     font-size: 22px;
   }
+
+  .pagination {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -215,8 +342,56 @@
     font-size: clamp(28px, 8vw, 40px);
   }
 
-  .site-footer .footer-grid {
-    grid-template-columns: 1fr;
+  .remember {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .site-footer .footer-container {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .site-footer .footer-container > div {
+    width: 100%;
+  }
+
+  .delivery-slot-options,
+  .qty-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .slot-btn,
+  .slot-btn.qty-preset {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  .admin-dash-utilities {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .admin-dash-utilities a,
+  .admin-dash-utilities button {
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .admin-dash-logo-text h2 {
+    font-size: 18px;
+  }
+
+  .admin-dash-logo-text p {
+    font-size: 11px;
   }
 
   .modal-backdrop {
@@ -225,8 +400,39 @@
   }
 
   .modal-card {
+    width: 100%;
     max-height: 92dvh;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+  }
+
+  .login-card,
+  .register-card,
+  .supplier-card {
+    padding: 22px 16px;
+  }
+
+  .fb-item {
+    flex-direction: column;
+  }
+
+  .fb-item-top {
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --pad-x: 10px;
+  }
+
+  .brand img {
+    width: 34px;
+    height: 34px;
+  }
+
+  .admin-dash-nav-bar button {
+    font-size: 13px;
+    padding: 8px 10px;
   }
 }

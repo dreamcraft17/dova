@@ -21,7 +21,7 @@
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
@@ -66,7 +66,7 @@
 
 .admin-dash-utilities {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;

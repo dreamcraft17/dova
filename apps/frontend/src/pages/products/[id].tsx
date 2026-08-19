@@ -182,8 +182,8 @@ export default function Detail() {
                   ))}
                 </div>
               </div>
-              <div className="row" style={{ alignItems: 'center', gap: 12 }}>
-                <label style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Or enter custom</label>
+              <div className="row qty-custom-row">
+                <label>Or enter custom</label>
                 <input
                   type="number"
                   min={1}
@@ -209,7 +209,6 @@ export default function Detail() {
                     setQty(clamped);
                     setQtyInput(clamped.toString());
                   }}
-                  style={{ width: 100 }}
                 />
                 <span className="muted" style={{ fontSize: 13 }}>{unit}</span>
               </div>

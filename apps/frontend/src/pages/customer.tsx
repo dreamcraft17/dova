@@ -38,7 +38,7 @@ export default function Customer() {
               </FeedlogLink>
             </div>
           ) : null}
-          <div className="orders-table" style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div className="orders-table">
             {loading ? (
               <Loading label="Loading your orders…" block />
             ) : orders.length ? (
