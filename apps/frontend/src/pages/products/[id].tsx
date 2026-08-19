@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../../components/Layout';
 import { Loading } from '../../components/Loading';
+import { ProductImage } from '../../components/ProductImage';
 import { LoginModal } from '../../components/LoginModal';
 import { api } from '../../lib/api';
 import type { Product } from 'dova-shared';
@@ -113,7 +114,12 @@ export default function Detail() {
     <Layout>
       <section className="detail">
         <div className="product-image large">
-          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} /> : <>🌿</>}
+          <ProductImage
+            name={p.name}
+            imageUrl={p.imageUrl}
+            categoryName={p.categoryName}
+            decorative={false}
+          />
         </div>
         <div>
           <Link href="/products" className="muted">

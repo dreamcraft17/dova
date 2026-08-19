@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Layout } from '../components/Layout';
 import { Loading, LoadingOverlay } from '../components/Loading';
+import { ProductImage } from '../components/ProductImage';
 import { RequireAuth } from '../components/RequireAuth';
 import { ApiError, api } from '../lib/api';
 import type { Cart } from 'dova-shared';
@@ -141,11 +142,12 @@ export default function CartPage() {
                   const unit = productUnit(i.product.name, i.product.categoryName);
                   return (
                   <div className="cart-item" key={i.id}>
-                    {i.product.imageUrl ? (
-                      <img src={i.product.imageUrl} alt={i.product.name} />
-                    ) : (
-                      <div className="cart-thumb">🌿</div>
-                    )}
+                    <ProductImage
+                      name={i.product.name}
+                      imageUrl={i.product.imageUrl}
+                      categoryName={i.product.categoryName}
+                      decorative={false}
+                    />
                     <div className="cart-info">
                       <h3>{i.product.name}</h3>
                       <p>Supplier: {i.product.supplierName || 'DOVA Supplier'}</p>

@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, shouldRefreshCatalogImage } from 'dova-shared';
 
 export type StoredUser = User & { passwordHash: string };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -112,13 +112,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
          AND LOWER(p.name) LIKE '%chicken%breast%'
          AND p.category_id <> c.id`,
     );
-    const products = await this.pool.query('SELECT p.id, p.name, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id');
+    const products = await this.pool.query(
+      'SELECT p.id, p.name, p.image_url, c.name AS category_name FROM products p JOIN categories c ON c.id = p.category_id',
+    );
     for (const row of products.rows) {
       const url = productImageUrl(row.name, row.category_name);
-      await this.pool.query(
-        'UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2 AND (image_url IS NULL OR image_url LIKE $3)',
-        [url, row.id, '%1542838132%'],
-      );
+      if (shouldRefreshCatalogImage(row.name, row.image_url)) {
+        await this.pool.query('UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2', [url, row.id]);
+      }
     }
   }
 }
