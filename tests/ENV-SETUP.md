@@ -138,21 +138,27 @@ Ganti `api.dova.dntech.id` jika hostname API berbeda.
 
 ## Setelah `.env` siap
 
-```bash
-cd /var/www/dntech/dova   # sesuaikan path deploy
+Jalankan dari **root repo** (`~/dova` atau `/var/www/dntech/dova`), bukan dari `apps/backend` saja — package `dova-shared` harus di-build dulu.
 
-# Backend deps + DB
+```bash
+cd ~/dova   # atau /var/www/dntech/dova
+
 npm install
 npm run db:migrate
-npm run db:reset-logins     # atau: node scripts/seed.js
+npm run db:seed           # perbaiki image_url + data demo
 
-# Build (frontend butuh env sebelum build)
-npm run build --workspace=dova-shared
-npm run build --workspace=dova-backend
-npm run build --workspace=dova-frontend
+# Build semua (shared → backend → frontend)
+npm run build
 
-# Restart
 pm2 restart dova-backend dova-frontend --update-env
+```
+
+Kalau build per-workspace:
+
+```bash
+npm run build -w dova-shared
+npm run build -w dova-backend
+npm run build -w dova-frontend
 ```
 
 ---
