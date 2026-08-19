@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ProductImage } from './ProductImage';
 import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shared';
 
