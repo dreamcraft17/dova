@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, ForbiddenException, NotFoundExceptio
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -77,7 +77,7 @@ export class AppService {
     const existing = cart.items.find(i => i.product.id === productId);
     const newQty = (existing?.quantity || 0) + quantity;
     if (!Number.isFinite(quantity) || quantity < 1 || newQty > p.stockQuantity) {
-      throw new BadRequestException(`Only ${p.stockQuantity} kg available in stock`);
+      throw new BadRequestException(stockLimitMessage(p.stockQuantity, p.name, p.categoryName));
     }
     if (existing) {
       existing.quantity = newQty;
