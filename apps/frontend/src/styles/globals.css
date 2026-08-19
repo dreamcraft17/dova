@@ -99,6 +99,13 @@ textarea {
   display: none;
 }
 
+.header-inner {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -1172,17 +1179,28 @@ form .button {
   }
 
   .header {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    display: flex;
     align-items: center;
-    gap: 24px;
+    justify-content: space-between;
+    flex-wrap: nowrap;
     min-height: 76px;
     padding: 10px var(--pad-x);
+    gap: 24px;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    min-width: 0;
+    gap: 24px;
   }
 
   .brand {
     font-size: 28px;
     gap: 12px;
+    flex-shrink: 0;
   }
 
   .brand img {
@@ -1191,18 +1209,18 @@ form .button {
   }
 
   .header-actions {
-    display: none;
+    display: none !important;
   }
 
   .nav-desktop {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 28px;
+    gap: clamp(14px, 1.6vw, 28px);
+    flex: 1;
     min-width: 0;
     font-size: 15px;
     font-weight: 500;
-    white-space: nowrap;
   }
 
   .header-auth {
@@ -1218,6 +1236,7 @@ form .button {
 
   .nav-desktop .button {
     width: auto;
+    flex-shrink: 0;
   }
 
   .nav-drawer,
