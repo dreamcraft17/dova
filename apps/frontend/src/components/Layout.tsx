@@ -103,10 +103,13 @@ export function Layout({
     <>
       {routeLoading ? <div className="route-progress" aria-hidden="true" /> : null}
       <header className="header">
-        <Link href="/" className="brand">
-          <img src="/images/logo.jpg" alt="DOVA" />
-          DOVA
-        </Link>
+        <div className="header-inner">
+          <Link href="/" className="brand">
+            <img src="/images/logo.jpg" alt="DOVA" />
+            DOVA
+          </Link>
+          <nav className="nav-desktop">{navLinks}</nav>
+        </div>
 
         <div className="header-actions">
           <Link href="/cart" className="header-cart-btn" aria-label="Cart">
@@ -124,8 +127,6 @@ export function Layout({
             <span />
           </button>
         </div>
-
-        <nav className="nav-desktop">{navLinks}</nav>
       </header>
 
       <div
