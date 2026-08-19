@@ -191,7 +191,7 @@ export default function CartPage() {
                             void update(i.id, clamped);
                           }
                         }}
-                        style={{ width: 80, textAlign: 'center' }}
+                        style={{ textAlign: 'center' }}
                       />
                       <span style={{ fontSize: 13, color: 'var(--muted)' }}>{unit}</span>
                     </div>

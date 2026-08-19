@@ -1306,7 +1306,15 @@ form .button {
 .admin-table table,
 .recent-products table,
 .orders-table table {
-  min-width: 560px;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .admin-table table,
+  .recent-products table,
+  .orders-table table {
+    min-width: 560px;
+  }
 }
 
 .header-cart-btn .cart-count {
@@ -1386,7 +1394,7 @@ form .button {
   color: var(--green);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   .orders-table table,
   .admin-table table,
   .recent-products table {
