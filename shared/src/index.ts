@@ -93,3 +93,13 @@ export const feedbackStatusLabel = (status: FeedbackStatus) =>
   ({ open: 'Open', planned: 'Planned', in_progress: 'In progress', done: 'Done' })[status];
 
 export { productImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES } from './product-images';
+export {
+  productUnit,
+  formatPricePerUnit,
+  quantityFieldLabel,
+  formatStockInUnit,
+  formatStockAvailable,
+  stockLimitMessage,
+  formatQuantityWithUnit,
+  type ProductUnit,
+} from './product-units';

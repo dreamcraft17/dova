@@ -6,6 +6,7 @@ import { Loading, LoadingOverlay } from '../components/Loading';
 import { RequireAuth } from '../components/RequireAuth';
 import { ApiError, api } from '../lib/api';
 import type { Cart } from 'dova-shared';
+import { formatPricePerUnit, formatQuantityWithUnit, productUnit } from 'dova-shared';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -136,7 +137,9 @@ export default function CartPage() {
             <>
               <div className={`cart-wrapper${busy ? ' is-busy' : ''}`}>
                 {busy ? <LoadingOverlay label="Updating cart…" /> : null}
-                {cart.items.map((i) => (
+                {cart.items.map((i) => {
+                  const unit = productUnit(i.product.name, i.product.categoryName);
+                  return (
                   <div className="cart-item" key={i.id}>
                     {i.product.imageUrl ? (
                       <img src={i.product.imageUrl} alt={i.product.name} />
@@ -146,7 +149,9 @@ export default function CartPage() {
                     <div className="cart-info">
                       <h3>{i.product.name}</h3>
                       <p>Supplier: {i.product.supplierName || 'DOVA Supplier'}</p>
-                      <h4>₦ {i.product.price.toLocaleString('en-NG')}</h4>
+                      <h4>
+                        ₦ {i.product.price.toLocaleString('en-NG')} {formatPricePerUnit(unit)}
+                      </h4>
                       <div className="cart-slot">
                         <span className="cart-slot-label">🚚 Delivery slot:</span>
                         <button
@@ -188,14 +193,15 @@ export default function CartPage() {
                         }}
                         style={{ width: 80, textAlign: 'center' }}
                       />
-                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>kg</span>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{unit}</span>
                     </div>
                     <div className="cart-total">₦ {i.subtotal.toLocaleString('en-NG')}</div>
                     <button className="remove-btn" disabled={busy} onClick={() => void remove(i.id)}>
                       Remove
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               <div className="cart-summary">
                 <h2>Order Summary</h2>

@@ -5,7 +5,7 @@ import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
 import { resolvePaymentRedirectUrl } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
-import { minOrderFor, minOrderMessage } from 'dova-shared';
+import { minOrderFor, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -152,7 +152,7 @@ export default function Checkout() {
               {cart.items.map((i) => (
                 <div className="summary-item" key={i.id}>
                   <span>
-                    {i.product.name} × {Number.isInteger(i.quantity) ? i.quantity : i.quantity.toFixed(2)} kg
+                    {i.product.name} × {formatQuantityWithUnit(i.quantity, i.product.name, i.product.categoryName)}
                   </span>
                   <span>₦ {i.subtotal.toLocaleString('en-NG')}</span>
                 </div>

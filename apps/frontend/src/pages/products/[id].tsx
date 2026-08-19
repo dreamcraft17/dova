@@ -6,6 +6,14 @@ import { Loading } from '../../components/Loading';
 import { LoginModal } from '../../components/LoginModal';
 import { api } from '../../lib/api';
 import type { Product } from 'dova-shared';
+import {
+  formatPricePerUnit,
+  formatQuantityWithUnit,
+  formatStockInUnit,
+  productUnit,
+  quantityFieldLabel,
+  stockLimitMessage,
+} from 'dova-shared';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -57,8 +65,9 @@ export default function Detail() {
     const requested = parseFloat(qtyInput);
     const finalQty = !isNaN(requested) && requested >= 1 ? Math.round(requested * 100) / 100 : qty;
     if (finalQty > p!.stockQuantity) {
-      setQtyError(`Only ${p!.stockQuantity} kg available in stock.`);
-      showToast(`Only ${p!.stockQuantity} kg available in stock.`, 'error');
+      const message = `${stockLimitMessage(p!.stockQuantity, p!.name, p!.categoryName)}.`;
+      setQtyError(message);
+      showToast(message, 'error');
       return;
     }
     setQtyError('');
@@ -98,6 +107,8 @@ export default function Detail() {
     );
   }
 
+  const unit = productUnit(p.name, p.categoryName);
+
   return (
     <Layout>
       <section className="detail">
@@ -115,9 +126,11 @@ export default function Detail() {
             <span className="stars">★★★★★</span>
             <span className="badge">Verified</span>
           </p>
-          <p className="price big">₦ {p.price.toLocaleString('en-NG')} / kg</p>
+          <p className="price big">
+            ₦ {p.price.toLocaleString('en-NG')} {formatPricePerUnit(unit)}
+          </p>
           <p>{p.description}</p>
-          <p className="muted">{p.stockQuantity} kg in stock</p>
+          <p className="muted">{formatStockInUnit(p.stockQuantity, unit)}</p>
           <p className="delivery-hint">🚚 Order before 6:00 PM for next-day delivery.</p>
           {p.stockQuantity > 0 ? (
             <div>
@@ -148,7 +161,9 @@ export default function Detail() {
                 {slotError ? <p className="error">{slotError}</p> : null}
               </div>
               <div className="qty-select">
-                <label className="delivery-slot-label">Quantity (kg) <span className="required">*</span></label>
+                <label className="delivery-slot-label">
+                  {quantityFieldLabel(unit)} <span className="required">*</span>
+                </label>
                 <div className="qty-options">
                   {[5, 10, 20].map((preset) => (
                     <button
@@ -162,7 +177,7 @@ export default function Detail() {
                         setQtyError('');
                       }}
                     >
-                      {preset} kg
+                      {formatQuantityWithUnit(preset, p.name, p.categoryName)}
                     </button>
                   ))}
                 </div>
@@ -186,8 +201,9 @@ export default function Detail() {
                   onBlur={() => {
                     const val = parseFloat(qtyInput);
                     if (!isNaN(val) && val > p.stockQuantity) {
-                      setQtyError(`Only ${p.stockQuantity} kg available in stock.`);
-                      showToast(`Only ${p.stockQuantity} kg available in stock.`, 'warning');
+                      const message = `${stockLimitMessage(p.stockQuantity, p.name, p.categoryName)}.`;
+                      setQtyError(message);
+                      showToast(message, 'warning');
                     }
                     const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(p.stockQuantity, Math.round(val * 100) / 100));
                     setQty(clamped);
@@ -195,7 +211,7 @@ export default function Detail() {
                   }}
                   style={{ width: 100 }}
                 />
-                <span className="muted" style={{ fontSize: 13 }}>kg</span>
+                <span className="muted" style={{ fontSize: 13 }}>{unit}</span>
               </div>
               <div style={{ marginTop: 12 }}>
                 <button className="button" disabled={busy} onClick={addToCart}>
@@ -209,7 +225,9 @@ export default function Detail() {
               </p>
               )}
               {qty > p.stockQuantity && (
-                <p className="error">Maximum available: {p.stockQuantity} kg</p>
+                <p className="error">
+                  Maximum available: {formatQuantityWithUnit(p.stockQuantity, p.name, p.categoryName)}
+                </p>
               )}
             </div>
           ) : (
