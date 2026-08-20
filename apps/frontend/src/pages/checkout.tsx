@@ -32,7 +32,13 @@ export default function Checkout() {
       }));
     api<Cart>('/cart')
       .then(setCart)
-      .catch(() => setError('Please log in before checkout.'))
+      .catch(() => {
+        setError(
+          user && user.role !== 'customer'
+            ? 'Checkout is only available for customer accounts.'
+            : 'Please log in before checkout.',
+        );
+      })
       .finally(() => setLoading(false));
   }, [user]);
 

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 
 /** https://paystack.com/docs/api/transaction/ */
 export const PAYSTACK_API_BASE = 'https://api.paystack.co';
+const PAYSTACK_TIMEOUT_MS = 10_000;
 
 export type PaystackInitializeData = {
   authorization_url: string;
@@ -117,22 +118,28 @@ export class PaystackService {
       ],
     });
 
-    const response = await fetch(`${PAYSTACK_API_BASE}/transaction/initialize`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: input.email,
-        amount: String(this.amountToSubunit(input.amountMajor)),
-        currency: this.currency(),
-        reference: input.reference,
-        callback_url: this.callbackUrl(),
-        channels: this.channels(),
-        metadata,
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${PAYSTACK_API_BASE}/transaction/initialize`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: input.email,
+          amount: String(this.amountToSubunit(input.amountMajor)),
+          currency: this.currency(),
+          reference: input.reference,
+          callback_url: this.callbackUrl(),
+          channels: this.channels(),
+          metadata,
+        }),
+        signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+      });
+    } catch {
+      throw new BadRequestException('Payment provider is unavailable right now. Please try again.');
+    }
 
     const result = (await response.json()) as PaystackApiResponse<PaystackInitializeData>;
     if (!response.ok || !result.status || !result.data?.authorization_url) {
@@ -145,9 +152,15 @@ export class PaystackService {
     const secret = this.secretKey();
     if (!secret) return { ok: false, raw: null };
 
-    const response = await fetch(`${PAYSTACK_API_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
-      headers: { Authorization: `Bearer ${secret}` },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${PAYSTACK_API_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+        headers: { Authorization: `Bearer ${secret}` },
+        signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+      });
+    } catch (error) {
+      return { ok: false, raw: { error: (error as Error).message } };
+    }
     const raw = await response.json();
     const result = raw as PaystackApiResponse<PaystackVerifyData>;
     if (!response.ok || !result.status || !result.data) return { ok: false, raw };

@@ -21,6 +21,9 @@ export function Layout({
   const feedlogEnabled = isFeedlogEnabled();
   const dash =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
+  // Admin and supplier accounts don't shop — showing Cart to them leads to a confusing
+  // "please log in" message at checkout (the /cart API 403s for non-customer roles).
+  const canShop = !user || user.role === 'customer';
 
   useEffect(() => {
     const close = () => setMenuOpen(false);
@@ -63,9 +66,11 @@ export function Layout({
       {feedlogEnabled ? (
         <FeedlogLink isLoggedIn={Boolean(user)} onClick={() => setMenuOpen(false)} />
       ) : null}
-      <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
-        Cart{count > 0 && <sup className="cart-count">{count}</sup>}
-      </Link>
+      {canShop && (
+        <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
+          Cart{count > 0 && <sup className="cart-count">{count}</sup>}
+        </Link>
+      )}
       {user ? (
         <span className="header-auth">
           <Link href={dash} onClick={() => setMenuOpen(false)} className="nav-account">
@@ -112,9 +117,11 @@ export function Layout({
         </div>
 
         <div className="header-actions">
-          <Link href="/cart" className="header-cart-btn" aria-label="Cart">
-            🛒{count > 0 && <sup className="cart-count">{count}</sup>}
-          </Link>
+          {canShop && (
+            <Link href="/cart" className="header-cart-btn" aria-label="Cart">
+              🛒{count > 0 && <sup className="cart-count">{count}</sup>}
+            </Link>
+          )}
           <button
             type="button"
             className={`menu-toggle${menuOpen ? ' is-open' : ''}`}
