@@ -62,6 +62,7 @@ function userStatusLabel(u: AdminUser) {
 
 export default function Admin() {
   const [tab, setTab] = useState('overview');
+  const [productTab, setProductTab] = useState<'available' | 'low_stock' | 'hidden'>('available');
   const [stats, setStats] = useState<Stats>();
   const [pending, setPending] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -359,6 +360,27 @@ export default function Admin() {
                     <h1>Products</h1>
                     <p>Activate or deactivate marketplace products.</p>
                   </div>
+
+                  <div className="supplier-product-tabs">
+                    {(
+                      [
+                        { key: 'available', label: 'Available', count: products.filter(p => p.isActive && p.stockQuantity >= 20).length },
+                        { key: 'low_stock', label: 'Low Stock', count: products.filter(p => p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20).length },
+                        { key: 'hidden',    label: 'Hidden',    count: products.filter(p => !p.isActive).length },
+                      ] as const
+                    ).map(({ key, label, count }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`supplier-product-tab${productTab === key ? ' active' : ''}`}
+                        onClick={() => setProductTab(key)}
+                      >
+                        {label}
+                        <span className="supplier-product-tab-count">{count}</span>
+                      </button>
+                    ))}
+                  </div>
+
                   <section className={`admin-dash-table-section${actionBusy ? ' admin-dash-busy' : ''}`}>
                     {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
                     <table>
@@ -372,7 +394,11 @@ export default function Admin() {
                         </tr>
                       </thead>
                       <tbody>
-                        {products.map((p) => (
+                        {products.filter((p) => {
+                          if (productTab === 'hidden') return !p.isActive;
+                          if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
+                          return p.isActive && p.stockQuantity >= 20;
+                        }).map((p) => (
                           <tr key={p.id}>
                             <td data-label="Product">{p.name}</td>
                             <td data-label="Supplier">{p.supplierName}</td>
@@ -389,7 +415,7 @@ export default function Admin() {
                                 disabled={actionBusy}
                                 onClick={() => void toggleProduct(p)}
                               >
-                                {p.isActive ? 'Deactivate' : 'Activate'}
+                                {p.isActive ? 'Deactivate' : 'Set to Active'}
                               </button>
                             </td>
                           </tr>
