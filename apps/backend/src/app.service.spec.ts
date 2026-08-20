@@ -61,6 +61,22 @@ function makeService() {
   return { service, database, redis };
 }
 
+function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock }) {
+  const database = {
+    enabled: false,
+    insertContactSubmission: jest.fn().mockResolvedValue(undefined),
+  };
+  const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
+  const service = new AppService(
+    new JwtService({ secret: 'unit-test-secret' }),
+    database as never,
+    redis as never,
+    new PaystackService(),
+    notifications as never,
+  );
+  return { service };
+}
+
 describe('AppService', () => {
   describe('registration and authentication', () => {
     it('registers a customer with a hashed password and customer role', async () => {
@@ -245,6 +261,19 @@ describe('AppService', () => {
       });
       expect(result.message).toMatch(/thank you/i);
       expect(service.contacts[0]).toMatchObject({ name: 'Ada', email: 'ada@example.com' });
+    });
+
+    it('still stores the contact submission when the notification email fails', async () => {
+      const notifications = { contactMessage: jest.fn().mockRejectedValue(new Error('Resend is down')) };
+      const { service } = makeServiceWithNotifications(notifications);
+      const result = await service.submitContact({
+        name: 'Ada',
+        email: 'ada@example.com',
+        message: 'Hello DOVA team, I have a question.',
+      });
+      expect(result.message).toMatch(/thank you/i);
+      expect(service.contacts[0]).toMatchObject({ name: 'Ada', email: 'ada@example.com' });
+      expect(notifications.contactMessage).toHaveBeenCalled();
     });
 
     it('initializes and verifies a mock payment for a pending order', async () => {

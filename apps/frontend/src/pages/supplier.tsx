@@ -14,6 +14,7 @@ import {
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Category, Product } from 'dova-shared';
+import { getProductTab } from 'dova-shared';
 
 type SupplierOrder = {
   orderId: string;
@@ -37,9 +38,10 @@ const NAV = [
 ];
 
 function productBadge(p: Product) {
-  if (p.stockQuantity < 20) return { className: 'warn', label: 'Low Stock' };
-  if (p.isActive) return { className: 'success', label: 'Available' };
-  return { className: 'muted', label: 'Hidden' };
+  const t = getProductTab(p);
+  if (t === 'hidden') return { className: 'muted', label: 'Hidden' };
+  if (t === 'low_stock') return { className: 'warn', label: 'Low Stock' };
+  return { className: 'success', label: 'Available' };
 }
 
 function supplierStatusBadge(status: string) {
@@ -147,8 +149,11 @@ export default function Supplier() {
     setActionBusy(true);
     try {
       await api(`/suppliers/products/${id}/activate`, { method: 'PUT' });
-      await load();
-      setProductTab('available');
+      const fresh = await api<Product[]>('/suppliers/products');
+      setProducts(fresh);
+      const reactivated = fresh.find((p) => p.id === id);
+      // Reactivating always yields 'available' or 'low_stock', never 'hidden'.
+      if (reactivated) setProductTab(getProductTab(reactivated) as 'available' | 'low_stock');
     } catch (err) {
       setMessage((err as Error).message);
     } finally {
@@ -344,9 +349,9 @@ export default function Supplier() {
               <div className="supplier-product-tabs">
                 {(
                   [
-                    { key: 'available', label: 'Available', count: products.filter(p => p.isActive && p.stockQuantity >= 20).length },
-                    { key: 'low_stock', label: 'Low Stock', count: products.filter(p => p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20).length },
-                    { key: 'hidden',    label: 'Hidden',    count: products.filter(p => !p.isActive).length },
+                    { key: 'available', label: 'Available', count: products.filter(p => getProductTab(p) === 'available').length },
+                    { key: 'low_stock', label: 'Low Stock', count: products.filter(p => getProductTab(p) === 'low_stock').length },
+                    { key: 'hidden',    label: 'Hidden',    count: products.filter(p => getProductTab(p) === 'hidden').length },
                   ] as const
                 ).map(({ key, label, count }) => (
                   <button
@@ -376,9 +381,7 @@ export default function Supplier() {
                     </thead>
                     <tbody>
                       {products.filter((p) => {
-                        if (productTab === 'hidden') return !p.isActive;
-                        if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
-                        return p.isActive && p.stockQuantity >= 20;
+                        return getProductTab(p) === productTab;
                       }).map((p) => {
                         const badge = productBadge(p);
                         return (

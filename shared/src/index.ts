@@ -93,6 +93,8 @@ export const feedbackStatusLabel = (status: FeedbackStatus) =>
   ({ open: 'Open', planned: 'Planned', in_progress: 'In progress', done: 'Done' })[status];
 
 export { productImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES, isBrokenProductImageUrl, shouldRefreshCatalogImage } from './product-images';
+export { getProductTab, LOW_STOCK_THRESHOLD } from './product-status';
+export type { ProductStatusTab } from './product-status';
 export {
   productUnit,
   formatPricePerUnit,

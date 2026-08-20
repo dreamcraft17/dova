@@ -15,7 +15,7 @@ import {
 } from '../components/DashboardIcons';
 import { api } from '../lib/api';
 import type { FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
-import { FEEDBACK_STATUSES, feedbackStatusLabel } from 'dova-shared';
+import { FEEDBACK_STATUSES, feedbackStatusLabel, getProductTab } from 'dova-shared';
 
 type Stats = {
   users: number;
@@ -364,9 +364,9 @@ export default function Admin() {
                   <div className="supplier-product-tabs">
                     {(
                       [
-                        { key: 'available', label: 'Available', count: products.filter(p => p.isActive && p.stockQuantity >= 20).length },
-                        { key: 'low_stock', label: 'Low Stock', count: products.filter(p => p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20).length },
-                        { key: 'hidden',    label: 'Hidden',    count: products.filter(p => !p.isActive).length },
+                        { key: 'available', label: 'Available', count: products.filter(p => getProductTab(p) === 'available').length },
+                        { key: 'low_stock', label: 'Low Stock', count: products.filter(p => getProductTab(p) === 'low_stock').length },
+                        { key: 'hidden',    label: 'Hidden',    count: products.filter(p => getProductTab(p) === 'hidden').length },
                       ] as const
                     ).map(({ key, label, count }) => (
                       <button
@@ -394,11 +394,7 @@ export default function Admin() {
                         </tr>
                       </thead>
                       <tbody>
-                        {products.filter((p) => {
-                          if (productTab === 'hidden') return !p.isActive;
-                          if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
-                          return p.isActive && p.stockQuantity >= 20;
-                        }).map((p) => (
+                        {products.filter((p) => getProductTab(p) === productTab).map((p) => (
                           <tr key={p.id}>
                             <td data-label="Product">{p.name}</td>
                             <td data-label="Supplier">{p.supplierName}</td>
