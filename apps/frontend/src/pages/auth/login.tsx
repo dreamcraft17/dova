@@ -28,7 +28,7 @@ export default function Login() {
       });
       await refresh();
       router.push(
-        r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/customer',
+        r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/products',
       );
     } catch (err) {
       showToast((err as Error).message, 'error');

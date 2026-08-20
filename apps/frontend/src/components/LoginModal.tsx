@@ -68,7 +68,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             ? '/admin'
             : r.user.role === 'supplier'
               ? '/supplier'
-              : '/customer',
+              : '/products',
         );
       }
     } catch (err) {
