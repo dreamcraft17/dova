@@ -86,4 +86,28 @@ describe('PaystackService', () => {
     expect(body.channels).toEqual(['card', 'bank', 'ussd', 'bank_transfer']);
     expect(JSON.parse(body.metadata).orderId).toBe('order-1');
   });
+
+  it('throws a friendly error when Paystack is unreachable during initialize', async () => {
+    process.env.PAYSTACK_SECRET_KEY = 'sk_test_secret';
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    await expect(
+      service.initializeTransaction({
+        email: 'buyer@example.com',
+        amountMajor: 25000,
+        reference: 'DOVA-ORDER-2',
+        orderId: 'order-2',
+        orderNumber: 'DOVA-DEF',
+      }),
+    ).rejects.toThrow('Payment provider is unavailable right now. Please try again.');
+  });
+
+  it('returns not-ok instead of throwing when Paystack is unreachable during verify', async () => {
+    process.env.PAYSTACK_SECRET_KEY = 'sk_test_secret';
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+
+    const result = await service.verifyTransaction('DOVA-ORDER-2');
+    expect(result.ok).toBe(false);
+    expect(result.raw).toEqual({ error: 'network down' });
+  });
 });

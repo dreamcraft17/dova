@@ -28,12 +28,13 @@ export class SupplierRegisterDto {
 
 export class CartAddDto {
   @IsString() productId!: string;
-  @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
+  /** Most products are sold by weight (kg/L) — quantity may be fractional, e.g. 1.5. */
+  @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) quantity!: number;
   @IsString() @IsIn(['morning', 'evening']) deliverySlot!: 'morning' | 'evening';
 }
 
 export class CartUpdateDto {
-  @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity?: number;
+  @IsOptional() @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) quantity?: number;
   @IsOptional() @IsString() @IsIn(['morning', 'evening']) deliverySlot?: 'morning' | 'evening';
 }
 
