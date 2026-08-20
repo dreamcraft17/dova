@@ -331,8 +331,11 @@ describe('AppService', () => {
       const updated = await service.updateSupplierProduct(supplier.id, product.id, { name: 'Updated Greens', description: 'Better greens', price: 14000, quantity: 8, categoryId: service.categories[0].id });
       expect(updated.name).toBe('Updated Greens');
       await service.removeSupplierProduct(supplier.id, product.id);
+      // Soft delete: the product stays in the supplier's own list (marked inactive, surfaced
+      // in the "Hidden" tab so it can be reactivated) but disappears from customer-facing views.
       const remaining = await service.supplierProducts(supplier.id);
-      expect(remaining.some(item => item.id === product.id)).toBe(false);
+      const removed = remaining.find(item => item.id === product.id);
+      expect(removed?.isActive).toBe(false);
       await expect(service.product(product.id)).rejects.toThrow('Product not found');
     });
 
