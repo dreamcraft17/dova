@@ -111,7 +111,6 @@ textarea {
   align-items: center;
   gap: 8px;
   position: relative;
-  z-index: 170;
   flex-shrink: 0;
 }
 
@@ -139,8 +138,6 @@ textarea {
   cursor: pointer;
   padding: 0;
   position: relative;
-  z-index: 171;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -199,7 +196,7 @@ textarea {
   flex-direction: column;
   gap: 4px;
   transform: translateX(105%);
-  transition: transform 0.28s ease;
+  transition: transform 0.28s ease, visibility 0s linear 0.28s;
   box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12);
   overflow-y: auto;
   pointer-events: none;
@@ -208,6 +205,7 @@ textarea {
 
 .nav-drawer.is-open {
   transform: translateX(0);
+  transition: transform 0.28s ease, visibility 0s linear 0s;
   pointer-events: auto;
   visibility: visible;
 }

@@ -132,7 +132,7 @@ export default function Supplier() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Remove this product? It will be hidden from the catalogue.')) return;
+    if (!window.confirm('Remove this product? It will only be hidden from customers — it stays in your own product list under the "Hidden" tab, where you can reactivate it anytime.')) return;
     setActionBusy(true);
     try {
       await api(`/suppliers/products/${id}`, { method: 'DELETE' });
@@ -375,7 +375,11 @@ export default function Supplier() {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((p) => {
+                      {products.filter((p) => {
+                        if (productTab === 'hidden') return !p.isActive;
+                        if (productTab === 'low_stock') return p.isActive && p.stockQuantity > 0 && p.stockQuantity < 20;
+                        return p.isActive && p.stockQuantity >= 20;
+                      }).map((p) => {
                         const badge = productBadge(p);
                         return (
                           <tr key={p.id}>
@@ -389,38 +393,51 @@ export default function Supplier() {
                             </td>
                             <td data-label="Actions">
                               <div className="supplier-dash-actions-row">
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => startEdit(p)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => void stock(p.id, 'restock')}
-                                >
-                                  + Stock
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-warning"
-                                  disabled={actionBusy}
-                                  onClick={() => void stock(p.id, 'damage')}
-                                >
-                                  − Stock
-                                </button>
-                                <button
-                                  type="button"
-                                  className="supplier-dash-btn-sm supplier-dash-btn-danger"
-                                  disabled={actionBusy}
-                                  onClick={() => void remove(p.id)}
-                                >
-                                  Remove
-                                </button>
+                                {p.isActive ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                      disabled={actionBusy}
+                                      onClick={() => startEdit(p)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                      disabled={actionBusy}
+                                      onClick={() => void stock(p.id, 'restock')}
+                                    >
+                                      + Stock
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                      disabled={actionBusy}
+                                      onClick={() => void stock(p.id, 'damage')}
+                                    >
+                                      − Stock
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="supplier-dash-btn-sm supplier-dash-btn-danger"
+                                      disabled={actionBusy}
+                                      onClick={() => void remove(p.id)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="supplier-dash-btn-sm supplier-dash-btn-warning"
+                                    disabled={actionBusy}
+                                    onClick={() => void activate(p.id)}
+                                  >
+                                    Reactivate
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
