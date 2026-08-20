@@ -435,7 +435,7 @@ export default function Supplier() {
                                     disabled={actionBusy}
                                     onClick={() => void activate(p.id)}
                                   >
-                                    Reactivate
+                                    Set to Active
                                   </button>
                                 )}
                               </div>
