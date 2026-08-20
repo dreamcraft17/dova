@@ -17,6 +17,18 @@ export class AppService {
   contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
   revokedTokens = new Set<string>();
   categories: Category[] = ['Vegetables','Fruits','Dairy','Grains','Meat','Seafood','Beverages','Pantry'].map(name => ({ id: randomUUID(), name }));
+  /** Email notifications are a side effect, not part of the core transaction — a Resend
+   * outage or timeout must never fail the approval/rejection/contact-form request itself. */
+  private async notifySafely(send?: Promise<{ sent: boolean; reason?: string }>): Promise<{ sent: boolean; reason?: string } | undefined> {
+    if (!send) return undefined;
+    try {
+      return await send;
+    } catch (error) {
+      console.warn('[Notifications] send failed, continuing without email:', (error as Error).message);
+      return { sent: false, reason: 'notification-error' };
+    }
+  }
+
   constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, @Optional() private readonly notifications?: NotificationService) {
     const admin = this.makeUser('admin@dova.local', 'DOVA Admin', 'admin', 'admin1234');
     this.users.push(admin);
@@ -190,7 +202,7 @@ export class AppService {
         createdAt: entry.createdAt,
       });
     }
-    const emailResult = await this.notifications?.contactMessage(body);
+    const emailResult = await this.notifySafely(this.notifications?.contactMessage(body));
     return {
       message: 'Thank you for contacting us',
       id: entry.id,
@@ -332,8 +344,8 @@ export class AppService {
   async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
   async adminDashboard() { return (await this.database.adminDashboard()) ?? { users: this.users.length, suppliers: this.suppliers.length, products: this.products.length, orders: this.orders.length, pendingSuppliers: this.suppliers.filter(s => s.status === 'pending').length }; }
   async pendingSuppliers() { return (await this.database.pendingSuppliers()) ?? this.suppliers.filter(s => s.status === 'pending').map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName })); }
-  async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifications?.supplierStatus(user?.email, s.businessName, 'approved'); return { id: s.id, status: 'approved' }; }
-  async rejectSupplier(id: string, reason: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'rejected', reason); const local = this.suppliers.find(x => x.id === s.id); if (local) { local.status = 'rejected'; local.rejectionReason = reason; } const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = false; await this.notifications?.supplierStatus(user?.email, s.businessName, 'rejected', reason); return { id: s.id, status: 'rejected', reason }; }
+  async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'approved')); return { id: s.id, status: 'approved' }; }
+  async rejectSupplier(id: string, reason: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'rejected', reason); const local = this.suppliers.find(x => x.id === s.id); if (local) { local.status = 'rejected'; local.rejectionReason = reason; } const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = false; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'rejected', reason)); return { id: s.id, status: 'rejected', reason }; }
   async adminUsers() { return (await this.database.adminUsers()) ?? this.users.map(u => this.publicUser(u)); }
   async setUserActive(id: string, active: boolean) { await this.database.setUserActive(id, active); const user = this.users.find(u => u.id === id); if (user) user.isActive = active; return { id, isActive: active }; }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
