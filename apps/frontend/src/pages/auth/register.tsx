@@ -70,7 +70,7 @@ export default function Register() {
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
           <label>Confirm Password</label>
@@ -88,7 +88,7 @@ export default function Register() {
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
               aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
             >
-              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
           <button type="submit" disabled={busy}>

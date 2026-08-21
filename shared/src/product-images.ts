@@ -45,6 +45,8 @@ export const PRODUCT_IMAGES: Record<string, string> = {
   'Mango Harum Manis': 'https://images.unsplash.com/photo-1560807707-8cc77767d783?w=800&q=80',
   'Black Pepper': 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=800&q=80',
   'Cooking Oil': 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=800&q=80',
+  'UAT Sample Greens': 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&q=80',
+  'UAT Sample Grain Pack': 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=800&q=80',
 };
 
 export function productImageUrl(name: string, categoryName?: string) {

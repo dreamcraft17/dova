@@ -30,6 +30,8 @@ const PRODUCT_CATALOG = [
   ['Mango Harum Manis', 35000, 'Fruits'],
   ['Black Pepper', 27000, 'Pantry'],
   ['Cooking Oil', 58000, 'Pantry'],
+  ['UAT Sample Greens', 1500, 'Vegetables'],
+  ['UAT Sample Grain Pack', 2500, 'Grains'],
 ];
 
 (async () => {
@@ -74,17 +76,23 @@ const PRODUCT_CATALOG = [
     const cats = await pool.query('SELECT id,name FROM categories');
     const categoryByName = Object.fromEntries(cats.rows.map((row) => [row.name, row.id]));
 
-    const count = await pool.query('SELECT COUNT(*)::int AS count FROM products');
-    if (count.rows[0].count < 20) {
-      for (let i = 0; i < PRODUCT_CATALOG.length; i++) {
-        const [name, price, categoryName] = PRODUCT_CATALOG[i];
-        const categoryId = categoryByName[categoryName];
-        if (!categoryId) throw new Error(`Missing category: ${categoryName}`);
-        await pool.query(
-          'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-          [supplier.rows[0].id, name, 'Freshly sourced quality produce for your business.', price, 20 + (i % 5) * 10, categoryId, productImageUrl(name, categoryName)],
-        );
-      }
+    for (const [name, price, categoryName] of PRODUCT_CATALOG) {
+      const categoryId = categoryByName[categoryName];
+      if (!categoryId) throw new Error(`Missing category: ${categoryName}`);
+      const found = await pool.query('SELECT id FROM products WHERE name=$1 LIMIT 1', [name]);
+      if (found.rows.length) continue;
+      await pool.query(
+        'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [
+          supplier.rows[0].id,
+          name,
+          'Freshly sourced quality produce for your business.',
+          price,
+          50,
+          categoryId,
+          productImageUrl(name, categoryName),
+        ],
+      );
     }
 
     const existing = await pool.query(
@@ -105,7 +113,7 @@ const PRODUCT_CATALOG = [
          AND p.category_id <> c.id`,
     );
 
-    console.log('Database seed completed with 20 products');
+    console.log(`Database seed completed with ${PRODUCT_CATALOG.length} catalog products`);
     console.log('Demo logins (from ADMIN_PASSWORD / SUPPLIER_PASSWORD env):');
     console.log(`  admin@dova.local     → ${process.env.ADMIN_PASSWORD || 'admin1234'}`);
     console.log(`  supplier@dova.local  → ${process.env.SUPPLIER_PASSWORD || 'supplier1234'}`);

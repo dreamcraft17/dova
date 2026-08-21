@@ -133,11 +133,11 @@ describe('AppService', () => {
   });
 
   describe('authorization and cart/order behavior', () => {
-    it('seeds at least 20 products and paginates the public catalog', async () => {
+    it('seeds at least 22 catalog products and paginates the public catalog', async () => {
       const { service } = makeService();
       const page = await service.listProducts('', '', 2, 12);
-      expect(page.pagination.total).toBeGreaterThanOrEqual(20);
-      expect(page.data).toHaveLength(8);
+      expect(page.pagination.total).toBeGreaterThanOrEqual(22);
+      expect(page.data).toHaveLength(10);
     });
 
     it('assigns meat products to the Meat category (BUG-001)', () => {

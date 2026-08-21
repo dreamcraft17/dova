@@ -55,6 +55,8 @@ export class AppService {
       ['Mango Harum Manis', 35000, 'Fruits'],
       ['Black Pepper', 27000, 'Pantry'],
       ['Cooking Oil', 58000, 'Pantry'],
+      ['UAT Sample Greens', 1500, 'Vegetables'],
+      ['UAT Sample Grain Pack', 2500, 'Grains'],
     ];
     products.forEach(([name, price, categoryName], index) => {
       const category = this.categories.find((item) => item.name === categoryName);
