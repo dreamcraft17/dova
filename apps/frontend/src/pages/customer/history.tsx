@@ -298,8 +298,8 @@ export default function PurchaseHistory() {
 
           {/* Back link */}
           <div style={{ marginTop: 32 }}>
-            <Link href="/customer" className="muted" style={{ fontSize: 14 }}>
-              ← Back to dashboard
+            <Link href="/customer/profile" className="muted" style={{ fontSize: 14 }}>
+              ← Back to profile
             </Link>
           </div>
         </section>
