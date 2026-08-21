@@ -20,7 +20,7 @@ export function Layout({
   const [routeLoading, setRouteLoading] = useState(false);
   const feedlogEnabled = isFeedlogEnabled();
   const dash =
-    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
+    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
   // Admin and supplier accounts don't shop — showing Cart to them leads to a confusing
   // "please log in" message at checkout (the /cart API 403s for non-customer roles).
   const canShop = !user || user.role === 'customer';
