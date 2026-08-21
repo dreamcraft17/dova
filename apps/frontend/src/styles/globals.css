@@ -194,6 +194,7 @@ textarea {
   padding: 20px 20px 40px;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 4px;
   transform: translateX(105%);
   transition: transform 0.28s ease, visibility 0s linear 0.28s;
@@ -229,9 +230,11 @@ textarea {
 }
 
 .nav-drawer a,
+.nav-drawer a,
 .nav-drawer button.button {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   min-height: var(--touch);
   padding: 10px 12px;
   border-radius: 10px;
@@ -245,7 +248,7 @@ textarea {
 }
 
 .nav-drawer .button {
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 8px;
   width: 100%;
 }
@@ -1365,6 +1368,186 @@ form .button {
   top: 4px;
   right: 2px;
   margin: 0;
+}
+
+/* ========== NAV USER GROUP (My Orders + Cart + Username + Logout) ========== */
+
+/* Single pill wrapper for all user nav items */
+.nav-user-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid var(--green);
+  border-radius: 999px;
+  background: var(--mint);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Thin divider between items inside the group */
+.nav-user-divider {
+  display: block;
+  width: 1px;
+  align-self: stretch;
+  background: var(--green);
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+/* Each item (My Orders, Cart) inside the group */
+.nav-user-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-user-item:hover {
+  background: rgba(15, 107, 67, 0.12);
+  color: var(--green);
+}
+
+.nav-user-item .cart-count {
+  background: var(--gold);
+  color: #fff;
+}
+
+/* Username link */
+.nav-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  transition: background 0.2s;
+}
+
+.nav-account:hover {
+  background: rgba(15, 107, 67, 0.12);
+}
+
+/* Logout icon button — right edge of the pill */
+.nav-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-left: 1px solid rgba(15, 107, 67, 0.35);
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-logout-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+/* ---- mobile drawer overrides ---- */
+.nav-drawer .nav-user-group {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  width: 100%;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.nav-drawer .nav-user-divider {
+  width: auto;
+  height: 1px;
+  align-self: auto;
+}
+
+.nav-drawer .nav-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: var(--touch);
+  padding: 12px 16px;
+  font-size: 15px;
+  border-radius: 0;
+}
+
+.nav-drawer .nav-account {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  max-width: none;
+  min-height: var(--touch);
+  padding: 12px 16px;
+  font-size: 15px;
+  border-left: none;
+}
+
+.nav-drawer .nav-logout-btn {
+  width: 100%;
+  min-height: var(--touch);
+  height: auto;
+  border-left: 0;
+  border-top: 1px solid rgba(15, 107, 67, 0.35);
+  border-radius: 0;
+  justify-content: flex-start;
+  padding: 0 16px;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.nav-drawer .nav-logout-btn {
+  width: 100%;
+  min-height: var(--touch);
+  height: auto;
+  border-left: 0;
+  border-top: 1px solid rgba(15, 107, 67, 0.35);
+  border-radius: 0;
+  justify-content: flex-start;
+  padding: 0 16px;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.nav-drawer .nav-logout-btn::after {
+  content: 'Logout';
+}
+
+.nav-drawer .nav-logout-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+/* very small screens */
+@media (max-width: 359px) {
+  .nav-account {
+    max-width: 100px;
+    font-size: 12px;
+  }
+
+  .nav-user-item {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
 }
 
 .hero-actions {
