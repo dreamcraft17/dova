@@ -20,7 +20,7 @@ export function Layout({
   const [routeLoading, setRouteLoading] = useState(false);
   const feedlogEnabled = isFeedlogEnabled();
   const dash =
-    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer';
+    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
   // Admin and supplier accounts don't shop — showing Cart to them leads to a confusing
   // "please log in" message at checkout (the /cart API 403s for non-customer roles).
   const canShop = !user || user.role === 'customer';
@@ -66,40 +66,91 @@ export function Layout({
       {feedlogEnabled ? (
         <FeedlogLink isLoggedIn={Boolean(user)} onClick={() => setMenuOpen(false)} />
       ) : null}
-      {canShop && (
-        <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
-          Cart{count > 0 && <sup className="cart-count">{count}</sup>}
-        </Link>
-      )}
-      {user ? (
-        <span className="header-auth">
+      {user?.role === 'customer' ? (
+        <span className="nav-user-group">
+          <Link href="/customer/history" onClick={() => setMenuOpen(false)} className="nav-user-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            My Orders
+          </Link>
+          <span className="nav-user-divider" aria-hidden="true" />
+          <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-user-item nav-cart">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            Cart{count > 0 && <sup className="cart-count">{count}</sup>}
+          </Link>
+          <span className="nav-user-divider" aria-hidden="true" />
           <Link href={dash} onClick={() => setMenuOpen(false)} className="nav-account">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             {user.fullName}
           </Link>
           <button
             type="button"
-            className="button small"
+            className="nav-logout-btn"
+            aria-label="Logout"
+            title="Logout"
             onClick={() => {
               setMenuOpen(false);
               void logout();
             }}
           >
-            Logout
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </span>
+      ) : user ? (
+        <span className="nav-user-group">
+          {canShop && (
+            <>
+              <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-user-item nav-cart">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                Cart{count > 0 && <sup className="cart-count">{count}</sup>}
+              </Link>
+              <span className="nav-user-divider" aria-hidden="true" />
+            </>
+          )}
+          <Link href={dash} onClick={() => setMenuOpen(false)} className="nav-account">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            {user.fullName}
+          </Link>
+          <button
+            type="button"
+            className="nav-logout-btn"
+            aria-label="Logout"
+            title="Logout"
+            onClick={() => {
+              setMenuOpen(false);
+              void logout();
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
           </button>
         </span>
       ) : (
-        <span className="header-auth">
-          <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
-            Login
-          </Link>
-          <Link
-            href="/auth/register"
-            className="button small"
-            onClick={() => setMenuOpen(false)}
-          >
-            Register
-          </Link>
-        </span>
+        <>
+          {canShop && (
+            <Link href="/cart" onClick={() => setMenuOpen(false)} className="nav-cart">
+              🛒{count > 0 && <sup className="cart-count">{count}</sup>}
+            </Link>
+          )}
+          <span className="header-auth">
+            <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
+              Login
+            </Link>
+            <Link
+              href="/auth/register"
+              className="button small"
+              onClick={() => setMenuOpen(false)}
+            >
+              Register
+            </Link>
+          </span>
+        </>
       )}
     </>
   );
