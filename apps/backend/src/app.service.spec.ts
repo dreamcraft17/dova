@@ -140,6 +140,16 @@ describe('AppService', () => {
       expect(page.data).toHaveLength(10);
     });
 
+    it('seeds UAT sample products for minimum-order testing (BLOCKER)', () => {
+      const { service } = makeService();
+      const greens = service.products.find((product) => product.name === 'UAT Sample Greens');
+      const grain = service.products.find((product) => product.name === 'UAT Sample Grain Pack');
+      expect(greens?.price).toBe(1500);
+      expect(greens?.categoryName).toBe('Vegetables');
+      expect(grain?.price).toBe(2500);
+      expect(grain?.categoryName).toBe('Grains');
+    });
+
     it('assigns meat products to the Meat category (BUG-001)', () => {
       const { service } = makeService();
       const chicken = service.products.find((product) => product.name === 'Chicken Breast');
@@ -190,6 +200,14 @@ describe('AppService', () => {
       const cart = await addToCart(service, 'qty-customer', product.id, 1);
       await expect(service.updateCart('qty-customer', cart.items[0].id, 0)).rejects.toBeInstanceOf(BadRequestException);
       await expect(service.updateCart('qty-customer', 'missing-item', 1)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects add to cart without a delivery slot (BUG-CART-004)', async () => {
+      const { service } = makeService();
+      const product = service.products[0];
+      await expect(
+        service.addCart('slot-missing-customer', product.id, 1, '' as 'morning'),
+      ).rejects.toThrow('Please select a delivery slot');
     });
 
     it('rejects quantities above stock', async () => {
@@ -360,11 +378,8 @@ describe('AppService', () => {
       const updated = await service.updateSupplierProduct(supplier.id, product.id, { name: 'Updated Greens', description: 'Better greens', price: 14000, quantity: 8, categoryId: service.categories[0].id });
       expect(updated.name).toBe('Updated Greens');
       await service.removeSupplierProduct(supplier.id, product.id);
-      // Soft delete: the product stays in the supplier's own list (marked inactive, surfaced
-      // in the "Hidden" tab so it can be reactivated) but disappears from customer-facing views.
       const remaining = await service.supplierProducts(supplier.id);
-      const removed = remaining.find(item => item.id === product.id);
-      expect(removed?.isActive).toBe(false);
+      expect(remaining.find((item) => item.id === product.id)).toBeUndefined();
       await expect(service.product(product.id)).rejects.toThrow('Product not found');
     });
 

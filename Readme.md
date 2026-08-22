@@ -1,15 +1,41 @@
 # DOVA
 
-Agricultural marketplace MVP connecting buyers with verified suppliers.  
-Monorepo: NestJS API + Next.js storefront + shared types.
+Agricultural marketplace MVP — connects buyers with verified suppliers in Nigeria (NGN).
 
-**Status:** MVP **codebase 100% complete** (Week 1–4 product scope). Go-live still needs staging + Paystack proof.  
-**Stack:** Node.js · NestJS · Next.js · PostgreSQL / Redis (optional) · Paystack (NGN)  
-**UI:** Design ported from the DOVA-Startup mockups (green / gold brand).
+**Monorepo:** NestJS API · Next.js storefront · shared TypeScript types  
+**Stack:** Node.js 20 · NestJS 11 · Next.js 16 · PostgreSQL · Redis (optional) · Paystack  
+**UI:** DOVA-Startup brand (green / gold)
+
+**Staging:** [dova.dntech.id](https://dova.dntech.id) · API [api.dova.dntech.id](https://api.dova.dntech.id/api/v1/health)
 
 ---
 
-## Quick start (local, no Docker)
+## What it does
+
+| Area | Capability |
+|------|------------|
+| Storefront | Browse, search, filter catalog; product detail with delivery slots |
+| Commerce | Cart, checkout (pickup / delivery), Paystack or mock payment |
+| Auth | Customer register/login, supplier application, role guards |
+| Supplier | Product CRUD, image upload, stock, order fulfillment |
+| Admin | Users, suppliers, products, orders, contacts, feedback moderation |
+| Feedback | Native idea board at `/feedback` (replaces external FeedLog) |
+
+**Minimum order:** pickup **₦3,000** · delivery **₦5,000** (see `shared/src/index.ts`).
+
+---
+
+## Prerequisites
+
+- **Node.js 20+** and npm
+- **PostgreSQL** — only when `USE_IN_MEMORY=false`
+- **Redis** — optional; backend runs without it (in-memory session fallback)
+
+No Docker required for local demo mode.
+
+---
+
+## Quick start (local, in-memory)
 
 ```bash
 npm install
@@ -19,22 +45,24 @@ cp apps/frontend/.env.dev apps/frontend/.env.local
 npm run dev
 ```
 
-| Service    | URL |
-|------------|-----|
-| Frontend   | http://localhost:3002 |
-| Feedback   | http://localhost:3002/feedback |
-| API health | http://localhost:3000/api/v1/health |
+| Service | Dev URL (`npm run dev`) | Prod URL (`npm run start` in frontend) |
+|---------|-------------------------|----------------------------------------|
+| Storefront | http://localhost:3001 | http://localhost:3002 |
+| API health | http://localhost:3000/api/v1/health | same |
+| Feedback | http://localhost:3001/feedback | http://localhost:3002/feedback |
 
-Default local mode uses **in-memory** data (`USE_IN_MEMORY=true`) so you can run UI + API without PostgreSQL/Redis.
+`USE_IN_MEMORY=true` (default in `.env.dev`) — no PostgreSQL/Redis needed for UI + API demo.
+
+> **CORS note:** `apps/backend/.env.dev` sets `FRONTEND_URL=http://localhost:3002` for production-style `next start`. For `npm run dev` (port **3001**), set `FRONTEND_URL=http://localhost:3001` in `apps/backend/.env`.
 
 ### Demo accounts
 
-| Role     | Email                  | Password       |
-|----------|------------------------|----------------|
-| Admin    | `admin@dova.local`     | `admin1234`    |
-| Supplier | `supplier@dova.local`  | `supplier1234` |
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@dova.local` | `admin1234` |
+| Supplier | `supplier@dova.local` | `supplier1234` |
 
-Register a customer from `/auth/register`, or apply as supplier at `/auth/supplier-register`.
+Register a customer at `/auth/register`, or apply as supplier at `/auth/supplier-register`.
 
 ---
 
@@ -44,129 +72,147 @@ Register a customer from `/auth/register`, or apply as supplier at `/auth/suppli
 dova/
 ├── apps/
 │   ├── backend/          # NestJS API (:3000)
-│   └── frontend/         # Next.js storefront (:3002) — includes /feedback
-├── shared/               # Shared TypeScript types + min-order helpers
+│   └── frontend/         # Next.js storefront (dev :3001, prod :3002)
+├── shared/               # Types, min-order helpers, product images
 ├── database/migrations/  # SQL schema (001_init, 002_week4, …)
 ├── scripts/              # migrate, seed, smoke-week4
-├── .github/workflows/    # CI + DB migrate
+├── tests/                # QA guides, env templates, test catalog
+├── .github/workflows/    # CI + database migrate
 └── vercel.json           # Frontend deploy on Vercel
 ```
 
-Internal product docs (PRD/SRS/runbook/changelog) live in a local `docs/` folder that is **gitignored** and not published in this repository.
-
 ---
 
-## Environment
+## Environment variables
 
-**Root / backend** (see `.env.example`, `apps/backend/.env.example`):
+Templates: `.env.example`, `apps/backend/.env.example`, `tests/vps-*.env.example`  
+**VPS / staging guide:** [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md)
+
+### Backend (`apps/backend/.env`)
 
 | Variable | Purpose |
 |----------|---------|
-| `USE_IN_MEMORY` | `true` = local demo without DB |
-| `DATABASE_URL` | PostgreSQL (required when in-memory is off) |
-| `REDIS_URL` | Redis (sessions/cache in full mode) |
-| `JWT_SECRET` | Auth signing secret |
-| `FRONTEND_URL` | CORS / redirects (`http://localhost:3001`) |
-| `PAYSTACK_SECRET_KEY` | Live/test Paystack; empty → mock payment in dev |
+| `USE_IN_MEMORY` | `true` = demo without DB |
+| `DATABASE_URL` | PostgreSQL (required when in-memory off) |
+| `JWT_SECRET` | Auth signing secret (`openssl rand -hex 32`) |
+| `FRONTEND_URL` | CORS + redirects — must match storefront origin |
+| `CROSS_SITE_COOKIES` | `true` when API and frontend are on different domains (staging) |
+| `ADMIN_PASSWORD` / `SUPPLIER_PASSWORD` | Demo account passwords for seed/bootstrap |
+| `PAYSTACK_SECRET_KEY` | Paystack secret; empty → mock payment |
 | `PAYSTACK_CURRENCY` | `NGN` |
-| `ADMIN_PASSWORD` | Seed/bootstrap admin password |
-| `RESEND_API_KEY` / `EMAIL_FROM` / `SUPPORT_EMAIL` | Optional email for contact / supplier notices |
+| `PAYSTACK_CALLBACK_URL` | Checkout verify page on frontend |
+| `REDIS_URL` | Optional — omit if Redis not running |
+| `RESEND_API_KEY` / `EMAIL_FROM` / `SUPPORT_EMAIL` | Optional contact/supplier email |
 
-**Frontend** (`apps/frontend/.env.local`):
+### Frontend (`apps/frontend/.env.local`)
 
 | Variable | Purpose |
 |----------|---------|
 | `NEXT_PUBLIC_API_URL` | e.g. `http://localhost:3000/api/v1` |
-| `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Optional public key |
+| `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Paystack public key (optional in mock mode) |
 
-No extra env vars are required for the native feedback board — it is always enabled at `/feedback`.
+`NEXT_PUBLIC_*` values are baked in at **`npm run build`** — rebuild after changing them.
 
 ---
 
-## Common commands
+## Commands
 
 ```bash
-npm run dev              # API + frontend together
+npm run dev              # API + frontend concurrently
 npm run build            # shared → backend → frontend
-npm run typecheck
-npm run test             # unit + backend tests
+npm run typecheck        # also aliased as npm run lint
+npm run test             # 92 unit tests + backend build smoke
 npm run test:unit
 npm run test:coverage
 npm run test:backend
 
-# Real database (USE_IN_MEMORY=false)
+# PostgreSQL mode (USE_IN_MEMORY=false)
 npm run db:migrate
-npm run db:migrate:all       # alias for db:migrate
 npm run db:seed
 npm run db:seed:week3
+npm run db:reset-logins
 
-# Smoke (API must be running)
+# API smoke (server must be running)
 npm run smoke:week4
 ```
 
-CI: `.github/workflows/ci.yml`  
-Manual + automated test catalog: [`tests/TEST-CASES.md`](./tests/TEST-CASES.md)  
-DB migrate workflow: `.github/workflows/database-migrate.yml` (needs `DATABASE_URL` secret)
+**CI** (`.github/workflows/ci.yml`): build · typecheck · test on every push/PR to `main`.
 
 ---
 
-## Product surface
+## Routes
 
-| Area | Routes / notes |
-|------|----------------|
+| Area | Paths |
+|------|-------|
 | Storefront | `/`, `/products`, `/products/[id]`, `/about`, `/contact` |
-| Commerce | `/cart`, `/checkout` (pickup / delivery + min order), Paystack verify |
+| Commerce | `/cart`, `/checkout`, `/checkout/verify` |
 | Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` |
-| Customer | `/customer`, `/customer/orders/[id]` |
-| Supplier | `/supplier` — products (image upload), stock, orders |
-| Admin | `/admin` — users, suppliers, products, orders, contacts, **feedback** |
-| Feedback | `/feedback`, `/feedback/roadmap`, `/feedback/changelog`, post detail + comments |
+| Customer | `/customer`, `/customer/profile`, `/customer/history`, `/customer/orders/[id]` |
+| Supplier | `/supplier` — products, stock, orders |
+| Admin | `/admin` — users, suppliers, products, orders, contacts, feedback |
+| Feedback | `/feedback`, `/feedback/roadmap`, `/feedback/changelog`, `/feedback/[id]` |
 
-**Minimum order (NGN):** pickup **₦3,000** · delivery **₦5,000**.  
 Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock** flow (no real charges).
 
 ---
 
-## Feedback board (native in DOVA)
+## Testing & QA docs
 
-The former external FeedLog app is **fully replaced** by native Next.js pages and NestJS API routes. No proxy, SSO, or sibling Nuxt repo.
-
-| URL | Purpose |
-|-----|---------|
-| http://localhost:3002/feedback | Submit ideas, vote, search |
-| http://localhost:3002/feedback/roadmap | Public roadmap columns |
-| http://localhost:3002/feedback/changelog | Release notes |
-| http://localhost:3002/feedback/[id] | Idea detail + comments |
-
-**API** (prefix `/api/v1`):
-
-- `GET/POST /feedback/posts` — list (sort, search) / create
-- `GET /feedback/posts/:id` — detail
-- `POST /feedback/posts/:id/vote` — vote (auth required)
-- `GET/POST /feedback/posts/:id/comments` — list / add comment
-- `POST /feedback/posts/:id/official-reply` — admin team reply
-- `PUT /feedback/posts/:id/status` — admin roadmap status
-- `GET /feedback/roadmap` — grouped columns
-- `GET/POST /feedback/changelog` — list / admin publish
-- `GET /feedback/changelog/:slug` — changelog detail
-
-MVP stores feedback **in memory** (same as other demo data when `USE_IN_MEMORY=true`). Admin manages ideas under **Admin → Feedback**.
+| Doc | Contents |
+|-----|----------|
+| [`tests/TEST-CASES.md`](./tests/TEST-CASES.md) | Automated + manual test catalog |
+| [`tests/GUIDE.md`](./tests/GUIDE.md) | Manual QA workflow |
+| [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md) | VPS/staging env setup (ID) |
+| [`tests/UAT-BUG-FIXES.md`](./tests/UAT-BUG-FIXES.md) | UAT defect log + verification |
 
 ---
 
 ## Deployment
 
-- **Frontend:** Vercel (`vercel.json`). Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`). Feedback pages ship with the Next.js app at `/feedback`.
-- **Backend:** Node.js host (e.g. PM2) with `USE_IN_MEMORY=false`, `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `FRONTEND_URL`, `PAYSTACK_*`.
-- After deploy: `npm run db:migrate`, then `npm run smoke:week4` against the public API.
-- No Docker required for this MVP path.
+### Staging / VPS (PM2)
+
+```bash
+git pull
+npm run build
+npm run db:seed          # refresh catalog + demo data
+pm2 restart dova-backend dova-frontend --update-env
+```
+
+Set `USE_IN_MEMORY=false`, `CROSS_SITE_COOKIES=true`, and production URLs — see [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md).
+
+### Vercel (frontend only)
+
+`vercel.json` at repo root. Set `NEXT_PUBLIC_API_URL` to the public API base (`…/api/v1`).
+
+### After deploy
+
+```bash
+npm run db:migrate       # if schema changed
+npm run smoke:week4      # health + contact against running API
+```
+
+---
+
+## Feedback board (native)
+
+External FeedLog is replaced by native Next.js pages + NestJS routes under `/api/v1/feedback/*`.
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET/POST /feedback/posts` | List / create ideas |
+| `POST /feedback/posts/:id/vote` | Vote (auth required) |
+| `GET/POST /feedback/posts/:id/comments` | Comments |
+| `PUT /feedback/posts/:id/status` | Admin roadmap status |
+| `GET /feedback/roadmap` | Public roadmap columns |
+| `GET/POST /feedback/changelog` | Release notes |
+
+In-memory when `USE_IN_MEMORY=true`; admin UI under **Admin → Feedback**.
 
 ---
 
 ## Notes
 
-- MVP **codebase is complete**; remaining work is ops (staging URL + Paystack test txs).
-- Currency UI is **₦ (NGN)**.
-- Storefront follows the **DOVA-Startup** brand (green / gold).
-- Contact form submissions appear under Admin → **Contacts**.
-- Supplier products accept multipart **image** upload (JPG/PNG/WEBP, max 5 MB) or an image URL.
+- Currency UI is **₦ (NGN)** throughout.
+- Supplier products accept multipart **image** upload (JPG/PNG/WEBP, max 5 MB) or image URL.
+- Contact submissions appear under Admin → **Contacts**.
+- Auth on cross-origin staging uses **Bearer tokens** in `sessionStorage` plus optional cookies when `CROSS_SITE_COOKIES=true`.

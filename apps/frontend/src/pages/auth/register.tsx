@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { passwordToggleState } from 'dova-shared';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -16,6 +17,8 @@ export default function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const passwordToggle = passwordToggleState(showPassword);
+  const confirmPasswordToggle = passwordToggleState(showConfirmPassword);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -58,7 +61,7 @@ export default function Register() {
           <label>Password</label>
           <div className="password-input-wrap">
             <input
-              type={showPassword ? 'text' : 'password'}
+              type={passwordToggle.inputType}
               required
               placeholder="Create a password"
               value={form.password}
@@ -68,15 +71,15 @@ export default function Register() {
               type="button"
               className="password-toggle-btn"
               onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={passwordToggle.ariaLabel}
             >
-              {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+              {passwordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
           <label>Confirm Password</label>
           <div className="password-input-wrap">
             <input
-              type={showConfirmPassword ? 'text' : 'password'}
+              type={confirmPasswordToggle.inputType}
               required
               placeholder="Confirm your password"
               value={form.confirmPassword}
@@ -86,9 +89,9 @@ export default function Register() {
               type="button"
               className="password-toggle-btn"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+              aria-label={confirmPasswordToggle.ariaLabel}
             >
-              {showConfirmPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+              {confirmPasswordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
           <button type="submit" disabled={busy}>

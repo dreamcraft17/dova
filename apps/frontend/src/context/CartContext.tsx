@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import type { Cart } from 'dova-shared';
+import { cartBadgeCount, type Cart } from 'dova-shared';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 
@@ -30,8 +30,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       cart,
-      // Badge = distinct line items, not total kg/L quantity (BUG-011).
-      count: cart?.items.length ?? 0,
+      count: cartBadgeCount(cart),
       refresh,
     }),
     [cart, user?.id],
