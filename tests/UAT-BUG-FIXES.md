@@ -1,9 +1,10 @@
 # DOVA — UAT Bug Report & Fixes
 
 **Author:** Dozer (@dreamraft17)  
-**Updated:** 17 August 2026  
+**Updated:** 21 August 2026  
 **QA sources:** `Dova_Chain_Docs/*.xlsx`, `Bug 006.png`, `Bug 007.png`, `Bug 008.png`  
-**Latest UAT sprint commit:** `771b84f` — `Fix UAT bugs: cart validation, checkout, supplier catalog, and images`
+**Latest UAT sprint commit:** `d755a4c` — `Fix UAT bugs: cart badge, password toggle, cheap seed products`  
+**Regression tests:** `shared/src/index.spec.ts`, `apps/backend/src/app.service.spec.ts`
 
 ---
 
@@ -21,6 +22,10 @@
 | BUG-008 | Supplier — sees other suppliers' products | High | ✅ Fixed | `771b84f` |
 | SUP-03 | Supplier — deleted product still visible | Medium | ✅ Fixed | `771b84f` |
 | PAY-02 | Payment — reference idempotency | Medium | ✅ Fixed | `771b84f` |
+| BUG-010 | Auth — password eye icon inverted | Minor | ✅ Fixed | `d755a4c` |
+| BUG-011 | Cart — badge counts kg not line items | Major | ✅ Fixed | `d755a4c` |
+| BUG-012 | Supplier register — password toggle CSS overlap | Minor | ✅ Fixed | `d755a4c` |
+| BLOCKER | Catalog — no cheap products for min-order UAT | Major | ✅ Fixed | `d755a4c` |
 
 **UAT PASS (no code defect):** AUTH-01–09, CAT-01–06, CART-01/03/04/06, CHK-01–06, PAY-01/03–05 (latest Excel version), SUP-01/02/04–07.
 
@@ -194,6 +199,78 @@ Soft-delete (`is_active = false`) but `listSupplierProducts` did not filter by `
 
 ---
 
+## BUG-010 — Password Eye Icon Inverted
+
+### Symptoms
+- Password **visible** showed **EyeOff**; **hidden** showed **Eye**
+- Affected login, register, checkout login modal, and supplier `PasswordInput`
+
+### Root cause
+Toggle logic used `visible ? EyeOff : Eye` — opposite of common UX convention.
+
+### Fix
+- `shared/src/index.ts` — `passwordToggleState()` (visible → Eye, hidden → EyeOff)
+- Auth forms + `PasswordInput.tsx` use shared helper
+- `shared/src/index.spec.ts` — regression test
+
+### Verification
+- [ ] Hidden password → EyeOff, `aria-label="Show password"`
+- [ ] Visible password → Eye, `aria-label="Hide password"`
+
+---
+
+## BUG-011 — Cart Badge Shows Total kg, Not Line Items
+
+### Symptoms
+Adding 5 kg of one product showed cart badge **5** instead of **1**
+
+### Root cause
+`CartContext` summed `item.quantity` instead of counting distinct cart lines.
+
+### Fix
+- `shared/src/index.ts` — `cartBadgeCount(cart)` returns `items.length`
+- `apps/frontend/src/context/CartContext.tsx` — uses `cartBadgeCount`
+- `shared/src/index.spec.ts` — regression test
+
+### Verification
+- [ ] Add 5 kg of one product → header badge shows **1**
+- [ ] Add second product → badge shows **2**
+
+---
+
+## BUG-012 — Password Toggle Overlaps Submit Button (Supplier Register)
+
+### Symptoms
+Password visibility button stretched full-width like the green submit button on supplier registration
+
+### Root cause
+CSS `.supplier-card button { width: 100% }` did not exclude `.password-toggle` class variants.
+
+### Fix
+- `apps/frontend/src/styles/globals.css` — exclude `.password-toggle-btn` and `.password-toggle` from submit button styles
+
+### Verification
+- [ ] `/auth/supplier-register` — eye button inside password field, not full-width
+
+---
+
+## BLOCKER — No Cheap Products for Minimum-Order UAT
+
+### Symptoms
+QA could not test pickup (₦3,000) or delivery (₦5,000) minimum thresholds; cheapest product was ₦17,000+
+
+### Fix
+- **UAT Sample Greens** — ₦1,500/kg (2 kg = pickup min)
+- **UAT Sample Grain Pack** — ₦2,500/kg (2 kg = delivery min)
+- `apps/backend/src/app.service.spec.ts` + `shared/src/index.spec.ts` — regression tests
+
+### Verification
+- [ ] 2 kg UAT Sample Greens → pickup checkout at ₦3,000
+- [ ] 2 kg UAT Sample Grain Pack → delivery checkout at ₦5,000
+- [ ] Run `npm run db:seed` on staging after deploy
+
+---
+
 ## PAY-02 — Payment Reference Not Reused (Mock Idempotency)
 
 ### Symptoms
@@ -237,7 +314,7 @@ pm2 restart dova-backend dova-frontend --update-env
 ## Automated Tests
 
 ```bash
-npm test   # 79 tests pass (unit + backend auth)
+npm test   # 92 tests pass (unit + backend auth)
 ```
 
 ---

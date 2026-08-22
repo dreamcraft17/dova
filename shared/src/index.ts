@@ -49,6 +49,18 @@ export const minOrderMessage = (total: number, fulfillment: FulfillmentType) => 
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 export const isValidPassword = (password: string) => password.length >= 8;
 
+/** Header cart badge = distinct line items, not total kg/L (BUG-011). */
+export const cartBadgeCount = (cart: Cart | null | undefined) => cart?.items.length ?? 0;
+
+export type PasswordToggleIcon = 'eye' | 'eye-off';
+
+/** Password visibility UI contract — visible → Eye, hidden → EyeOff (BUG-010). */
+export const passwordToggleState = (visible: boolean) => ({
+  inputType: visible ? ('text' as const) : ('password' as const),
+  icon: visible ? ('eye' as const) : ('eye-off' as const),
+  ariaLabel: visible ? 'Hide password' : 'Show password',
+});
+
 /** Built-in DOVA feedback board (MVP — no external FeedLog app). */
 export type FeedbackStatus = 'open' | 'planned' | 'in_progress' | 'done';
 

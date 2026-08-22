@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { passwordToggleState } from 'dova-shared';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -12,6 +13,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const passwordToggle = passwordToggleState(showPassword);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { refresh } = useAuth();
@@ -52,7 +54,7 @@ export default function Login() {
           <label>Password</label>
           <div className="password-input-wrap">
             <input
-              type={showPassword ? 'text' : 'password'}
+              type={passwordToggle.inputType}
               required
               placeholder="Enter your password"
               value={password}
@@ -62,9 +64,9 @@ export default function Login() {
               type="button"
               className="password-toggle-btn"
               onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-label={passwordToggle.ariaLabel}
             >
-              {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+              {passwordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
           <div className="remember">
