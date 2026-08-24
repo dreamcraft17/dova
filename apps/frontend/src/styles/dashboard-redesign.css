@@ -24,7 +24,7 @@
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
   padding: 14px 18px;
 }
 
@@ -34,6 +34,8 @@
   gap: 15px;
   min-width: 0;
   flex-shrink: 0;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .admin-dash-menu-toggle {
@@ -100,10 +102,10 @@
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 18px 14px;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
@@ -420,6 +422,24 @@
   gap: 8px;
 }
 
+.admin-dash-reply-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.admin-dash-reply-cell textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
 .admin-dash-btn {
   border: none;
   border-radius: 8px;
@@ -497,6 +517,8 @@
   font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .supplier-dash-brand small {
@@ -583,12 +605,22 @@
 }
 
 .supplier-dash-logout {
-  color: #ff6b6b !important;
-  font-weight: 600 !important;
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px !important;
+  font-weight: 500 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
 }
 
 .supplier-dash-logout:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
   color: #fff !important;
 }
 
@@ -1007,6 +1039,12 @@
 
   .admin-dash-bar {
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-dash-logo {
+    padding-right: 0;
+    border-right: none;
   }
 
   .admin-dash-nav-bar {
@@ -1014,8 +1052,10 @@
     width: 100%;
     flex-direction: column;
     align-items: stretch;
-    padding: 0 18px 16px;
+    padding: 8px 0 0;
     overflow-x: visible;
+    order: 3;
+    flex: none;
   }
 
   .admin-dash-nav-bar.show {
@@ -1048,6 +1088,11 @@
     width: 100%;
     justify-content: center;
     order: 4;
+  }
+
+  .supplier-dash-brand {
+    padding-right: 0;
+    border-right: none;
   }
 
   .supplier-dash-collapse {

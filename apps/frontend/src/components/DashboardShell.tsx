@@ -54,6 +54,20 @@ export function DashboardShell({
               </div>
             </div>
 
+            <nav className={`admin-dash-nav-bar${navOpen ? ' show' : ''}`}>
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={active === item.id ? 'active' : undefined}
+                  onClick={() => select(item.id)}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
             <div className="admin-dash-utilities">
               <Link href="/">
                 <IconShop />
@@ -65,20 +79,6 @@ export function DashboardShell({
               </button>
             </div>
           </div>
-
-          <nav className={`admin-dash-nav-bar${navOpen ? ' show' : ''}`}>
-            {items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={active === item.id ? 'active' : undefined}
-                onClick={() => select(item.id)}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
-          </nav>
         </header>
         <main className="admin-dash-container">{children}</main>
       </div>
