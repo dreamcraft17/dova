@@ -1,4 +1,4 @@
-import { paymentProviderLabel, resolvePaymentRedirectUrl } from './payment';
+import { paymentProviderLabel, resolvePaymentRedirectUrl, startOrderPayment } from './payment';
 
 describe('payment redirect helper', () => {
   it('returns absolute Paystack checkout URLs unchanged', () => {
@@ -7,6 +7,43 @@ describe('payment redirect helper', () => {
 
   it('normalizes local mock verify paths', () => {
     expect(resolvePaymentRedirectUrl('/checkout/verify?reference=DOVA-1')).toBe('/checkout/verify?reference=DOVA-1');
+  });
+});
+
+describe('startOrderPayment', () => {
+  it('initializes payment and redirects when running in the browser', async () => {
+    const request = jest.fn().mockResolvedValue({
+      authorization_url: 'https://checkout.paystack.com/abc',
+    });
+    const originalLocation = globalThis.window?.location;
+    const hrefSetter = jest.fn();
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          set href(value: string) {
+            hrefSetter(value);
+          },
+        },
+      },
+    });
+
+    await startOrderPayment('order-1', 25000, request);
+
+    expect(request).toHaveBeenCalledWith('/payments/initialize', {
+      method: 'POST',
+      body: JSON.stringify({ orderId: 'order-1', amount: 25000 }),
+    });
+    expect(hrefSetter).toHaveBeenCalledWith('https://checkout.paystack.com/abc');
+
+    if (originalLocation) {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: { location: originalLocation },
+      });
+    } else {
+      delete (globalThis as { window?: unknown }).window;
+    }
   });
 });
 

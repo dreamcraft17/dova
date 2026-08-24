@@ -4,12 +4,13 @@ import { Layout } from '../../components/Layout';
 import { Loading } from '../../components/Loading';
 import { RequireAuth } from '../../components/RequireAuth';
 import { api } from '../../lib/api';
+import { startOrderPayment } from '../../lib/payment';
 import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
 
 const STATUS_LABELS: Record<OrderStatus | 'all', string> = {
   all: 'All',
-  pending: 'Pending',
+  pending: 'Awaiting payment',
   paid: 'Paid',
   processing: 'Processing',
   shipped: 'Shipped',
@@ -60,6 +61,7 @@ export default function PurchaseHistory() {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     api<Order[]>('/orders')
@@ -87,6 +89,16 @@ export default function PurchaseHistory() {
     });
     return counts;
   }, [orders]);
+
+  async function payNow(order: Order) {
+    setPayingOrderId(order.id);
+    try {
+      await startOrderPayment(order.id, order.totalAmount, api);
+    } catch (e) {
+      setError((e as Error).message);
+      setPayingOrderId(null);
+    }
+  }
 
   return (
     <Layout>
@@ -283,13 +295,25 @@ export default function PurchaseHistory() {
                     <span style={{ fontWeight: 700, fontSize: 15 }}>
                       Total: ₦ {order.totalAmount.toLocaleString('en-NG')}
                     </span>
-                    <Link
-                      className="button small"
-                      href={`/customer/orders/${order.id}`}
-                      style={{ textDecoration: 'none' }}
-                    >
-                      View Details →
-                    </Link>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {order.status === 'pending' && (
+                        <button
+                          type="button"
+                          className="button small confirm-btn"
+                          disabled={payingOrderId === order.id}
+                          onClick={() => void payNow(order)}
+                        >
+                          {payingOrderId === order.id ? 'Redirecting…' : 'Complete payment'}
+                        </button>
+                      )}
+                      <Link
+                        className="button small"
+                        href={`/customer/orders/${order.id}`}
+                        style={{ textDecoration: 'none' }}
+                      >
+                        View Details →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}

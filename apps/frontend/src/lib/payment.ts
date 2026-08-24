@@ -17,6 +17,26 @@ export type PaymentConfig = {
   channels: PaymentChannel[];
 };
 
+export type PaymentInitializeResponse = {
+  authorization_url: string;
+  reference?: string;
+  mode?: string;
+};
+
+export async function startOrderPayment(
+  orderId: string,
+  amount: number,
+  request: (path: string, init?: { method?: string; body?: string }) => Promise<PaymentInitializeResponse>,
+): Promise<void> {
+  const payment = await request('/payments/initialize', {
+    method: 'POST',
+    body: JSON.stringify({ orderId, amount }),
+  });
+  if (typeof window !== 'undefined') {
+    window.location.href = resolvePaymentRedirectUrl(payment.authorization_url);
+  }
+}
+
 export function paymentProviderLabel(config: PaymentConfig): string {
   if (config.provider === 'mock') return 'Demo checkout (no real charge)';
   if (config.mode === 'paystack_test') return 'Paystack test checkout';

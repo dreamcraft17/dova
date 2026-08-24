@@ -5,6 +5,7 @@ import { Layout } from '../../../components/Layout';
 import { Loading } from '../../../components/Loading';
 import { RequireAuth } from '../../../components/RequireAuth';
 import { api } from '../../../lib/api';
+import { startOrderPayment } from '../../../lib/payment';
 import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
 import { useToast } from '../../../context/ToastContext';
@@ -33,6 +34,7 @@ export default function OrderDetail() {
   const [order, setOrder] = useState<Order>();
   const [error, setError] = useState('');
   const [reordering, setReordering] = useState(false);
+  const [paying, setPaying] = useState(false);
   const { showToast } = useToast();
   const { refresh: refreshCart } = useCart();
 
@@ -42,6 +44,17 @@ export default function OrderDetail() {
         .then(setOrder)
         .catch((e: Error) => setError(e.message));
   }, [router.query.id]);
+
+  async function payNow() {
+    if (!order) return;
+    setPaying(true);
+    try {
+      await startOrderPayment(order.id, order.totalAmount, api);
+    } catch (e) {
+      showToast((e as Error).message, 'error');
+      setPaying(false);
+    }
+  }
 
   async function reorder() {
     if (!order) return;
@@ -109,7 +122,7 @@ export default function OrderDetail() {
                         color: STATUS_COLORS[order.status],
                       }}
                     >
-                      {order.status}
+                      {order.status === 'pending' ? 'Awaiting payment' : order.status}
                     </span>
                     {/* Fulfillment badge */}
                     {order.fulfillmentType && (
@@ -137,6 +150,17 @@ export default function OrderDetail() {
                     </span>
                   </div>
                 </div>
+
+                {order.status === 'pending' && (
+                  <button
+                    type="button"
+                    className="button confirm-btn"
+                    disabled={paying}
+                    onClick={() => void payNow()}
+                  >
+                    {paying ? <Loading label="Redirecting…" inline size="sm" /> : 'Complete payment'}
+                  </button>
+                )}
 
                 {/* Re-order button — shown when order is paid/delivered */}
                 {(order.status === 'delivered' || order.status === 'paid') && (
@@ -167,6 +191,12 @@ export default function OrderDetail() {
                   <br />
                   {order.deliveryPhone}
                 </p>
+
+                {order.status === 'pending' && !order.paymentVerifiedAt && (
+                  <p className="form-hint" style={{ marginTop: 0, marginBottom: 16 }}>
+                    This order has not been paid yet. Use Complete payment to continue checkout on Paystack.
+                  </p>
+                )}
 
                 {order.paymentVerifiedAt && (
                   <p style={{ marginTop: 16, fontSize: 13, color: 'var(--muted)' }}>

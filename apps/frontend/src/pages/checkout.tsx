@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
-import { resolvePaymentRedirectUrl, paymentProviderLabel, type PaymentConfig } from '../lib/payment';
+import { paymentProviderLabel, startOrderPayment, type PaymentConfig } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
 import { minOrderFor, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
@@ -71,11 +71,7 @@ export default function Checkout() {
       };
       const order = await api<Order>('/orders', { method: 'POST', body: JSON.stringify(payload) });
       await refresh();
-      const payment = await api<{ authorization_url: string }>('/payments/initialize', {
-        method: 'POST',
-        body: JSON.stringify({ orderId: order.id, amount: order.totalAmount }),
-      });
-      window.location.href = resolvePaymentRedirectUrl(payment.authorization_url);
+      await startOrderPayment(order.id, order.totalAmount, api);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
