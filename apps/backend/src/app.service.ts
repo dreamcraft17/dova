@@ -216,6 +216,10 @@ export class AppService {
     return (await this.database.listContactSubmissions()) ?? this.contacts;
   }
 
+  paymentConfig() {
+    return this.paystack.paymentConfig();
+  }
+
   async initializePayment(userId: string, orderId: string, amount?: number) {
     const order = (await this.database.findOrder(userId, orderId)) ?? this.orders.find(item => item.id === orderId && item.customerId === userId);
     if (!order) throw new NotFoundException('Order not found');
@@ -281,26 +285,65 @@ export class AppService {
       ? ((await this.database.findOrder(userId, payment.orderId)) ?? this.orders.find(item => item.id === payment.orderId && item.customerId === userId))
       : ((storedOrders?.find(item => item.paymentReference === reference)) ?? this.orders.find(item => item.paymentReference === reference && item.customerId === userId));
     if (!order) throw new NotFoundException('Payment reference not found');
+    if (order.customerId !== userId) throw new NotFoundException('Payment reference not found');
 
-    let successful = false;
-    let response: unknown;
+    if (order.status === 'paid') {
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: 'paid' as const,
+        alreadyPaid: true,
+      };
+    }
+
     const expected = {
       reference,
       amountSubunit: this.paystack.amountToSubunit(order.totalAmount),
       currency: this.paystack.currency(),
     };
 
-    if (!this.paystack.enabled() && (payment || order.paymentReference === reference)) {
-      successful = true;
-    } else if (this.paystack.enabled()) {
-      const verified = await this.paystack.verifyTransaction(reference);
-      response = verified.raw;
-      successful = verified.ok && this.paystack.isSuccessfulCharge(verified.data, expected);
+    if (!this.paystack.enabled()) {
+      return this.fulfillPaidOrder(order, reference, payment, undefined);
     }
 
-    if (!successful) {
-      await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response);
-      throw new BadRequestException('Payment verification failed');
+    const verified = await this.paystack.verifyTransaction(reference);
+    const response = verified.raw;
+
+    if (verified.ok && verified.data && this.paystack.isSuccessfulCharge(verified.data, expected)) {
+      return this.fulfillPaidOrder(order, reference, payment, response);
+    }
+
+    if (verified.ok && verified.data && this.paystack.isPendingStatus(verified.data.status)) {
+      await this.database.logPayment(order.id, reference, order.totalAmount, verified.data.status, response);
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: 'pending' as const,
+        paymentStatus: verified.data.status,
+        message: this.paystack.pendingStatusMessage(verified.data.status),
+      };
+    }
+
+    const failureMessage = verified.ok && verified.data
+      ? this.paystack.failedStatusMessage(verified.data)
+      : 'Payment verification failed';
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response);
+    throw new BadRequestException(failureMessage);
+  }
+
+  private async fulfillPaidOrder(
+    order: Order,
+    reference: string,
+    payment: { orderId: string; status: string; authorization_url?: string } | undefined,
+    response: unknown,
+  ) {
+    if (order.status === 'paid') {
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: 'paid' as const,
+        alreadyPaid: true,
+      };
     }
 
     order.status = 'paid';
@@ -308,7 +351,7 @@ export class AppService {
     await this.database.markOrderPaid(order.id, reference);
     await this.database.logPayment(order.id, reference, order.totalAmount, 'success', response);
     if (payment) payment.status = 'success';
-    return { orderId: order.id, orderNumber: order.orderNumber, status: order.status };
+    return { orderId: order.id, orderNumber: order.orderNumber, status: 'paid' as const };
   }
 
   async handlePaystackWebhook(signature: string | undefined, body: any, rawBody?: Buffer) {
@@ -317,20 +360,31 @@ export class AppService {
     if (!this.paystack.verifyWebhookSignature(signature, payload)) {
       throw new UnauthorizedException('Invalid Paystack signature');
     }
-    if (body.event !== 'charge.success') return { received: true };
-    const reference = body.data?.reference;
+    if (body.event !== 'charge.success') return { received: true, ignored: true };
+
+    const charge = this.paystack.chargeFromWebhookData(body.data);
+    const reference = charge?.reference;
     if (!reference) throw new BadRequestException('Missing payment reference');
 
     const payment = this.payments.get(reference);
-    if (payment?.status === 'success') return { received: true, duplicate: true };
-
     const order = payment
       ? (this.orders.find(item => item.id === payment.orderId) ?? await this.database.findOrderByPaymentReference(reference))
       : (this.orders.find(item => item.paymentReference === reference) ?? await this.database.findOrderByPaymentReference(reference));
     if (!order) throw new NotFoundException('Order not found');
     if (order.status === 'paid') return { received: true, duplicate: true };
 
-    return this.verifyPayment(order.customerId, reference);
+    const expected = {
+      reference,
+      amountSubunit: this.paystack.amountToSubunit(order.totalAmount),
+      currency: this.paystack.currency(),
+    };
+    if (!charge || !this.paystack.isSuccessfulCharge(charge, expected)) {
+      await this.database.logPayment(order.id, reference, order.totalAmount, 'webhook_rejected', body.data);
+      return { received: true, ignored: true };
+    }
+
+    await this.fulfillPaidOrder(order, reference, payment, body.data);
+    return { received: true, fulfilled: true };
   }
   async supplierFor(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s || s.status !== 'approved') throw new ForbiddenException('Supplier approval required'); return s; }
   async supplierStatus(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s) throw new NotFoundException('Supplier application not found'); return { id: s.id, businessName: s.businessName, status: s.status, rejectionReason: (s as any).rejectionReason, documentUrl: s.documentUrl }; }

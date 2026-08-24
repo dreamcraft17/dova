@@ -11,14 +11,31 @@ export type PaystackInitializeData = {
   reference: string;
 };
 
+/** https://paystack.com/docs/payments/verify-payments/ */
+export type PaystackTransactionStatus =
+  | 'success'
+  | 'failed'
+  | 'abandoned'
+  | 'ongoing'
+  | 'pending'
+  | 'processing'
+  | 'queued'
+  | 'reversed';
+
 export type PaystackVerifyData = {
-  status: string;
+  status: PaystackTransactionStatus | string;
   reference: string;
   amount: number;
   currency: string;
   paid_at?: string;
   gateway_response?: string;
   metadata?: string | Record<string, unknown>;
+};
+
+export type PaystackChargeExpected = {
+  reference: string;
+  amountSubunit: number;
+  currency: string;
 };
 
 type PaystackApiResponse<T> = {
@@ -42,6 +59,11 @@ export class PaystackService {
     return this.secretKey()?.startsWith('sk_test_') ?? false;
   }
 
+  /** True when using Paystack live keys (sk_live_...). */
+  isLiveMode(): boolean {
+    return this.secretKey()?.startsWith('sk_live_') ?? false;
+  }
+
   currency(): string {
     return process.env.PAYSTACK_CURRENCY?.trim() || 'NGN';
   }
@@ -58,6 +80,31 @@ export class PaystackService {
   channels(): string[] {
     const raw = process.env.PAYSTACK_CHANNELS ?? 'card,bank,ussd,bank_transfer';
     return raw.split(',').map((channel) => channel.trim()).filter(Boolean);
+  }
+
+  channelLabel(id: string): string {
+    const labels: Record<string, string> = {
+      card: 'Debit / Credit Card',
+      bank: 'Bank Account',
+      ussd: 'USSD',
+      bank_transfer: 'Bank Transfer',
+      qr: 'QR Code',
+      mobile_money: 'Mobile Money',
+      apple_pay: 'Apple Pay',
+      google_pay: 'Google Pay',
+      eft: 'EFT',
+    };
+    return labels[id] ?? id.replace(/_/g, ' ');
+  }
+
+  paymentConfig() {
+    const enabled = this.enabled();
+    return {
+      provider: enabled ? 'paystack' : 'mock',
+      mode: !enabled ? 'mock' : this.isTestMode() ? 'paystack_test' : 'paystack',
+      currency: this.currency(),
+      channels: this.channels().map((id) => ({ id, label: this.channelLabel(id) })),
+    };
   }
 
   amountToSubunit(amountMajor: number): number {
@@ -87,10 +134,51 @@ export class PaystackService {
     return {};
   }
 
-  isSuccessfulCharge(
-    data: PaystackVerifyData | undefined,
-    expected: { reference: string; amountSubunit: number; currency: string },
-  ): boolean {
+  isPendingStatus(status: string | undefined): boolean {
+    return ['ongoing', 'pending', 'processing', 'queued'].includes(status ?? '');
+  }
+
+  isFailedStatus(status: string | undefined): boolean {
+    return ['failed', 'abandoned', 'reversed'].includes(status ?? '');
+  }
+
+  pendingStatusMessage(status: string | undefined): string {
+    if (status === 'ongoing') {
+      return 'Payment is still in progress. Complete the OTP or bank transfer, then check again.';
+    }
+    if (status === 'processing') {
+      return 'Payment is processing. Please wait a moment and try again.';
+    }
+    return 'Payment is pending confirmation. Please wait and try again shortly.';
+  }
+
+  failedStatusMessage(data: PaystackVerifyData | undefined): string {
+    if (!data) return 'Payment verification failed';
+    if (data.status === 'abandoned') return 'Payment was not completed.';
+    if (data.status === 'reversed') return 'Payment was reversed.';
+    return data.gateway_response?.trim() || 'Payment verification failed';
+  }
+
+  chargeFromWebhookData(data: unknown): PaystackVerifyData | undefined {
+    if (!data || typeof data !== 'object') return undefined;
+    const row = data as Record<string, unknown>;
+    const reference = typeof row.reference === 'string' ? row.reference : undefined;
+    const amount = Number(row.amount);
+    const currency = typeof row.currency === 'string' ? row.currency : undefined;
+    const status = typeof row.status === 'string' ? row.status : 'success';
+    if (!reference || !Number.isFinite(amount) || !currency) return undefined;
+    return {
+      status,
+      reference,
+      amount,
+      currency,
+      paid_at: typeof row.paid_at === 'string' ? row.paid_at : undefined,
+      gateway_response: typeof row.gateway_response === 'string' ? row.gateway_response : undefined,
+      metadata: row.metadata as PaystackVerifyData['metadata'],
+    };
+  }
+
+  isSuccessfulCharge(data: PaystackVerifyData | undefined, expected: PaystackChargeExpected): boolean {
     if (!data) return false;
     if (data.status !== 'success') return false;
     if (data.reference !== expected.reference) return false;

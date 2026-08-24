@@ -15,8 +15,51 @@ describe('PaystackService', () => {
   it('detects Paystack test mode from sk_test secret key', () => {
     process.env.PAYSTACK_SECRET_KEY = 'sk_test_abc';
     expect(service.isTestMode()).toBe(true);
+    expect(service.isLiveMode()).toBe(false);
     process.env.PAYSTACK_SECRET_KEY = 'sk_live_abc';
     expect(service.isTestMode()).toBe(false);
+    expect(service.isLiveMode()).toBe(true);
+  });
+
+  it('classifies pending and failed Paystack transaction statuses', () => {
+    expect(service.isPendingStatus('ongoing')).toBe(true);
+    expect(service.isPendingStatus('pending')).toBe(true);
+    expect(service.isFailedStatus('abandoned')).toBe(true);
+    expect(service.failedStatusMessage({ status: 'failed', reference: 'x', amount: 1, currency: 'NGN', gateway_response: 'Declined' })).toBe('Declined');
+  });
+
+  it('parses charge.success webhook payloads', () => {
+    expect(service.chargeFromWebhookData({ reference: 'DOVA-1', amount: 2500000, currency: 'NGN', status: 'success' })).toMatchObject({
+      reference: 'DOVA-1',
+      amount: 2500000,
+      currency: 'NGN',
+      status: 'success',
+    });
+    expect(service.chargeFromWebhookData({ reference: 'DOVA-1' })).toBeUndefined();
+  });
+
+  it('builds payment config from configured channels', () => {
+    process.env.PAYSTACK_SECRET_KEY = 'sk_test_secret';
+    process.env.PAYSTACK_CHANNELS = 'card,bank_transfer,ussd';
+    expect(service.paymentConfig()).toEqual({
+      provider: 'paystack',
+      mode: 'paystack_test',
+      currency: 'NGN',
+      channels: [
+        { id: 'card', label: 'Debit / Credit Card' },
+        { id: 'bank_transfer', label: 'Bank Transfer' },
+        { id: 'ussd', label: 'USSD' },
+      ],
+    });
+  });
+
+  it('returns mock payment config when Paystack is disabled', () => {
+    delete process.env.PAYSTACK_SECRET_KEY;
+    expect(service.paymentConfig()).toMatchObject({
+      provider: 'mock',
+      mode: 'mock',
+      channels: expect.arrayContaining([{ id: 'card', label: 'Debit / Credit Card' }]),
+    });
   });
 
   it('builds callback URL from FRONTEND_URL per Paystack initialize docs', () => {

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
-import { resolvePaymentRedirectUrl } from '../lib/payment';
+import { resolvePaymentRedirectUrl, paymentProviderLabel, type PaymentConfig } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
 import { minOrderFor, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,7 @@ export default function Checkout() {
   const { user } = useAuth();
   const { refresh } = useCart();
   const [cart, setCart] = useState<Cart>();
+  const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>();
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery');
   const [form, setForm] = useState({
     deliveryName: '',
@@ -40,6 +41,11 @@ export default function Checkout() {
         );
       })
       .finally(() => setLoading(false));
+    api<PaymentConfig>('/payments/config')
+      .then(setPaymentConfig)
+      .catch(() => {
+        setPaymentConfig(undefined);
+      });
   }, [user]);
 
   const minRequired = minOrderFor(fulfillmentType);
@@ -141,10 +147,22 @@ export default function Checkout() {
                 ) : (
                   <p className="form-hint">Collect your order at the DOVA pickup point after payment.</p>
                 )}
-                <label>Payment Method</label>
-                <select defaultValue="paystack" disabled>
-                  <option value="paystack">Paystack (Card / Transfer)</option>
-                </select>
+                <label>Payment</label>
+                {paymentConfig?.channels.length ? (
+                  <>
+                    <p className="form-hint">{paymentProviderLabel(paymentConfig)}</p>
+                    <ul className="form-hint-list payment-channel-list">
+                      {paymentConfig.channels.map((channel) => (
+                        <li key={channel.id}>{channel.label}</li>
+                      ))}
+                    </ul>
+                    <p className="form-hint">
+                      Choose your preferred option on the next Paystack page after you confirm the order.
+                    </p>
+                  </>
+                ) : (
+                  <p className="form-hint">Loading payment options…</p>
+                )}
                 {shortfallMessage && <p className="error">{shortfallMessage}</p>}
                 <button className="confirm-btn" disabled={busy || Boolean(shortfallMessage)}>
                   {busy ? <Loading label="Redirecting…" inline size="sm" /> : 'Confirm Order'}

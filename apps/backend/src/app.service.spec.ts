@@ -311,6 +311,56 @@ describe('AppService', () => {
       }
     });
 
+    it('returns pending status when Paystack reports an ongoing transaction', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_verify';
+      let fetchSpy: jest.SpyInstance | undefined;
+      try {
+        const { service } = makeService();
+        const customerId = 'pending-payment-customer';
+        await addToCart(service, customerId, service.products[0].id, 1);
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const reference = 'DOVA-PENDING-001';
+        service.payments.set(reference, { orderId: order.id, status: 'pending' });
+        order.paymentReference = reference;
+        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+          new Response(JSON.stringify({
+            status: true,
+            data: {
+              status: 'ongoing',
+              reference,
+              amount: Math.round(order.totalAmount * 100),
+              currency: 'NGN',
+            },
+          }), { status: 200 }),
+        );
+
+        const result = await service.verifyPayment(customerId, reference);
+        expect(result).toMatchObject({ status: 'pending', paymentStatus: 'ongoing' });
+        expect(order.status).toBe('pending');
+      } finally {
+        fetchSpy?.mockRestore();
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
+    it('is idempotent when verifying an already paid order', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      delete process.env.PAYSTACK_SECRET_KEY;
+      try {
+        const { service } = makeService();
+        const customerId = 'paid-twice-customer';
+        await addToCart(service, customerId, service.products[0].id, 1);
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const payment = await service.initializePayment(customerId, order.id, order.totalAmount);
+        await service.verifyPayment(customerId, payment.reference);
+        const again = await service.verifyPayment(customerId, payment.reference);
+        expect(again).toMatchObject({ status: 'paid', alreadyPaid: true });
+      } finally {
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
     it('reuses a pending mock payment reference instead of creating duplicates', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       delete process.env.PAYSTACK_SECRET_KEY;
@@ -597,7 +647,6 @@ describe('AppService', () => {
     it('accepts a valid Paystack webhook and marks the order paid', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
-      let fetchSpy: jest.SpyInstance | undefined;
       try {
         const { service } = makeService();
         const customerId = 'webhook-customer';
@@ -609,20 +658,48 @@ describe('AppService', () => {
         });
         const reference = `DOVA-WEBHOOK-${order.id.slice(0, 8)}`;
         const amountSubunit = Math.round(order.totalAmount * 100);
-        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
-          new Response(JSON.stringify({ status: true, data: { status: 'success', reference, amount: amountSubunit, currency: 'NGN' } }), { status: 200 }),
-        );
         service.payments.set(reference, { orderId: order.id, status: 'pending' });
         order.paymentReference = reference;
-        const body = { event: 'charge.success', data: { reference } };
+        const body = {
+          event: 'charge.success',
+          data: { status: 'success', reference, amount: amountSubunit, currency: 'NGN' },
+        };
         const rawBody = Buffer.from(JSON.stringify(body));
         const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
         const result = await service.handlePaystackWebhook(signature, body, rawBody);
-        expect(result).toMatchObject({ status: 'paid' });
+        expect(result).toMatchObject({ received: true, fulfilled: true });
         expect(order.status).toBe('paid');
-        expect(fetchSpy).toHaveBeenCalled();
       } finally {
-        fetchSpy?.mockRestore();
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+        else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
+    it('ignores charge.success webhooks with mismatched amount', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook';
+      try {
+        const { service } = makeService();
+        const customerId = 'webhook-customer-2';
+        await addToCart(service, customerId, service.products[0].id, 1);
+        const order = await service.createOrder(customerId, {
+          deliveryName: 'Webhook Buyer',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+        });
+        const reference = `DOVA-WEBHOOK-BAD-${order.id.slice(0, 8)}`;
+        service.payments.set(reference, { orderId: order.id, status: 'pending' });
+        order.paymentReference = reference;
+        const body = {
+          event: 'charge.success',
+          data: { status: 'success', reference, amount: 100, currency: 'NGN' },
+        };
+        const rawBody = Buffer.from(JSON.stringify(body));
+        const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
+        const result = await service.handlePaystackWebhook(signature, body, rawBody);
+        expect(result).toMatchObject({ received: true, ignored: true });
+        expect(order.status).toBe('pending');
+      } finally {
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
         else process.env.PAYSTACK_SECRET_KEY = previousKey;
       }
@@ -636,7 +713,7 @@ describe('AppService', () => {
         const body = { event: 'transfer.success', data: {} };
         const rawBody = Buffer.from(JSON.stringify(body));
         const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
-        await expect(service.handlePaystackWebhook(signature, body, rawBody)).resolves.toEqual({ received: true });
+        await expect(service.handlePaystackWebhook(signature, body, rawBody)).resolves.toEqual({ received: true, ignored: true });
       } finally {
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
         else process.env.PAYSTACK_SECRET_KEY = previousKey;
