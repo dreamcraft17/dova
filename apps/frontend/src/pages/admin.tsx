@@ -589,22 +589,24 @@ export default function Admin() {
                                 </select>
                               </td>
                               <td data-label="Official reply">
-                                <textarea
-                                  rows={2}
-                                  placeholder="Team response…"
-                                  value={officialReplies[post.id] ?? ''}
-                                  onChange={(e) =>
-                                    setOfficialReplies((prev) => ({ ...prev, [post.id]: e.target.value }))
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="admin-dash-btn admin-dash-btn-primary"
-                                  disabled={actionBusy}
-                                  onClick={() => void sendOfficialReply(post.id)}
-                                >
-                                  Post reply
-                                </button>
+                                <div className="admin-dash-reply-cell">
+                                  <textarea
+                                    rows={2}
+                                    placeholder="Team response…"
+                                    value={officialReplies[post.id] ?? ''}
+                                    onChange={(e) =>
+                                      setOfficialReplies((prev) => ({ ...prev, [post.id]: e.target.value }))
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    className="admin-dash-btn admin-dash-btn-primary"
+                                    disabled={actionBusy}
+                                    onClick={() => void sendOfficialReply(post.id)}
+                                  >
+                                    Post reply
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
