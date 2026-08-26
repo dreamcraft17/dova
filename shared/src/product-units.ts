@@ -37,11 +37,13 @@ export function stockLimitMessage(quantity: number, name: string, categoryName?:
 }
 
 export function formatQuantityWithUnit(
-  quantity: number,
+  quantity: number | string,
   name: string,
   categoryName?: string,
 ): string {
   const unit = productUnit(name, categoryName);
-  const value = Number.isInteger(quantity) ? quantity : quantity.toFixed(2);
+  const n = Number(quantity);
+  const safe = Number.isFinite(n) ? n : 0;
+  const value = Number.isInteger(safe) ? safe : safe.toFixed(2);
   return `${value} ${unit}`;
 }

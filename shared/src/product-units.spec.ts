@@ -31,5 +31,6 @@ describe('formatting helpers', () => {
       'Only 20 kg available in stock',
     );
     expect(formatQuantityWithUnit(2.5, 'Farm Milk', 'Dairy')).toBe('2.50 L');
+    expect(formatQuantityWithUnit('2.5', 'Farm Milk', 'Dairy')).toBe('2.50 L');
   });
 });
