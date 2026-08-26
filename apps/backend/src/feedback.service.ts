@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ChangelogEntry, FeedbackComment, FeedbackPost, FeedbackStatus } from 'dova-shared';
-import { StoredUser } from './database.service';
+import { DatabaseService, StoredUser } from './database.service';
 
 function slugify(input: string) {
   return input
@@ -17,7 +17,7 @@ export class FeedbackService {
   comments: FeedbackComment[] = [];
   changelogs: ChangelogEntry[] = [];
 
-  constructor() {
+  constructor(private readonly database: DatabaseService) {
     const seed: Array<[string, string, FeedbackStatus, number]> = [
       ['Mobile app for suppliers', 'Native mobile dashboard for stock updates on the go.', 'planned', 12],
       ['Bulk order discounts', 'Tiered pricing when ordering large quantities weekly.', 'open', 8],
@@ -38,10 +38,15 @@ export class FeedbackService {
     });
   }
 
-  private uniqueSlug(base: string) {
+  private useDatabase() {
+    return this.database.enabled;
+  }
+
+  private uniqueSlug(base: string, existing?: FeedbackPost[]) {
+    const source = existing ?? this.posts;
     let slug = slugify(base);
     let i = 1;
-    while (this.posts.some((post) => post.slug === slug)) {
+    while (source.some((post) => post.slug === slug)) {
       slug = `${slugify(base)}-${i++}`;
     }
     return slug;
@@ -79,7 +84,11 @@ export class FeedbackService {
     return post;
   }
 
-  list(sort: 'votes' | 'new' = 'votes', search = '') {
+  async list(sort: 'votes' | 'new' = 'votes', search = '') {
+    if (this.database.enabled) {
+      const stored = await this.database.feedbackList(sort, search);
+      if (stored) return stored;
+    }
     const q = search.trim().toLowerCase();
     let items = [...this.posts];
     if (q) {
@@ -95,27 +104,32 @@ export class FeedbackService {
     return items;
   }
 
-  find(id: string) {
+  async find(id: string) {
+    if (this.database.enabled) {
+      const stored = await this.database.feedbackFind(id);
+      if (stored) return stored;
+    }
     const post = this.posts.find((item) => item.id === id);
     if (!post) throw new NotFoundException('Feedback post not found');
     return post;
   }
 
-  roadmap() {
+  async roadmap() {
+    const posts = await this.list('votes');
     const columns: Record<FeedbackStatus, FeedbackPost[]> = {
       open: [],
       planned: [],
       in_progress: [],
       done: [],
     };
-    for (const post of this.posts) columns[post.status].push(post);
+    for (const post of posts) columns[post.status as FeedbackStatus].push(post);
     for (const key of Object.keys(columns) as FeedbackStatus[]) {
       columns[key].sort((a, b) => b.votes - a.votes);
     }
     return columns;
   }
 
-  create(body: { title: string; description: string; authorName?: string; authorEmail?: string }, user?: StoredUser | null) {
+  async create(body: { title: string; description: string; authorName?: string; authorEmail?: string }, user?: StoredUser | null) {
     const authorName = user?.fullName || body.authorName?.trim();
     if (!authorName) throw new BadRequestException('Author name is required');
     const post = this.makePost({
@@ -127,38 +141,48 @@ export class FeedbackService {
       votes: user ? 1 : 0,
       voterIds: user ? [user.id] : [],
     });
+    if (this.useDatabase()) {
+      await this.database.feedbackCreate(post);
+      return post;
+    }
     this.posts.unshift(post);
     return post;
   }
 
-  vote(postId: string, user: StoredUser) {
-    const post = this.find(postId);
+  async vote(postId: string, user: StoredUser) {
+    const post = await this.find(postId);
     if (post.voterIds.includes(user.id)) throw new BadRequestException('You already voted for this idea');
     post.voterIds.push(user.id);
     post.votes += 1;
+    if (this.useDatabase()) await this.database.feedbackUpdateVotes(post.id, post.votes, post.voterIds);
     return post;
   }
 
-  setStatus(postId: string, status: FeedbackStatus) {
-    const post = this.find(postId);
+  async setStatus(postId: string, status: FeedbackStatus) {
+    const post = await this.find(postId);
     post.status = status;
+    if (this.useDatabase()) await this.database.feedbackSetStatus(post.id, status);
     return post;
   }
 
-  listComments(postId: string) {
-    this.find(postId);
+  async listComments(postId: string) {
+    await this.find(postId);
+    if (this.database.enabled) {
+      const stored = await this.database.feedbackComments(postId);
+      if (stored) return stored;
+    }
     return this.comments
       .filter((comment) => comment.postId === postId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
-  addComment(
+  async addComment(
     postId: string,
     body: { body: string; authorName?: string },
     user?: StoredUser | null,
     isOfficial = false,
   ) {
-    this.find(postId);
+    await this.find(postId);
     const authorName = user?.fullName || body.authorName?.trim();
     if (!authorName) throw new BadRequestException('Author name is required');
     if (isOfficial && user?.role !== 'admin') throw new ForbiddenException();
@@ -171,22 +195,34 @@ export class FeedbackService {
       isOfficial,
       createdAt: new Date().toISOString(),
     };
+    if (this.useDatabase()) {
+      await this.database.feedbackAddComment(comment);
+      return comment;
+    }
     this.comments.push(comment);
     this.syncCommentCount(postId);
     return comment;
   }
 
-  listChangelogs() {
+  async listChangelogs() {
+    if (this.database.enabled) {
+      const stored = await this.database.feedbackChangelogs();
+      if (stored) return stored;
+    }
     return [...this.changelogs].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   }
 
-  getChangelog(slug: string) {
+  async getChangelog(slug: string) {
+    if (this.database.enabled) {
+      const stored = await this.database.feedbackChangelogBySlug(slug);
+      if (stored) return stored;
+    }
     const entry = this.changelogs.find((item) => item.slug === slug);
     if (!entry) throw new NotFoundException('Changelog entry not found');
     return entry;
   }
 
-  createChangelog(body: { title: string; summary: string; body: string }) {
+  async createChangelog(body: { title: string; summary: string; body: string }) {
     const base = slugify(body.title);
     let slug = base;
     let i = 1;
@@ -200,6 +236,10 @@ export class FeedbackService {
       publishedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
+    if (this.useDatabase()) {
+      await this.database.feedbackCreateChangelog(entry);
+      return entry;
+    }
     this.changelogs.unshift(entry);
     return entry;
   }

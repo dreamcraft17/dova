@@ -1,9 +1,12 @@
 import 'reflect-metadata';
 import { loadBackendEnv } from './load-env';
 loadBackendEnv();
+import { assertProductionSecrets } from './env-guard';
+assertProductionSecrets();
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 function corsOrigins(): string | string[] | boolean {
@@ -16,6 +19,7 @@ function corsOrigins(): string | string[] | boolean {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
@@ -23,7 +27,7 @@ async function bootstrap() {
     origin: corsOrigins(),
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-paystack-signature'],
   });
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

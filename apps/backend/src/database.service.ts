@@ -25,8 +25,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async listProducts(search = '', categoryId = '', page = 1, limit = 20) { if (!this.pool) return undefined; const values: unknown[] = []; const filters = ['p.is_active = TRUE', 'p.stock_quantity > 0']; if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(p.name) LIKE $${values.length}`); } if (categoryId) { values.push(categoryId); filters.push(`p.category_id = $${values.length}`); } const where = filters.join(' AND '); const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM products p WHERE ${where}`, values); values.push(limit, (page - 1) * limit); const result = await this.pool.query(`SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ${where} ORDER BY p.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values); return { data: result.rows.map(row => this.mapProduct(row)), pagination: { page, limit, total: totalResult.rows[0].total } }; }
   async findProduct(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.is_active=TRUE AND p.stock_quantity>0', [id]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async categories() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,name FROM categories ORDER BY name'); return result.rows as Category[]; }
-  async getCart(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT ci.id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE', [userId]); const items = result.rows.map(row => ({ id: row.id, product: this.mapProduct(row), quantity: row.quantity, subtotal: Number(row.price) * row.quantity })); return { items, total: items.reduce((sum, item) => sum + item.subtotal, 0) } as Cart; }
-  async saveCart(userId: string, cart: Cart) { if (!this.pool) return; const client = await this.pool.connect(); try { await client.query('BEGIN'); const cartResult = await client.query('INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at=NOW() RETURNING id', [userId]); const cartId = cartResult.rows[0].id; await client.query('DELETE FROM cart_items WHERE cart_id=$1', [cartId]); for (const item of cart.items) await client.query('INSERT INTO cart_items (id,cart_id,product_id,quantity) VALUES ($1,$2,$3,$4)', [item.id, cartId, item.product.id, item.quantity]); await client.query('COMMIT'); } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
+  async getCart(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT ci.id,ci.quantity,ci.delivery_slot,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE', [userId]); const items = result.rows.map(row => ({ id: row.id, product: this.mapProduct(row), quantity: Number(row.quantity), subtotal: Number(row.price) * Number(row.quantity), deliverySlot: (row.delivery_slot || 'morning') as 'morning' | 'evening' })); return { items, total: items.reduce((sum, item) => sum + item.subtotal, 0) } as Cart; }
+  async saveCart(userId: string, cart: Cart) { if (!this.pool) return; const client = await this.pool.connect(); try { await client.query('BEGIN'); const cartResult = await client.query('INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at=NOW() RETURNING id', [userId]); const cartId = cartResult.rows[0].id; await client.query('DELETE FROM cart_items WHERE cart_id=$1', [cartId]); for (const item of cart.items) await client.query('INSERT INTO cart_items (id,cart_id,product_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,$5)', [item.id, cartId, item.product.id, item.quantity, item.deliverySlot || 'morning']); await client.query('COMMIT'); } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
   async createOrderFromCart(userId: string, body: any) { if (!this.pool) return undefined; const client = await this.pool.connect(); try { await client.query('BEGIN'); const result = await client.query('SELECT ci.id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 FOR UPDATE', [userId]); if (!result.rows.length) throw new Error('Cart is empty'); const fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery'; if (!body.deliveryName || !body.deliveryPhone) throw new Error('Delivery details are required'); if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) throw new Error('Delivery address is required'); const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress; const items = result.rows.map(row => ({ id: row.id, product: this.mapProduct(row), quantity: row.quantity, subtotal: Number(row.price) * row.quantity })); if (items.some(item => item.quantity > item.product.stockQuantity)) throw new Error('Quantity exceeds available stock'); const total = items.reduce((sum, item) => sum + item.subtotal, 0); const shortfallMsg = minOrderMessage(total, fulfillmentType); if (shortfallMsg) throw new Error(shortfallMsg); const orderResult = await client.query('INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *', [userId, `DOVA-${Date.now().toString(36).toUpperCase()}`, 'pending', total, body.deliveryName, deliveryAddress, body.deliveryPhone, fulfillmentType]); const row = orderResult.rows[0]; const orderItems: Order['items'] = []; for (const item of items) { await client.query('UPDATE products SET stock_quantity=stock_quantity-$1,updated_at=NOW() WHERE id=$2', [item.quantity, item.product.id]); const oi = await client.query('INSERT INTO order_items (order_id,product_id,supplier_id,quantity,unit_price,subtotal) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [row.id, item.product.id, item.product.supplierId, item.quantity, item.product.price, item.subtotal]); orderItems.push({ id: oi.rows[0].id, product: item.product, quantity: item.quantity, unitPrice: item.product.price, subtotal: item.subtotal, supplierOrderStatus: 'pending' }); } await client.query('DELETE FROM cart_items WHERE cart_id=(SELECT id FROM carts WHERE user_id=$1)', [userId]); await client.query('COMMIT'); return { id: row.id, orderNumber: row.order_number, customerId: row.customer_id, status: row.status, totalAmount: Number(row.total_amount), deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, deliveryPhone: row.delivery_phone, fulfillmentType: row.fulfillment_type || fulfillmentType, items: orderItems, createdAt: new Date(row.created_at).toISOString() } as Order; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
   async recordPurchaseStock(orderId: string) { if (this.pool) await this.pool.query("INSERT INTO stock_adjustments (order_id,product_id,supplier_id,quantity,reason,stock_after) SELECT $1,oi.product_id,oi.supplier_id,-oi.quantity,'purchase',p.stock_quantity FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=$1 AND NOT EXISTS (SELECT 1 FROM stock_adjustments sa WHERE sa.order_id=$1 AND sa.product_id=oi.product_id AND sa.reason='purchase')", [orderId]); }
   async listOrders(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC', [userId]); const orders: Order[] = []; for (const row of result.rows) { const itemResult = await this.pool.query('SELECT oi.*,p.*,s.business_name,c.name AS category_name FROM order_items oi JOIN products p ON p.id=oi.product_id JOIN supplier_profiles s ON s.id=oi.supplier_id JOIN categories c ON c.id=p.category_id WHERE oi.order_id=$1 ORDER BY oi.created_at', [row.id]); orders.push({ id: row.id, orderNumber: row.order_number, customerId: row.customer_id, status: row.status, totalAmount: Number(row.total_amount), deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, deliveryPhone: row.delivery_phone, fulfillmentType: row.fulfillment_type || 'delivery', paymentReference: row.payment_reference || undefined, paymentVerifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined, items: itemResult.rows.map(item => ({ id: item.id, product: this.mapProduct(item), quantity: item.quantity, unitPrice: Number(item.unit_price), subtotal: Number(item.subtotal), supplierOrderStatus: item.supplier_order_status })), createdAt: new Date(row.created_at).toISOString() }); } return orders; }
@@ -76,6 +76,136 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date(row.created_at).toISOString(),
     }));
   }
+
+  private mapFeedbackPost(row: any) {
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      authorName: row.author_name,
+      authorEmail: row.author_email || undefined,
+      userId: row.user_id || undefined,
+      votes: row.votes,
+      voterIds: Array.isArray(row.voter_ids) ? row.voter_ids : JSON.parse(row.voter_ids || '[]'),
+      commentCount: row.comment_count,
+      createdAt: new Date(row.created_at).toISOString(),
+    };
+  }
+
+  async feedbackList(sort: 'votes' | 'new' = 'votes', search = '') {
+    if (!this.pool) return undefined;
+    const q = search.trim().toLowerCase();
+    const order = sort === 'new' ? 'created_at DESC' : 'votes DESC, created_at DESC';
+    const result = q
+      ? await this.pool.query(
+          `SELECT * FROM feedback_posts WHERE LOWER(title) LIKE $1 OR LOWER(description) LIKE $1 ORDER BY ${order}`,
+          [`%${q}%`],
+        )
+      : await this.pool.query(`SELECT * FROM feedback_posts ORDER BY ${order}`);
+    return result.rows.map((row) => this.mapFeedbackPost(row));
+  }
+
+  async feedbackFind(id: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT * FROM feedback_posts WHERE id=$1 LIMIT 1', [id]);
+    return result.rows[0] ? this.mapFeedbackPost(result.rows[0]) : undefined;
+  }
+
+  async feedbackCreate(post: { id: string; slug: string; title: string; description: string; status: string; authorName: string; authorEmail?: string; userId?: string; votes: number; voterIds: string[] }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO feedback_posts (id,slug,title,description,status,author_name,author_email,user_id,votes,voter_ids) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+      [post.id, post.slug, post.title, post.description, post.status, post.authorName, post.authorEmail || null, post.userId || null, post.votes, JSON.stringify(post.voterIds)],
+    );
+  }
+
+  async feedbackUpdateVotes(id: string, votes: number, voterIds: string[]) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE feedback_posts SET votes=$1,voter_ids=$2 WHERE id=$3', [votes, JSON.stringify(voterIds), id]);
+  }
+
+  async feedbackSetStatus(id: string, status: string) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE feedback_posts SET status=$1 WHERE id=$2', [status, id]);
+  }
+
+  async feedbackComments(postId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT * FROM feedback_comments WHERE post_id=$1 ORDER BY created_at', [postId]);
+    return result.rows.map((row) => ({
+      id: row.id,
+      postId: row.post_id,
+      body: row.body,
+      authorName: row.author_name,
+      userId: row.user_id || undefined,
+      isOfficial: row.is_official,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async feedbackAddComment(comment: { id: string; postId: string; body: string; authorName: string; userId?: string; isOfficial: boolean }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO feedback_comments (id,post_id,body,author_name,user_id,is_official) VALUES ($1,$2,$3,$4,$5,$6)',
+      [comment.id, comment.postId, comment.body, comment.authorName, comment.userId || null, comment.isOfficial],
+    );
+    await this.pool.query('UPDATE feedback_posts SET comment_count=(SELECT COUNT(*)::int FROM feedback_comments WHERE post_id=$1) WHERE id=$1', [comment.postId]);
+  }
+
+  async feedbackChangelogs() {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT * FROM feedback_changelog ORDER BY published_at DESC');
+    return result.rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      summary: row.summary,
+      body: row.body,
+      publishedAt: new Date(row.published_at).toISOString(),
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async feedbackChangelogBySlug(slug: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT * FROM feedback_changelog WHERE slug=$1 LIMIT 1', [slug]);
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      summary: row.summary,
+      body: row.body,
+      publishedAt: new Date(row.published_at).toISOString(),
+      createdAt: new Date(row.created_at).toISOString(),
+    };
+  }
+
+  async feedbackCreateChangelog(entry: { id: string; slug: string; title: string; summary: string; body: string; publishedAt: string; createdAt: string }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO feedback_changelog (id,slug,title,summary,body,published_at,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [entry.id, entry.slug, entry.title, entry.summary, entry.body, entry.publishedAt, entry.createdAt],
+    );
+  }
+
+  async feedbackSeedIfEmpty(seedPosts: Array<{ title: string; description: string; status: string; authorName: string; votes: number }>, seedChangelog: { slug: string; title: string; summary: string; body: string }) {
+    if (!this.pool) return;
+    const count = await this.pool.query('SELECT COUNT(*)::int AS count FROM feedback_posts');
+    if (count.rows[0].count > 0) return;
+    for (const item of seedPosts) {
+      const id = randomUUID();
+      const slug = item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80);
+      await this.feedbackCreate({ id, slug, title: item.title, description: item.description, status: item.status, authorName: item.authorName, votes: item.votes, voterIds: [] });
+    }
+    const changelogId = randomUUID();
+    const now = new Date().toISOString();
+    await this.feedbackCreateChangelog({ id: changelogId, slug: seedChangelog.slug, title: seedChangelog.title, summary: seedChangelog.summary, body: seedChangelog.body, publishedAt: now, createdAt: now });
+  }
+
   private async bootstrap() {
     if (!this.pool) return;
     const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12);
@@ -121,5 +251,18 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         await this.pool.query('UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2', [url, row.id]);
       }
     }
+    await this.feedbackSeedIfEmpty(
+      [
+        { title: 'Mobile app for suppliers', description: 'Native mobile dashboard for stock updates on the go.', status: 'planned', authorName: 'DOVA Community', votes: 12 },
+        { title: 'Bulk order discounts', description: 'Tiered pricing when ordering large quantities weekly.', status: 'open', authorName: 'DOVA Community', votes: 8 },
+        { title: 'Delivery slot reminders', description: 'SMS reminder before morning/evening delivery window.', status: 'in_progress', authorName: 'DOVA Community', votes: 15 },
+      ],
+      {
+        slug: 'feedback-board-launch',
+        title: 'Native feedback board is live',
+        summary: 'Submit ideas, vote, and follow the public roadmap inside DOVA.',
+        body: 'The DOVA feedback board replaces the external FeedLog app. Customers and suppliers can share ideas, vote when logged in, and track delivery on the roadmap and changelog.',
+      },
+    );
   }
 }

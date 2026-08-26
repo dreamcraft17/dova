@@ -13,6 +13,16 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run build -w shared
+      - name: Guard stale shared dist
+        run: |
+          rm -rf shared/dist
+          if npm run typecheck -w apps/backend; then
+            echo "Expected typecheck to fail without shared/dist"
+            exit 1
+          fi
+          npm run build -w shared
+          npm run typecheck -w apps/backend
       - run: npm run build
       - run: npm run typecheck
       - run: npm run test:unit
