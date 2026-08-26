@@ -33,6 +33,12 @@ export class AppController {
     return { httpOnly: true, sameSite: (crossSite ? 'none' : 'lax') as 'none' | 'lax', secure, maxAge };
   }
 
+  private sessionCookieOptions() {
+    const crossSite = process.env.COOKIE_SAMESITE === 'none' || process.env.CROSS_SITE_COOKIES === 'true';
+    const secure = process.env.NODE_ENV === 'production' || crossSite;
+    return { httpOnly: true, sameSite: (crossSite ? 'none' : 'lax') as 'none' | 'lax', secure };
+  }
+
   private bearerToken(req: AuthenticatedRequest) {
     return req.headers.authorization?.replace(/^Bearer\s+/i, '');
   }
@@ -47,9 +53,13 @@ export class AppController {
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.service.login(body.email, body.password);
+    const result = await this.service.login(body.email, body.password, Boolean(body.rememberMe));
     res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
-    res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
+    if (body.rememberMe) {
+      res.cookie('refreshToken', result.refreshToken, this.cookieOptions(30 * 24 * 60 * 60 * 1000));
+    } else {
+      res.cookie('refreshToken', result.refreshToken, this.sessionCookieOptions());
+    }
     return result;
   }
 

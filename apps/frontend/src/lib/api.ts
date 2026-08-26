@@ -1,4 +1,4 @@
-import { authHeaders, clearTokens, getRefreshToken, setTokens } from './auth-session';
+import { authHeaders, clearTokens, getRefreshToken, isRememberMe, setTokens } from './auth-session';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
@@ -11,6 +11,14 @@ export class ApiError extends Error {
 
 type AuthPayload = { accessToken?: string; refreshToken?: string };
 
+const AUTH_NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/refresh']);
+
+let pendingRememberMe: boolean | undefined;
+
+export function configureLoginPersistence(rememberMe: boolean) {
+  pendingRememberMe = rememberMe;
+}
+
 function persistAuthTokens(path: string, data: unknown) {
   if (!data || typeof data !== 'object') return;
   const payload = data as AuthPayload;
@@ -19,7 +27,8 @@ function persistAuthTokens(path: string, data: unknown) {
     return;
   }
   if (payload.accessToken) {
-    setTokens(payload.accessToken, payload.refreshToken);
+    setTokens(payload.accessToken, payload.refreshToken, path === '/auth/login' ? pendingRememberMe : undefined);
+    pendingRememberMe = undefined;
   }
 }
 
@@ -36,7 +45,7 @@ async function refreshSession(): Promise<boolean> {
     return false;
   }
   const data = (await response.json().catch(() => ({}))) as AuthPayload;
-  if (data.accessToken) setTokens(data.accessToken, data.refreshToken);
+  if (data.accessToken) setTokens(data.accessToken, data.refreshToken, isRememberMe() ? true : undefined);
   return Boolean(data.accessToken);
 }
 
@@ -59,7 +68,7 @@ export async function api<T>(path: string, options: RequestInit = {}, retried = 
   });
   const data = await response.json().catch(() => ({}));
 
-  if (response.status === 401 && !retried && !path.startsWith('/auth/')) {
+  if (response.status === 401 && !retried && !AUTH_NO_RETRY.has(path)) {
     const refreshed = await refreshSession();
     if (refreshed) return api<T>(path, options, true);
   }

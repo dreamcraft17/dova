@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -11,6 +11,10 @@ export class RegisterDto {
 export class LoginDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(8) password!: string;
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 export class RefreshTokenDto {

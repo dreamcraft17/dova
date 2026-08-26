@@ -1,23 +1,24 @@
-import { ApiError, api } from './api';
+import { ApiError, api, configureLoginPersistence } from './api';
 import { clearTokens, getAccessToken, setTokens } from './auth-session';
 
 function mockSessionStorage() {
-  const store = new Map<string, string>();
-  Object.defineProperty(global, 'sessionStorage', {
-    configurable: true,
-    value: {
-      getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
-      setItem: (key: string, value: string) => { store.set(key, value); },
-      removeItem: (key: string) => { store.delete(key); },
-      clear: () => { store.clear(); },
-    },
+  const session = new Map<string, string>();
+  const local = new Map<string, string>();
+  const makeStore = (store: Map<string, string>) => ({
+    getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+    setItem: (key: string, value: string) => { store.set(key, value); },
+    removeItem: (key: string) => { store.delete(key); },
+    clear: () => { store.clear(); },
   });
+  Object.defineProperty(global, 'sessionStorage', { configurable: true, value: makeStore(session) });
+  Object.defineProperty(global, 'localStorage', { configurable: true, value: makeStore(local) });
 }
 
 describe('frontend api client', () => {
   beforeEach(() => {
     mockSessionStorage();
     sessionStorage.clear();
+    localStorage.clear();
   });
 
   afterEach(() => jest.restoreAllMocks());
@@ -35,6 +36,7 @@ describe('frontend api client', () => {
     );
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: '1' }), { status: 200 }));
 
+    configureLoginPersistence(false);
     await api('/auth/login', { method: 'POST', body: JSON.stringify({ email: 'a@b.c', password: 'password1' }) });
     expect(getAccessToken()).toBe('access-1');
 
@@ -42,6 +44,18 @@ describe('frontend api client', () => {
     const [, init] = fetchMock.mock.calls[1];
     const headers = init?.headers as Record<string, string> | undefined;
     expect(headers?.Authorization).toBe('Bearer access-1');
+  });
+
+  it('retries /auth/me after refreshing an expired access token', async () => {
+    setTokens('expired-token', 'refresh-1', true);
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Unauthorized' }), { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ accessToken: 'access-2', refreshToken: 'refresh-2' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: '1', email: 'a@b.c' }), { status: 200 }));
+
+    await expect(api('/auth/me')).resolves.toEqual({ id: '1', email: 'a@b.c' });
+    expect(fetchMock.mock.calls[1][0]).toContain('/auth/refresh');
   });
 
   it('converts API errors into readable exceptions with status', async () => {

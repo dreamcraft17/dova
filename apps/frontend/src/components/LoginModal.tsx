@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { passwordToggleState } from 'dova-shared';
 import { Loading } from './Loading';
-import { api } from '../lib/api';
+import { api, configureLoginPersistence } from '../lib/api';
+import { getRememberedEmail, setRememberedEmail } from '../lib/auth-session';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from 'next/router';
@@ -21,15 +22,20 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const passwordToggle = passwordToggleState(showPassword);
+  const [rememberMe, setRememberMe] = useState(true);
   const [busy, setBusy] = useState(false);
   const { refresh } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  // Focus first input when modal opens
   useEffect(() => {
     if (open) {
+      const savedEmail = getRememberedEmail();
+      if (savedEmail) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
       setTimeout(() => firstInputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -56,10 +62,12 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
     e.preventDefault();
     setBusy(true);
     try {
+      configureLoginPersistence(rememberMe);
       const r = await api<{ user: { role: string } }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
+      setRememberedEmail(rememberMe ? email : null);
       await refresh();
       onClose();
       if (onSuccess) {
@@ -127,7 +135,12 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
           </div>
           <div className="remember">
             <label>
-              <input type="checkbox" /> Remember Me
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />{' '}
+              Remember Me
             </label>
             <span style={{ color: '#999' }}>Forgot Password?</span>
           </div>

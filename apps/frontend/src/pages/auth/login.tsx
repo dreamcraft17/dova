@@ -1,17 +1,19 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { passwordToggleState } from 'dova-shared';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
-import { api } from '../../lib/api';
+import { api, configureLoginPersistence } from '../../lib/api';
+import { getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const passwordToggle = passwordToggleState(showPassword);
   const [busy, setBusy] = useState(false);
@@ -19,14 +21,24 @@ export default function Login() {
   const { refresh } = useAuth();
   const { showToast } = useToast();
 
+  useEffect(() => {
+    const savedEmail = getRememberedEmail();
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
+      configureLoginPersistence(rememberMe);
       const r = await api<{ user: { role: string } }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, rememberMe }),
       });
+      setRememberedEmail(rememberMe ? email : null);
       await refresh();
       router.push(
         r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/products',
@@ -71,7 +83,12 @@ export default function Login() {
           </div>
           <div className="remember">
             <label>
-              <input type="checkbox" /> Remember Me
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />{' '}
+              Remember Me
             </label>
             <span style={{ color: '#999' }}>Forgot Password?</span>
           </div>
