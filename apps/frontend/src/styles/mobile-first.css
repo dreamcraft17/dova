@@ -406,6 +406,32 @@
     border-bottom-right-radius: 0;
   }
 
+  .admin-user-modal-backdrop {
+    align-items: center;
+    padding: 16px;
+  }
+
+  .admin-user-modal {
+    width: 100%;
+    max-height: calc(100dvh - 32px);
+    border-radius: 16px;
+  }
+
+  .admin-user-modal-header,
+  .admin-user-modal-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .admin-user-form-actions {
+    justify-content: stretch;
+  }
+
+  .admin-user-form-actions .admin-dash-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
   .login-card,
   .register-card,
   .supplier-card {

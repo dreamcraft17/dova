@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ROLES, type Role } from 'dova-shared';
 import { Loading } from './Loading';
 import { api } from '../lib/api';
@@ -41,7 +42,12 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [mounted, setMounted] = useState(false);
   const isSelf = Boolean(currentUserId && userId === currentUserId);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open || !userId) {
@@ -83,10 +89,9 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
     };
   }, [open, onClose]);
 
-  if (!open || !userId) return null;
-
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
+    if (!userId) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -112,6 +117,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
 
   async function resetPassword(event: FormEvent) {
     event.preventDefault();
+    if (!userId) return;
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match.');
       return;
@@ -133,7 +139,9 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
     }
   }
 
-  return (
+  if (!open || !userId || !mounted) return null;
+
+  return createPortal(
     <div
       className="modal-backdrop admin-user-modal-backdrop"
       onClick={(event) => {
@@ -144,127 +152,138 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
       aria-labelledby="admin-user-modal-title"
     >
       <div className="modal-card admin-user-modal">
-        <button type="button" className="modal-close" onClick={onClose} aria-label="Close user editor">
-          ×
-        </button>
-        <h1 id="admin-user-modal-title">Manage user</h1>
-        {loading ? (
-          <Loading label="Loading user…" />
-        ) : (
-          <>
-            {detail && (
-              <div className="admin-user-meta">
-                <p>
-                  <strong>Joined:</strong> {new Date(detail.createdAt).toLocaleString('en-NG')}
-                </p>
-                {typeof detail.orderCount === 'number' && (
-                  <p>
-                    <strong>Orders:</strong> {detail.orderCount}
-                  </p>
-                )}
-                {detail.supplier && (
-                  <p>
-                    <strong>Supplier:</strong> {detail.supplier.businessName} ({detail.supplier.status})
-                  </p>
-                )}
-                {detail.emailVerifiedAt && (
-                  <p>
-                    <strong>Email verified:</strong> {new Date(detail.emailVerifiedAt).toLocaleString('en-NG')}
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="admin-user-modal-header">
+          <div>
+            <h1 id="admin-user-modal-title">Manage user</h1>
+            {detail && <p className="admin-user-modal-subtitle">{detail.email}</p>}
+          </div>
+          <button type="button" className="modal-close admin-user-modal-close" onClick={onClose} aria-label="Close user editor">
+            ×
+          </button>
+        </div>
 
-            <form className="admin-user-form" onSubmit={saveProfile}>
-              <h2>Profile & access</h2>
-              <label htmlFor="admin-user-name">Full name</label>
-              <input
-                id="admin-user-name"
-                required
-                value={form.fullName}
-                onChange={(event) => setForm({ ...form, fullName: event.target.value })}
-              />
-              <label htmlFor="admin-user-email">Email</label>
-              <input
-                id="admin-user-email"
-                type="email"
-                required
-                value={form.email}
-                onChange={(event) => setForm({ ...form, email: event.target.value })}
-              />
-              <label htmlFor="admin-user-phone">Phone</label>
-              <input
-                id="admin-user-phone"
-                type="tel"
-                placeholder="Optional"
-                value={form.phoneNumber}
-                onChange={(event) => setForm({ ...form, phoneNumber: event.target.value })}
-              />
-              <label htmlFor="admin-user-role">Role</label>
-              <select
-                id="admin-user-role"
-                value={form.role}
-                disabled={isSelf}
-                onChange={(event) => setForm({ ...form, role: event.target.value as Role })}
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </option>
-                ))}
-              </select>
-              {isSelf && <p className="form-hint">You cannot change your own role.</p>}
-              <label className="admin-user-checkbox">
+        <div className="admin-user-modal-body">
+          {loading ? (
+            <Loading label="Loading user…" />
+          ) : (
+            <>
+              {detail && (
+                <div className="admin-user-meta">
+                  <p>
+                    <strong>Joined:</strong> {new Date(detail.createdAt).toLocaleString('en-NG')}
+                  </p>
+                  {typeof detail.orderCount === 'number' && (
+                    <p>
+                      <strong>Orders:</strong> {detail.orderCount}
+                    </p>
+                  )}
+                  {detail.supplier && (
+                    <p>
+                      <strong>Supplier:</strong> {detail.supplier.businessName} ({detail.supplier.status})
+                    </p>
+                  )}
+                  {detail.emailVerifiedAt && (
+                    <p>
+                      <strong>Email verified:</strong> {new Date(detail.emailVerifiedAt).toLocaleString('en-NG')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <form className="admin-user-form" onSubmit={saveProfile}>
+                <h2>Profile & access</h2>
+                <label htmlFor="admin-user-name">Full name</label>
                 <input
-                  type="checkbox"
-                  checked={form.isActive}
+                  id="admin-user-name"
+                  required
+                  value={form.fullName}
+                  onChange={(event) => setForm({ ...form, fullName: event.target.value })}
+                />
+                <label htmlFor="admin-user-email">Email</label>
+                <input
+                  id="admin-user-email"
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                />
+                <label htmlFor="admin-user-phone">Phone</label>
+                <input
+                  id="admin-user-phone"
+                  type="tel"
+                  placeholder="Optional"
+                  value={form.phoneNumber}
+                  onChange={(event) => setForm({ ...form, phoneNumber: event.target.value })}
+                />
+                <label htmlFor="admin-user-role">Role</label>
+                <select
+                  id="admin-user-role"
+                  value={form.role}
                   disabled={isSelf}
-                  onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
-                />{' '}
-                Account active
-              </label>
-              {isSelf && <p className="form-hint">You cannot deactivate your own account.</p>}
-              <div className="admin-dash-actions">
-                <button type="submit" className="admin-dash-btn admin-dash-btn-primary" disabled={busy}>
-                  {busy ? 'Saving…' : 'Save changes'}
-                </button>
-              </div>
-            </form>
-
-            <form className="admin-user-form" onSubmit={resetPassword}>
-              <h2>Reset password</h2>
-              <label htmlFor="admin-user-password">New password</label>
-              <input
-                id="admin-user-password"
-                type="password"
-                minLength={8}
-                value={form.password}
-                onChange={(event) => setForm({ ...form, password: event.target.value })}
-              />
-              <label htmlFor="admin-user-confirm">Confirm password</label>
-              <input
-                id="admin-user-confirm"
-                type="password"
-                minLength={8}
-                value={form.confirmPassword}
-                onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
-              />
-              <div className="admin-dash-actions">
-                <button
-                  type="submit"
-                  className="admin-dash-btn admin-dash-btn-secondary"
-                  disabled={busy || !form.password || form.password.length < 8}
+                  onChange={(event) => setForm({ ...form, role: event.target.value as Role })}
                 >
-                  {busy ? 'Resetting…' : 'Reset password'}
-                </button>
-              </div>
-            </form>
+                  {ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                {isSelf && <p className="form-hint">You cannot change your own role.</p>}
+                <label className="admin-user-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    disabled={isSelf}
+                    onChange={(event) => setForm({ ...form, isActive: event.target.checked })}
+                  />{' '}
+                  Account active
+                </label>
+                {isSelf && <p className="form-hint">You cannot deactivate your own account.</p>}
+                <div className="admin-user-form-actions">
+                  <button type="submit" className="admin-dash-btn admin-dash-btn-primary" disabled={busy}>
+                    {busy ? 'Saving…' : 'Save changes'}
+                  </button>
+                </div>
+              </form>
 
-            {error && <p className="error">{error}</p>}
-            {message && <p className="admin-user-success">{message}</p>}
-          </>
-        )}
+              <form className="admin-user-form" onSubmit={resetPassword}>
+                <h2>Reset password</h2>
+                <label htmlFor="admin-user-password">New password</label>
+                <input
+                  id="admin-user-password"
+                  type="password"
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(event) => setForm({ ...form, password: event.target.value })}
+                />
+                <label htmlFor="admin-user-confirm">Confirm password</label>
+                <input
+                  id="admin-user-confirm"
+                  type="password"
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={form.confirmPassword}
+                  onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })}
+                />
+                <div className="admin-user-form-actions">
+                  <button
+                    type="submit"
+                    className="admin-dash-btn admin-dash-btn-secondary"
+                    disabled={busy || !form.password || form.password.length < 8}
+                  >
+                    {busy ? 'Resetting…' : 'Reset password'}
+                  </button>
+                </div>
+              </form>
+
+              {error && <p className="error admin-user-error">{error}</p>}
+              {message && <p className="admin-user-success">{message}</p>}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

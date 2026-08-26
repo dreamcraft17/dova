@@ -474,24 +474,62 @@
   background: #d5ddd8;
 }
 
+.admin-user-modal-backdrop {
+  z-index: 2000;
+}
+
 .admin-user-modal {
-  max-width: 560px;
-  width: calc(100% - 32px);
+  width: min(100%, 560px);
   max-height: calc(100dvh - 48px);
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
   text-align: left;
+  color: #333;
+}
+
+.admin-user-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
+.admin-user-modal-close {
+  position: static;
+  flex-shrink: 0;
 }
 
 .admin-user-modal h1 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 1.35rem;
+  color: #0d6a43;
+  line-height: 1.2;
+}
+
+.admin-user-modal-subtitle {
+  margin: 6px 0 0;
+  color: #777;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.admin-user-modal-body {
+  padding: 20px 24px 24px;
+  overflow-y: auto;
 }
 
 .admin-user-meta {
   margin: 0 0 20px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: var(--mint, #f4fbf6);
+  background: #f4fbf6;
   font-size: 14px;
   line-height: 1.6;
 }
@@ -500,15 +538,26 @@
   margin: 0;
 }
 
+.admin-user-meta p + p {
+  margin-top: 6px;
+}
+
 .admin-user-form {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.admin-user-form:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
 .admin-user-form h2 {
   margin: 0 0 12px;
   font-size: 1rem;
+  color: #333;
 }
 
 .admin-user-form label {
@@ -516,30 +565,54 @@
   margin: 10px 0 6px;
   font-size: 13px;
   font-weight: 600;
+  color: #333;
 }
 
 .admin-user-form input,
 .admin-user-form select {
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 12px 14px;
+  border: 1px solid #ddd;
   border-radius: 10px;
   font: inherit;
+  background: #fff;
+  color: #333;
+}
+
+.admin-user-form input:focus,
+.admin-user-form select:focus {
+  outline: none;
+  border-color: #0d6a43;
+  box-shadow: 0 0 0 3px rgba(13, 106, 67, 0.12);
 }
 
 .admin-user-checkbox {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
   font-weight: 500;
+}
+
+.admin-user-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.admin-user-form-actions .admin-dash-btn {
+  min-width: 140px;
 }
 
 .admin-user-success {
   margin-top: 12px;
   color: #1f7a42;
   font-size: 14px;
+}
+
+.admin-user-error {
+  margin-top: 12px;
 }
 
 .admin-dash-empty {
