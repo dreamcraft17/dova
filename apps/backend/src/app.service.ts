@@ -8,6 +8,20 @@ import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
+/* Email OTP verification — disabled for now; re-enable when needed.
+import { isValidOtpFormat } from 'dova-shared';
+import {
+  generateOtpCode,
+  hashOtp,
+  verifyOtpHash,
+  OTP_LOCK_MS,
+  OTP_MAX_ATTEMPTS,
+  OTP_MAX_RESEND,
+  OTP_RESEND_COOLDOWN_MS,
+  OTP_RESEND_WINDOW_MS,
+  OTP_TTL_MS,
+} from './otp.util';
+*/
 
 type UserRecord = StoredUser;
 type Supplier = { id: string; userId: string; businessName: string; phone: string; status: SupplierStatus; documentUrl?: string; };
@@ -64,13 +78,132 @@ export class AppService {
       this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: productImageUrl(name, categoryName), isActive: true });
     });
   }
-  private makeUser(email: string, fullName: string, role: Role, password: string): UserRecord { return { id: randomUUID(), email, fullName, role, isActive: true, createdAt: new Date().toISOString(), passwordHash: bcrypt.hashSync(password, 12) }; }
-  publicUser(u: UserRecord): User { const { passwordHash, ...user } = u; return user; }
+  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean }): UserRecord {
+    return {
+      id: randomUUID(),
+      email,
+      fullName,
+      role,
+      isActive: opts?.active ?? true,
+      createdAt: new Date().toISOString(),
+      passwordHash: bcrypt.hashSync(password, 12),
+    };
+  }
+  publicUser(u: UserRecord): User {
+    const { passwordHash: _passwordHash, ...user } = u;
+    return user;
+  }
+  async register(body: any) {
+    const { fullName, email, password, confirmPassword } = body;
+    if (!fullName || !email || !/^\S+@\S+\.\S+$/.test(email) || !password || password !== confirmPassword || password.length < 8) {
+      throw new BadRequestException('Invalid registration data');
+    }
+    const normalizedEmail = email.toLowerCase();
+    if (await this.findUser(normalizedEmail)) throw new BadRequestException('Email already registered');
+    const user = this.makeUser(normalizedEmail, fullName, 'customer', password);
+    this.users.push(user);
+    await this.database.insertUser(user);
+    return this.publicUser(user);
+  }
+  /* Email OTP verification — disabled for now.
+  private syncUserRecord(user: UserRecord) {
+    const index = this.users.findIndex((item) => item.id === user.id);
+    if (index >= 0) this.users[index] = user;
+  }
+  private async issueOtpForUser(user: UserRecord) {
+    const code = generateOtpCode();
+    const otpHash = hashOtp(code);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+    user.otpHash = otpHash;
+    user.otpExpiresAt = expiresAt.toISOString();
+    user.otpAttempts = 0;
+    user.otpLockedUntil = undefined;
+    this.syncUserRecord(user);
+    await this.database.saveUserOtp(user.id, otpHash, expiresAt, 0, null);
+    void this.notifySafely(this.notifications?.verificationOtp(user.email, code, user.fullName));
+    if (process.env.NODE_ENV !== 'production') console.info(`[OTP] ${user.email}: ${code}`);
+    return code;
+  }
+  async verifyOtp(email: string, code: string, rememberMe = false) {
+    if (!isValidOtpFormat(code)) throw new BadRequestException('Invalid verification code');
+    const u = await this.findUser(email);
+    if (!u || u.emailVerifiedAt) throw new BadRequestException('Invalid verification code');
+    if (u.otpLockedUntil && new Date(u.otpLockedUntil).getTime() > Date.now()) {
+      throw new BadRequestException('Too many failed attempts. Try again later.');
+    }
+    if (!u.otpExpiresAt || new Date(u.otpExpiresAt).getTime() < Date.now()) {
+      throw new BadRequestException('Verification code expired. Request a new one.');
+    }
+    if (!verifyOtpHash(code, u.otpHash)) {
+      const attempts = (u.otpAttempts ?? 0) + 1;
+      u.otpAttempts = attempts;
+      const lockedUntil = attempts >= OTP_MAX_ATTEMPTS ? new Date(Date.now() + OTP_LOCK_MS) : null;
+      if (lockedUntil) u.otpLockedUntil = lockedUntil.toISOString();
+      this.syncUserRecord(u);
+      await this.database.saveUserOtp(u.id, u.otpHash!, new Date(u.otpExpiresAt), attempts, lockedUntil);
+      throw new BadRequestException('Invalid verification code');
+    }
+    u.emailVerifiedAt = new Date().toISOString();
+    u.isActive = true;
+    u.otpHash = undefined;
+    u.otpExpiresAt = undefined;
+    u.otpAttempts = 0;
+    u.otpLockedUntil = undefined;
+    u.otpResendCount = 0;
+    u.otpResendWindowStart = undefined;
+    this.syncUserRecord(u);
+    await this.database.verifyUserEmail(u.id);
+    const result = this.tokensFor(u, rememberMe);
+    const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));
+    await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + refreshMs));
+    await this.cacheSession(u.id, result.accessToken, result.refreshToken, refreshMs / 1000);
+    return result;
+  }
+  async resendOtp(email: string) {
+    const u = await this.findUser(email);
+    if (!u || u.emailVerifiedAt) throw new BadRequestException('No pending verification for this email');
+    const now = Date.now();
+    const windowStartMs = u.otpResendWindowStart ? new Date(u.otpResendWindowStart).getTime() : 0;
+    let resendCount = u.otpResendCount ?? 0;
+    if (!windowStartMs || now - windowStartMs > OTP_RESEND_WINDOW_MS) {
+      resendCount = 0;
+      u.otpResendWindowStart = new Date(now).toISOString();
+    }
+    if (resendCount >= OTP_MAX_RESEND) throw new BadRequestException('Too many resend attempts. Try again in an hour.');
+    if (u.otpExpiresAt) {
+      const issuedAt = new Date(u.otpExpiresAt).getTime() - OTP_TTL_MS;
+      if (now - issuedAt < OTP_RESEND_COOLDOWN_MS) throw new BadRequestException('Please wait before requesting a new code.');
+    }
+    const code = generateOtpCode();
+    const otpHash = hashOtp(code);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+    resendCount += 1;
+    u.otpResendCount = resendCount;
+    u.otpHash = otpHash;
+    u.otpExpiresAt = expiresAt.toISOString();
+    u.otpAttempts = 0;
+    u.otpLockedUntil = undefined;
+    this.syncUserRecord(u);
+    await this.database.updateOtpResend(u.id, resendCount, new Date(u.otpResendWindowStart!), otpHash, expiresAt);
+    void this.notifySafely(this.notifications?.verificationOtp(u.email, code, u.fullName));
+    if (process.env.NODE_ENV !== 'production') console.info(`[OTP] ${u.email}: ${code}`);
+    return { message: 'Verification code sent.', email: u.email };
+  }
+  */
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
-  async register(body: any) { const { fullName, email, password, confirmPassword } = body; if (!fullName || !email || !/^\S+@\S+\.\S+$/.test(email) || !password || password !== confirmPassword || password.length < 8) throw new BadRequestException('Invalid registration data'); if (await this.findUser(email)) throw new BadRequestException('Email already registered'); const u = this.makeUser(email.toLowerCase(), fullName, 'customer', password); this.users.push(u); await this.database.insertUser(u); return this.publicUser(u); }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }
-  async login(email: string, password: string, rememberMe = false) { const u = await this.findUser(email); if (!u || !bcrypt.compareSync(password, u.passwordHash) || !u.isActive) throw new UnauthorizedException('Invalid credentials'); const result = this.tokensFor(u, rememberMe); const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000; await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000)); await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + refreshMs)); await this.cacheSession(u.id, result.accessToken, result.refreshToken, refreshMs / 1000); return result; }
+  async login(email: string, password: string, rememberMe = false) {
+    const u = await this.findUser(email);
+    if (!u || !bcrypt.compareSync(password, u.passwordHash) || !u.isActive) throw new UnauthorizedException('Invalid credentials');
+    const result = this.tokensFor(u, rememberMe);
+    const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));
+    await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + refreshMs));
+    await this.cacheSession(u.id, result.accessToken, result.refreshToken, refreshMs / 1000);
+    return result;
+  }
   tokensFor(u: UserRecord, rememberMe = false) { return { user: this.publicUser(u), accessToken: this.jwt.sign({ sub: u.id, email: u.email, role: u.role }), refreshToken: this.jwt.sign({ sub: u.id, type: 'refresh' }, { expiresIn: rememberMe ? '30d' : '1d' }) }; }
   private useLocalRevocation() { return !this.database.enabled; }
   async refresh(refreshToken?: string) { if (!refreshToken || (this.useLocalRevocation() && this.revokedTokens.has(refreshToken))) throw new UnauthorizedException('Invalid refresh token'); try { const payload = this.jwt.verify<{sub:string;type?:string}>(refreshToken); if (payload.type !== 'refresh' || !(await this.database.hasSession(payload.sub, refreshToken)) || (this.redis.enabled && (await this.redis.get(this.sessionKey(refreshToken))) !== payload.sub)) throw new UnauthorizedException('Invalid refresh token'); const u = await this.findUser(payload.sub, true); if (!u) throw new UnauthorizedException('Invalid refresh token'); const result = this.tokensFor(u); await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000)); await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)); await this.cacheSession(u.id, result.accessToken, result.refreshToken); return result; } catch { throw new UnauthorizedException('Invalid refresh token'); } }
@@ -403,10 +536,25 @@ export class AppService {
   async pendingSuppliers() { return (await this.database.pendingSuppliers()) ?? this.suppliers.filter(s => s.status === 'pending').map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName })); }
   async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'approved')); return { id: s.id, status: 'approved' }; }
   async rejectSupplier(id: string, reason: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'rejected', reason); const local = this.suppliers.find(x => x.id === s.id); if (local) { local.status = 'rejected'; local.rejectionReason = reason; } const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = false; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'rejected', reason)); return { id: s.id, status: 'rejected', reason }; }
-  async adminUsers() { return (await this.database.adminUsers()) ?? this.users.map(u => this.publicUser(u)); }
+  async adminUsers() {
+    return (await this.database.adminUsers()) ?? this.users.map((u) => ({ ...this.publicUser(u), emailVerifiedAt: u.emailVerifiedAt }));
+  }
   async setUserActive(id: string, active: boolean) { await this.database.setUserActive(id, active); const user = this.users.find(u => u.id === id); if (user) user.isActive = active; return { id, isActive: active }; }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }
-  async makeSupplierUser(body: any) { if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data'); if (await this.findUser(body.email) || this.suppliers.some(s => this.users.find(u => u.id === s.userId)?.email === body.email.toLowerCase())) throw new BadRequestException('Email already registered'); const user = this.makeUser(body.email.toLowerCase(), body.contactName || body.businessName, 'supplier', body.password); this.users.push(user); const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl }; this.suppliers.push(supplier); await this.database.insertUser(user); await this.database.insertSupplierProfile(supplier); return { id: supplier.id, status: 'pending', message: "Application submitted. We'll review it shortly.", reference: supplier.id, emailNotification: 'queued' }; }
+  async makeSupplierUser(body: any) {
+    if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data');
+    const normalizedEmail = body.email.toLowerCase();
+    if (await this.findUser(normalizedEmail) || this.suppliers.some((s) => this.users.find((u) => u.id === s.userId)?.email === normalizedEmail)) {
+      throw new BadRequestException('Email already registered');
+    }
+    const user = this.makeUser(normalizedEmail, body.contactName || body.businessName, 'supplier', body.password);
+    this.users.push(user);
+    const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl };
+    this.suppliers.push(supplier);
+    await this.database.insertUser(user);
+    await this.database.insertSupplierProfile(supplier);
+    return { id: supplier.id, status: 'pending', message: "Application submitted. We'll review it shortly.", reference: supplier.id, emailNotification: 'queued' };
+  }
 }

@@ -14,6 +14,24 @@ export class NotificationService {
     return { sent: true };
   }
 
+  async verificationOtp(email: string, code: string, fullName: string) {
+    /* Email OTP verification — disabled for now.
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    if (!apiKey || !from) return { sent: false, reason: 'email-provider-not-configured' };
+    const subject = 'Verify your DOVA account';
+    const text = `Hello ${fullName},\n\nYour optional DOVA email verification code is ${code}. It expires in 10 minutes.\n\nYou can keep using DOVA without verifying. If you did not create an account, you can ignore this email.`;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: [email], subject, text }),
+    });
+    if (!response.ok) return { sent: false, reason: 'provider-error' };
+    return { sent: true };
+    */
+    return { sent: false, reason: 'email-verification-disabled' };
+  }
+
   async contactMessage(payload: { name: string; email: string; message: string }) {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.EMAIL_FROM;

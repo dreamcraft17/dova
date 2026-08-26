@@ -50,6 +50,25 @@ export class AppController {
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
 
+  /* Email OTP verification — disabled for now.
+  @Public()
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post('auth/verify-otp') async verifyOtp(@Body() body: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.service.verifyOtp(body.email, body.code, Boolean(body.rememberMe));
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    if (body.rememberMe) {
+      res.cookie('refreshToken', result.refreshToken, this.cookieOptions(30 * 24 * 60 * 60 * 1000));
+    } else {
+      res.cookie('refreshToken', result.refreshToken, this.sessionCookieOptions());
+    }
+    return result;
+  }
+
+  @Public()
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post('auth/resend-otp') resendOtp(@Body() body: ResendOtpDto) { return this.service.resendOtp(body.email); }
+  */
+
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/login') async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {

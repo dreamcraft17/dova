@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -19,6 +19,19 @@ export class LoginDto {
 
 export class RefreshTokenDto {
   @IsOptional() @IsString() refreshToken?: string;
+}
+
+export class VerifyOtpDto {
+  @IsEmail() email!: string;
+  @IsString() @Length(6, 6) code!: string;
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
+export class ResendOtpDto {
+  @IsEmail() email!: string;
 }
 
 export class SupplierRegisterDto {

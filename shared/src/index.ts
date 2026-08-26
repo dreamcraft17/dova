@@ -3,7 +3,7 @@ export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'deliv
 export type SupplierStatus = 'pending' | 'approved' | 'rejected';
 export type FulfillmentType = 'pickup' | 'delivery';
 
-export interface User { id: string; email: string; fullName: string; phoneNumber?: string; role: Role; isActive: boolean; createdAt: string; }
+export interface User { id: string; email: string; fullName: string; phoneNumber?: string; role: Role; isActive: boolean; emailVerifiedAt?: string; createdAt: string; }
 export interface Category { id: string; name: string; }
 export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; isActive: boolean; }
 export type DeliverySlot = 'morning' | 'evening';
@@ -107,6 +107,16 @@ export const feedbackStatusLabel = (status: FeedbackStatus) =>
 export { productImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES, isBrokenProductImageUrl, shouldRefreshCatalogImage } from './product-images';
 export { getProductTab, LOW_STOCK_THRESHOLD } from './product-status';
 export type { ProductStatusTab } from './product-status';
+export {
+  isValidOtpFormat,
+  OTP_LENGTH,
+  OTP_TTL_MS,
+  OTP_MAX_ATTEMPTS,
+  OTP_LOCK_MS,
+  OTP_MAX_RESEND,
+  OTP_RESEND_WINDOW_MS,
+  OTP_RESEND_COOLDOWN_MS,
+} from './otp';
 export {
   productUnit,
   formatPricePerUnit,

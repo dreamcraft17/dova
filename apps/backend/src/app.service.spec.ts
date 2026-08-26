@@ -18,6 +18,10 @@ function makeService() {
   const database = {
     enabled: false,
     insertUser: jest.fn(),
+    updatePendingUser: jest.fn(),
+    saveUserOtp: jest.fn(),
+    updateOtpResend: jest.fn(),
+    verifyUserEmail: jest.fn(),
     saveSession: jest.fn(),
     hasSession: jest.fn().mockResolvedValue(true),
     revokeSession: jest.fn(),
@@ -57,8 +61,13 @@ function makeService() {
     listContactSubmissions: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
-  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService());
-  return { service, database, redis };
+  const notifications = {
+    verificationOtp: jest.fn().mockResolvedValue({ sent: true }),
+    supplierStatus: jest.fn().mockResolvedValue({ sent: true }),
+    contactMessage: jest.fn().mockResolvedValue({ sent: true }),
+  };
+  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService(), notifications as never);
+  return { service, database, redis, notifications };
 }
 
 function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock }) {
@@ -553,7 +562,8 @@ describe('AppService', () => {
 
     it('deactivates and reactivates a user', async () => {
       const { service } = makeService();
-      const user = await service.register({ fullName: 'Temp User', email: 'temp@example.com', password: 'password123', confirmPassword: 'password123' });
+      await service.register({ fullName: 'Temp User', email: 'temp@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'temp@example.com')!;
       const deactivated = await service.setUserActive(user.id, false);
       expect(deactivated).toEqual({ id: user.id, isActive: false });
       const reactivated = await service.setUserActive(user.id, true);
@@ -589,7 +599,10 @@ describe('AppService', () => {
     });
 
     it('rejects a pending supplier with reason and deactivates the user', async () => {
-      const notifications = { supplierStatus: jest.fn().mockResolvedValue({ sent: false }) };
+      const notifications = {
+        supplierStatus: jest.fn().mockResolvedValue({ sent: false }),
+        verificationOtp: jest.fn().mockResolvedValue({ sent: true }),
+      };
       const { service } = makeService();
       (service as any).notifications = notifications;
       const application = await service.makeSupplierUser({

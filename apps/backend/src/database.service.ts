@@ -4,7 +4,15 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, shouldRefreshCatalogImage } from 'dova-shared';
 
-export type StoredUser = User & { passwordHash: string };
+export type StoredUser = User & {
+  passwordHash: string;
+  otpHash?: string;
+  otpExpiresAt?: string;
+  otpAttempts?: number;
+  otpLockedUntil?: string;
+  otpResendCount?: number;
+  otpResendWindowStart?: string;
+};
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
 @Injectable()
@@ -14,10 +22,59 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   constructor() { if (this.enabled) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10 }); }
   async onModuleInit() { if (!this.pool) return; await this.pool.query('SELECT 1'); await this.bootstrap(); }
   async onModuleDestroy() { await this.pool?.end(); }
-  private mapUser(row: any): StoredUser { return { id: row.id, email: row.email, fullName: row.full_name, phoneNumber: row.phone_number || undefined, role: row.role as Role, isActive: row.is_active, createdAt: new Date(row.created_at).toISOString(), passwordHash: row.password_hash }; }
+  private mapUser(row: any): StoredUser {
+    return {
+      id: row.id,
+      email: row.email,
+      fullName: row.full_name,
+      phoneNumber: row.phone_number || undefined,
+      role: row.role as Role,
+      isActive: row.is_active,
+      emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
+      createdAt: new Date(row.created_at).toISOString(),
+      passwordHash: row.password_hash,
+      otpHash: row.otp_hash || undefined,
+      otpExpiresAt: row.otp_expires_at ? new Date(row.otp_expires_at).toISOString() : undefined,
+      otpAttempts: row.otp_attempts ?? 0,
+      otpLockedUntil: row.otp_locked_until ? new Date(row.otp_locked_until).toISOString() : undefined,
+      otpResendCount: row.otp_resend_count ?? 0,
+      otpResendWindowStart: row.otp_resend_window_start ? new Date(row.otp_resend_window_start).toISOString() : undefined,
+    };
+  }
   async findUserByEmail(email: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email.toLowerCase()]); return result.rows[0] ? this.mapUser(result.rows[0]) : undefined; }
   async findUserById(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]); return result.rows[0] ? this.mapUser(result.rows[0]) : undefined; }
-  async insertUser(user: StoredUser) { if (!this.pool) return; await this.pool.query('INSERT INTO users (id,email,password_hash,full_name,role,is_active,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$7)', [user.id, user.email, user.passwordHash, user.fullName, user.role, user.isActive, user.createdAt]); }
+  async insertUser(user: StoredUser) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO users (id,email,password_hash,full_name,role,is_active,created_at,updated_at,email_verified_at,otp_attempts,otp_resend_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10)',
+      [user.id, user.email, user.passwordHash, user.fullName, user.role, user.isActive, user.createdAt, user.emailVerifiedAt || null, user.otpAttempts ?? 0, user.otpResendCount ?? 0],
+    );
+  }
+  async updatePendingUser(userId: string, fullName: string, passwordHash: string) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE users SET full_name=$1,password_hash=$2,is_active=FALSE,updated_at=NOW() WHERE id=$3', [fullName, passwordHash, userId]);
+  }
+  async saveUserOtp(userId: string, otpHash: string, expiresAt: Date, attempts: number, lockedUntil?: Date | null) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET otp_hash=$1,otp_expires_at=$2,otp_attempts=$3,otp_locked_until=$4,updated_at=NOW() WHERE id=$5',
+      [otpHash, expiresAt, attempts, lockedUntil ?? null, userId],
+    );
+  }
+  async updateOtpResend(userId: string, resendCount: number, windowStart: Date, otpHash: string, expiresAt: Date) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET otp_resend_count=$1,otp_resend_window_start=$2,otp_hash=$3,otp_expires_at=$4,otp_attempts=0,otp_locked_until=NULL,updated_at=NOW() WHERE id=$5',
+      [resendCount, windowStart, otpHash, expiresAt, userId],
+    );
+  }
+  async verifyUserEmail(userId: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      "UPDATE users SET email_verified_at=NOW(),is_active=TRUE,otp_hash=NULL,otp_expires_at=NULL,otp_attempts=0,otp_locked_until=NULL,updated_at=NOW() WHERE id=$1",
+      [userId],
+    );
+  }
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
   async revokeSession(refreshToken?: string) { if (this.pool && refreshToken) await this.pool.query('DELETE FROM user_sessions WHERE token_hash=$1', [digest(refreshToken)]); }
@@ -50,7 +107,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
   async pendingSuppliers() { if (!this.pool) return undefined; const result = await this.pool.query("SELECT sp.*,u.email,u.full_name FROM supplier_profiles sp JOIN users u ON u.id=sp.user_id WHERE sp.verification_status='pending' ORDER BY sp.created_at"); return result.rows.map(row => ({ id: row.id, userId: row.user_id, businessName: row.business_name, contactName: row.full_name, email: row.email, phone: row.business_phone, status: row.verification_status, documentUrl: row.verification_doc_url, createdAt: new Date(row.created_at).toISOString() })); }
   async setSupplierStatus(supplierId: string, status: string, reason?: string) { if (this.pool) await this.pool.query('UPDATE supplier_profiles SET verification_status=$1,rejection_reason=$2,verified_at=CASE WHEN $1=\'approved\' THEN NOW() ELSE NULL END,updated_at=NOW() WHERE id=$3', [status, reason || null, supplierId]); }
-  async adminUsers() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,email,full_name,role,is_active,created_at FROM users ORDER BY created_at DESC'); return result.rows.map(row => ({ id: row.id, email: row.email, fullName: row.full_name, role: row.role, isActive: row.is_active, createdAt: new Date(row.created_at).toISOString() })); }
+  async adminUsers() {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT id,email,full_name,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
+    return result.rows.map(row => ({
+      id: row.id,
+      email: row.email,
+      fullName: row.full_name,
+      role: row.role,
+      isActive: row.is_active,
+      emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
   async setUserActive(userId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE users SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, userId]); }
   async adminProducts() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC'); return result.rows.map(row => this.mapProduct(row)); }
   async setProductActive(productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, productId]); }
@@ -211,20 +280,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12);
     const supplierPassword = bcrypt.hashSync(process.env.SUPPLIER_PASSWORD ?? 'supplier1234', 12);
     await this.pool.query(
-      `INSERT INTO users (email,password_hash,full_name,role,is_active)
-       VALUES ('admin@dova.local',$1,'DOVA Admin','admin',TRUE)
+      `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
+       VALUES ('admin@dova.local',$1,'DOVA Admin','admin',TRUE,NOW())
        ON CONFLICT (email) DO UPDATE SET
          password_hash = EXCLUDED.password_hash,
          is_active = TRUE,
+         email_verified_at = COALESCE(users.email_verified_at, NOW()),
          updated_at = NOW()`,
       [adminPassword],
     );
     const supplierUser = await this.pool.query(
-      `INSERT INTO users (email,password_hash,full_name,role,is_active)
-       VALUES ('supplier@dova.local',$1,'Demo Supplier','supplier',TRUE)
+      `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
+       VALUES ('supplier@dova.local',$1,'Demo Supplier','supplier',TRUE,NOW())
        ON CONFLICT (email) DO UPDATE SET
          password_hash = EXCLUDED.password_hash,
          is_active = TRUE,
+         email_verified_at = COALESCE(users.email_verified_at, NOW()),
          updated_at = NOW()
        RETURNING id`,
       [supplierPassword],
@@ -251,18 +322,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         await this.pool.query('UPDATE products SET image_url=$1, updated_at=NOW() WHERE id=$2', [url, row.id]);
       }
     }
-    await this.feedbackSeedIfEmpty(
-      [
-        { title: 'Mobile app for suppliers', description: 'Native mobile dashboard for stock updates on the go.', status: 'planned', authorName: 'DOVA Community', votes: 12 },
-        { title: 'Bulk order discounts', description: 'Tiered pricing when ordering large quantities weekly.', status: 'open', authorName: 'DOVA Community', votes: 8 },
-        { title: 'Delivery slot reminders', description: 'SMS reminder before morning/evening delivery window.', status: 'in_progress', authorName: 'DOVA Community', votes: 15 },
-      ],
-      {
-        slug: 'feedback-board-launch',
-        title: 'Native feedback board is live',
-        summary: 'Submit ideas, vote, and follow the public roadmap inside DOVA.',
-        body: 'The DOVA feedback board replaces the external FeedLog app. Customers and suppliers can share ideas, vote when logged in, and track delivery on the roadmap and changelog.',
-      },
-    );
+    try {
+      await this.feedbackSeedIfEmpty(
+        [
+          { title: 'Mobile app for suppliers', description: 'Native mobile dashboard for stock updates on the go.', status: 'planned', authorName: 'DOVA Community', votes: 12 },
+          { title: 'Bulk order discounts', description: 'Tiered pricing when ordering large quantities weekly.', status: 'open', authorName: 'DOVA Community', votes: 8 },
+          { title: 'Delivery slot reminders', description: 'SMS reminder before morning/evening delivery window.', status: 'in_progress', authorName: 'DOVA Community', votes: 15 },
+        ],
+        {
+          slug: 'feedback-board-launch',
+          title: 'Native feedback board is live',
+          summary: 'Submit ideas, vote, and follow the public roadmap inside DOVA.',
+          body: 'The DOVA feedback board replaces the external FeedLog app. Customers and suppliers can share ideas, vote when logged in, and track delivery on the roadmap and changelog.',
+        },
+      );
+    } catch (error) {
+      console.warn('[Database] feedback seed skipped:', (error as Error).message);
+    }
   }
 }

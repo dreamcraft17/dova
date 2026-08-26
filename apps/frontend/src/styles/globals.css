@@ -2068,6 +2068,29 @@ form .button {
   color: var(--muted);
 }
 
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--green);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.link-button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.otp-input {
+  letter-spacing: 0.35em;
+  font-size: 1.25rem;
+  text-align: center;
+  font-weight: 600;
+}
+
 .form-hint {
   margin: 6px 0 10px;
   font-size: 13px;

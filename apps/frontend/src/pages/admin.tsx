@@ -32,7 +32,7 @@ type Supplier = {
   status: string;
   documentUrl?: string;
 };
-type AdminUser = { id: string; email: string; fullName: string; role: string; isActive: boolean };
+type AdminUser = { id: string; email: string; fullName: string; role: string; isActive: boolean; emailVerifiedAt?: string };
 type AdminOrder = Pick<Order, 'id' | 'orderNumber' | 'status' | 'totalAmount' | 'createdAt'> & {
   customerName: string;
 };

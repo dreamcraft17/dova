@@ -3,7 +3,7 @@ import { authHeaders, clearTokens, getRefreshToken, isRememberMe, setTokens } fr
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -11,7 +11,27 @@ export class ApiError extends Error {
 
 type AuthPayload = { accessToken?: string; refreshToken?: string };
 
-const AUTH_NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/refresh']);
+function parseErrorPayload(data: Record<string, unknown>) {
+  const nested = data.message;
+  if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+    const payload = nested as Record<string, unknown>;
+    return {
+      message: typeof payload.message === 'string' ? payload.message : 'Request failed',
+      code: typeof payload.code === 'string' ? payload.code : undefined,
+    };
+  }
+  return {
+    message:
+      typeof data.message === 'string'
+        ? data.message
+        : typeof data.error === 'string'
+          ? data.error
+          : 'Request failed',
+    code: typeof data.code === 'string' ? data.code : undefined,
+  };
+}
+
+const AUTH_NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp', '/auth/refresh']);
 
 let pendingRememberMe: boolean | undefined;
 
@@ -27,7 +47,9 @@ function persistAuthTokens(path: string, data: unknown) {
     return;
   }
   if (payload.accessToken) {
-    setTokens(payload.accessToken, payload.refreshToken, path === '/auth/login' ? pendingRememberMe : undefined);
+    const remember =
+      path === '/auth/login' || path === '/auth/verify-otp' ? pendingRememberMe : undefined;
+    setTokens(payload.accessToken, payload.refreshToken, remember);
     pendingRememberMe = undefined;
   }
 }
@@ -74,8 +96,8 @@ export async function api<T>(path: string, options: RequestInit = {}, retried = 
   }
 
   if (!response.ok) {
-    const message = data.message || data.error || 'Request failed';
-    throw new ApiError(message, response.status);
+    const { message, code } = parseErrorPayload(data as Record<string, unknown>);
+    throw new ApiError(message, response.status, code);
   }
 
   persistAuthTokens(path, data);
