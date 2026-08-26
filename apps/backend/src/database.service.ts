@@ -109,16 +109,50 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async setSupplierStatus(supplierId: string, status: string, reason?: string) { if (this.pool) await this.pool.query('UPDATE supplier_profiles SET verification_status=$1,rejection_reason=$2,verified_at=CASE WHEN $1=\'approved\' THEN NOW() ELSE NULL END,updated_at=NOW() WHERE id=$3', [status, reason || null, supplierId]); }
   async adminUsers() {
     if (!this.pool) return undefined;
-    const result = await this.pool.query('SELECT id,email,full_name,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
+    const result = await this.pool.query('SELECT id,email,full_name,phone_number,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
     return result.rows.map(row => ({
       id: row.id,
       email: row.email,
       fullName: row.full_name,
+      phoneNumber: row.phone_number || undefined,
       role: row.role,
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+  async adminUserById(userId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT id,email,full_name,phone_number,role,is_active,email_verified_at,created_at FROM users WHERE id=$1 LIMIT 1', [userId]);
+    if (!result.rowCount) return undefined;
+    const row = result.rows[0];
+    const orders = await this.pool.query('SELECT COUNT(*)::int AS count FROM orders WHERE customer_id=$1', [userId]);
+    const supplier = await this.pool.query('SELECT id,business_name,verification_status FROM supplier_profiles WHERE user_id=$1 LIMIT 1', [userId]);
+    return {
+      id: row.id,
+      email: row.email,
+      fullName: row.full_name,
+      phoneNumber: row.phone_number || undefined,
+      role: row.role,
+      isActive: row.is_active,
+      emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
+      createdAt: new Date(row.created_at).toISOString(),
+      orderCount: orders.rows[0].count,
+      supplier: supplier.rows[0]
+        ? { id: supplier.rows[0].id, businessName: supplier.rows[0].business_name, status: supplier.rows[0].verification_status }
+        : undefined,
+    };
+  }
+  async updateUserProfile(userId: string, profile: { fullName: string; email: string; phoneNumber?: string; role: Role; isActive: boolean }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET full_name=$1,email=$2,phone_number=$3,role=$4,is_active=$5,updated_at=NOW() WHERE id=$6',
+      [profile.fullName, profile.email, profile.phoneNumber || null, profile.role, profile.isActive, userId],
+    );
+  }
+  async updateUserPassword(userId: string, passwordHash: string) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2', [passwordHash, userId]);
   }
   async setUserActive(userId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE users SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, userId]); }
   async adminProducts() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC'); return result.rows.map(row => this.mapProduct(row)); }

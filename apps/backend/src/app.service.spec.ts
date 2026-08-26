@@ -53,6 +53,9 @@ function makeService() {
     pendingSuppliers: jest.fn().mockResolvedValue(undefined),
     setSupplierStatus: jest.fn(),
     adminUsers: jest.fn().mockResolvedValue(undefined),
+    adminUserById: jest.fn().mockResolvedValue(undefined),
+    updateUserProfile: jest.fn(),
+    updateUserPassword: jest.fn(),
     setUserActive: jest.fn(),
     adminProducts: jest.fn().mockResolvedValue(undefined),
     setProductActive: jest.fn(),
@@ -568,6 +571,53 @@ describe('AppService', () => {
       expect(deactivated).toEqual({ id: user.id, isActive: false });
       const reactivated = await service.setUserActive(user.id, true);
       expect(reactivated).toEqual({ id: user.id, isActive: true });
+    });
+
+    it('returns admin user detail with order count', async () => {
+      const { service } = makeService();
+      await service.register({ fullName: 'Detail User', email: 'detail@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'detail@example.com')!;
+      const detail = await service.adminUser(user.id);
+      expect(detail.email).toBe('detail@example.com');
+      expect(detail.orderCount).toBe(0);
+      expect(detail).not.toHaveProperty('passwordHash');
+    });
+
+    it('updates user profile and role from admin', async () => {
+      const { service, database } = makeService();
+      await service.register({ fullName: 'Edit Me', email: 'edit@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'edit@example.com')!;
+      const updated = await service.updateAdminUser(
+        user.id,
+        { fullName: 'Edited Name', email: 'edited@example.com', phoneNumber: '+2348012345678', role: 'supplier', isActive: true },
+        'other-admin-id',
+      );
+      expect(updated.fullName).toBe('Edited Name');
+      expect(updated.email).toBe('edited@example.com');
+      expect(updated.role).toBe('supplier');
+      expect(database.updateUserProfile).toHaveBeenCalled();
+    });
+
+    it('blocks admins from changing their own role or deactivating themselves', async () => {
+      const { service } = makeService();
+      const admin = service.users.find((entry) => entry.email === 'admin@dova.local')!;
+      await expect(
+        service.updateAdminUser(admin.id, { fullName: admin.fullName, email: admin.email, role: 'customer', isActive: true }, admin.id),
+      ).rejects.toThrow('You cannot change your own role');
+      await expect(
+        service.updateAdminUser(admin.id, { fullName: admin.fullName, email: admin.email, role: 'admin', isActive: false }, admin.id),
+      ).rejects.toThrow('You cannot deactivate your own account');
+    });
+
+    it('resets a user password from admin', async () => {
+      const { service, database } = makeService();
+      await service.register({ fullName: 'Reset Me', email: 'reset@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'reset@example.com')!;
+      const oldHash = user.passwordHash;
+      const result = await service.adminResetPassword(user.id, 'newpassword99');
+      expect(result.message).toContain('Password updated');
+      expect(user.passwordHash).not.toBe(oldHash);
+      expect(database.updateUserPassword).toHaveBeenCalled();
     });
 
     it('deactivates a product from the admin catalog', async () => {

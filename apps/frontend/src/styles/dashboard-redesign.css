@@ -474,6 +474,74 @@
   background: #d5ddd8;
 }
 
+.admin-user-modal {
+  max-width: 560px;
+  width: calc(100% - 32px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.admin-user-modal h1 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.admin-user-meta {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--mint, #f4fbf6);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.admin-user-meta p {
+  margin: 0;
+}
+
+.admin-user-form {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.admin-user-form h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.admin-user-form label {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-user-form input,
+.admin-user-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  font: inherit;
+}
+
+.admin-user-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+
+.admin-user-success {
+  margin-top: 12px;
+  color: #1f7a42;
+  font-size: 14px;
+}
+
 .admin-dash-empty {
   color: #777;
   padding: 12px 0;

@@ -537,9 +537,71 @@ export class AppService {
   async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'approved')); return { id: s.id, status: 'approved' }; }
   async rejectSupplier(id: string, reason: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'rejected', reason); const local = this.suppliers.find(x => x.id === s.id); if (local) { local.status = 'rejected'; local.rejectionReason = reason; } const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = false; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'rejected', reason)); return { id: s.id, status: 'rejected', reason }; }
   async adminUsers() {
-    return (await this.database.adminUsers()) ?? this.users.map((u) => ({ ...this.publicUser(u), emailVerifiedAt: u.emailVerifiedAt }));
+    return (await this.database.adminUsers()) ?? this.users.map((u) => ({
+      ...this.publicUser(u),
+      emailVerifiedAt: u.emailVerifiedAt,
+      createdAt: u.createdAt,
+    }));
   }
-  async setUserActive(id: string, active: boolean) { await this.database.setUserActive(id, active); const user = this.users.find(u => u.id === id); if (user) user.isActive = active; return { id, isActive: active }; }
+  async adminUser(id: string) {
+    const stored = await this.database.adminUserById(id);
+    if (stored) return stored;
+    const user = this.users.find((u) => u.id === id);
+    if (!user) throw new NotFoundException('User not found');
+    const supplierProfile = this.suppliers.find((s) => s.userId === id);
+    return {
+      ...this.publicUser(user),
+      emailVerifiedAt: user.emailVerifiedAt,
+      orderCount: this.orders.filter((order) => order.customerId === id).length,
+      supplier: supplierProfile
+        ? { id: supplierProfile.id, businessName: supplierProfile.businessName, status: supplierProfile.status }
+        : undefined,
+    };
+  }
+  async updateAdminUser(id: string, body: { fullName: string; email: string; phoneNumber?: string; role: Role; isActive: boolean }, actorId: string) {
+    const user = await this.findUser(id, true);
+    if (!user) throw new NotFoundException('User not found');
+    if (id === actorId) {
+      if (body.role !== user.role) throw new BadRequestException('You cannot change your own role');
+      if (!body.isActive) throw new BadRequestException('You cannot deactivate your own account');
+    }
+    const normalizedEmail = body.email.toLowerCase();
+    if (normalizedEmail !== user.email) {
+      const existing = await this.findUser(normalizedEmail);
+      if (existing && existing.id !== id) throw new BadRequestException('Email already registered');
+    }
+    if (!body.fullName || body.fullName.length < 2 || !['customer', 'supplier', 'admin'].includes(body.role)) {
+      throw new BadRequestException('Invalid user data');
+    }
+    user.fullName = body.fullName;
+    user.email = normalizedEmail;
+    user.role = body.role;
+    user.isActive = Boolean(body.isActive);
+    user.phoneNumber = body.phoneNumber?.trim() || undefined;
+    await this.database.updateUserProfile(id, {
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role,
+      isActive: user.isActive,
+    });
+    return this.adminUser(id);
+  }
+  async adminResetPassword(id: string, password: string) {
+    if (!password || password.length < 8) throw new BadRequestException('Password must be at least 8 characters');
+    const user = await this.findUser(id, true);
+    if (!user) throw new NotFoundException('User not found');
+    user.passwordHash = bcrypt.hashSync(password, 12);
+    await this.database.updateUserPassword(id, user.passwordHash);
+    return { message: 'Password updated successfully' };
+  }
+  async setUserActive(id: string, active: boolean, actorId?: string) {
+    if (actorId && id === actorId && !active) throw new BadRequestException('You cannot deactivate your own account');
+    await this.database.setUserActive(id, active);
+    const user = this.users.find(u => u.id === id);
+    if (user) user.isActive = active;
+    return { id, isActive: active };
+  }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }

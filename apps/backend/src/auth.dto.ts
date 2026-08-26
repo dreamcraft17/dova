@@ -95,3 +95,17 @@ export class OrderStatusDto {
 export class SupplierRejectDto {
   @IsString() @MinLength(3) reason!: string;
 }
+
+export class AdminUpdateUserDto {
+  @IsString() @MinLength(2) fullName!: string;
+  @IsEmail() email!: string;
+  @IsOptional() @IsString() phoneNumber?: string;
+  @IsIn(['customer', 'supplier', 'admin']) role!: 'customer' | 'supplier' | 'admin';
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  isActive!: boolean;
+}
+
+export class AdminResetPasswordDto {
+  @IsString() @MinLength(8) password!: string;
+}

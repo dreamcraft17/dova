@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
@@ -243,8 +243,21 @@ export class AppController {
   @Get('admin/users') adminUsers() { return this.service.adminUsers(); }
 
   @Roles('admin')
-  @Put('admin/users/:id/active') userActive(@Param('id') id: string, @Body('active') active: boolean) {
-    return this.service.setUserActive(id, Boolean(active));
+  @Get('admin/users/:id') adminUser(@Param('id') id: string) { return this.service.adminUser(id); }
+
+  @Roles('admin')
+  @Put('admin/users/:id') updateAdminUser(@Param('id') id: string, @Body() body: AdminUpdateUserDto, @CurrentUser() actor: StoredUser) {
+    return this.service.updateAdminUser(id, body, actor.id);
+  }
+
+  @Roles('admin')
+  @Post('admin/users/:id/reset-password') adminResetPassword(@Param('id') id: string, @Body() body: AdminResetPasswordDto) {
+    return this.service.adminResetPassword(id, body.password);
+  }
+
+  @Roles('admin')
+  @Put('admin/users/:id/active') userActive(@Param('id') id: string, @Body('active') active: boolean, @CurrentUser() actor: StoredUser) {
+    return this.service.setUserActive(id, Boolean(active), actor.id);
   }
 
   @Roles('admin')

@@ -14,6 +14,8 @@ import {
   IconUsers,
 } from '../components/DashboardIcons';
 import { api } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import { AdminUserModal } from '../components/AdminUserModal';
 import type { FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
 import { FEEDBACK_STATUSES, feedbackStatusLabel, getProductTab } from 'dova-shared';
 
@@ -32,7 +34,16 @@ type Supplier = {
   status: string;
   documentUrl?: string;
 };
-type AdminUser = { id: string; email: string; fullName: string; role: string; isActive: boolean; emailVerifiedAt?: string };
+type AdminUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  isActive: boolean;
+  phoneNumber?: string;
+  emailVerifiedAt?: string;
+  createdAt?: string;
+};
 type AdminOrder = Pick<Order, 'id' | 'orderNumber' | 'status' | 'totalAmount' | 'createdAt'> & {
   customerName: string;
 };
@@ -61,6 +72,7 @@ function userStatusLabel(u: AdminUser) {
 }
 
 export default function Admin() {
+  const { user: currentUser } = useAuth();
   const [tab, setTab] = useState('overview');
   const [productTab, setProductTab] = useState<'available' | 'low_stock' | 'hidden'>('available');
   const [stats, setStats] = useState<Stats>();
@@ -75,6 +87,7 @@ export default function Admin() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const load = async () => {
     const [s, p, u, pr, o, c, fb] = await Promise.all([
@@ -117,6 +130,10 @@ export default function Admin() {
   }
 
   async function toggleUser(user: AdminUser) {
+    if (currentUser?.id === user.id && user.isActive) {
+      setMessage('You cannot deactivate your own account.');
+      return;
+    }
     setActionBusy(true);
     try {
       await api(`/admin/users/${user.id}/active`, {
@@ -474,6 +491,7 @@ export default function Admin() {
                           <th>Email</th>
                           <th>Role</th>
                           <th>Status</th>
+                          <th>Joined</th>
                           <th></th>
                         </tr>
                       </thead>
@@ -488,15 +506,28 @@ export default function Admin() {
                                 {userStatusLabel(u)}
                               </span>
                             </td>
+                            <td data-label="Joined">
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-NG') : '—'}
+                            </td>
                             <td data-label="">
-                              <button
-                                type="button"
-                                className="admin-dash-btn admin-dash-btn-primary"
-                                disabled={actionBusy}
-                                onClick={() => void toggleUser(u)}
-                              >
-                                {u.isActive ? 'Deactivate' : 'Activate'}
-                              </button>
+                              <div className="admin-dash-actions">
+                                <button
+                                  type="button"
+                                  className="admin-dash-btn admin-dash-btn-secondary"
+                                  disabled={actionBusy}
+                                  onClick={() => setSelectedUserId(u.id)}
+                                >
+                                  Manage
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-dash-btn admin-dash-btn-primary"
+                                  disabled={actionBusy || (currentUser?.id === u.id && u.isActive)}
+                                  onClick={() => void toggleUser(u)}
+                                >
+                                  {u.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -656,6 +687,13 @@ export default function Admin() {
             </>
           )}
         </DashboardShell>
+        <AdminUserModal
+          userId={selectedUserId}
+          open={Boolean(selectedUserId)}
+          currentUserId={currentUser?.id}
+          onClose={() => setSelectedUserId(null)}
+          onSaved={() => void load()}
+        />
       </RequireAuth>
     </Layout>
   );
