@@ -2,6 +2,42 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.5.0] — 2026-08-26
+
+> **Author:** Dozer  
+> **Range:** after `v0.4.0` → `52530da` · **Commits:** 6 · **SemVer bump:** `minor` · **Conventional lint:** 0/6 valid — sections below are manually curated from git history.
+
+### Added
+- **Admin user management** — view user detail, edit name/email/phone, change role, reset password, activate/deactivate; self-lockout guards prevent admins from demoting or deactivating themselves (`52530da`).
+- **Remember Me** — checkbox now persists login across browser restarts via localStorage and extended refresh token TTL (`2ca18cc`).
+- **Email OTP scaffolding (disabled)** — migration `006_email_otp.sql`, shared OTP helpers, verify-email page, and commented backend endpoints; registration remains immediate login-ready (`7bafb35`).
+- **Backend hardening** — shared prebuild in dev/CI, JWT env guard, rate limiting, Nest auth guards, cart/order migrations (`004`/`005`), feedback board Postgres persistence, expanded test suite (`f6e4d08`).
+
+### Changed
+- **Production boot** — weak/missing `JWT_SECRET` logs a warning instead of crashing the API (fixes false CORS/502 on VPS when env is incomplete) (`a25f894`).
+
+### Fixed
+- **Purchase history crash** — Postgres `NUMERIC` quantity returned as string broke `.toFixed()` on `/customer/history` (`85c2765`).
+
+### Deploy notes
+- Run `npm run db:migrate` on VPS after pull (migrations `004`, `005`, `006`).
+- OTP email verification is **off**; no `RESEND` config required for signup.
+
+### Commit index (audit)
+
+| Hash | Message |
+|------|---------|
+| `52530da` | Add full admin user management beyond activate/deactivate. |
+| `7bafb35` | Scaffold email OTP verification but keep standard registration. |
+| `85c2765` | Fix purchase history crash when order quantity is a string from Postgres. |
+| `a25f894` | Fix production boot: warn on weak JWT instead of crashing API. |
+| `2ca18cc` | Make Remember Me persist login across browser sessions. |
+| `f6e4d08` | Harden DOVA backend: shared build, auth guards, and DB migrations. |
+
+**Tag command:** `git tag -a v0.5.0 -m 'Release v0.5.0' && git push origin v0.5.0`
+
+---
+
 ## [0.4.0] — 2026-08-24
 
 > **Range:** after `0.3.0` (2026-07-24) → `a33e8e0` · **Commits (no merge):** 63 · **SemVer bump:** `minor` · **Conventional lint:** 16/64 valid — sections below merge auto-parser output + full commit pass.
