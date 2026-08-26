@@ -106,7 +106,18 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND supplier_order_status = ANY($4::text[]) RETURNING id,order_id', [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query('UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2', [status, orderId]); return true; }
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
   async pendingSuppliers() { if (!this.pool) return undefined; const result = await this.pool.query("SELECT sp.*,u.email,u.full_name FROM supplier_profiles sp JOIN users u ON u.id=sp.user_id WHERE sp.verification_status='pending' ORDER BY sp.created_at"); return result.rows.map(row => ({ id: row.id, userId: row.user_id, businessName: row.business_name, contactName: row.full_name, email: row.email, phone: row.business_phone, status: row.verification_status, documentUrl: row.verification_doc_url, createdAt: new Date(row.created_at).toISOString() })); }
-  async setSupplierStatus(supplierId: string, status: string, reason?: string) { if (this.pool) await this.pool.query('UPDATE supplier_profiles SET verification_status=$1,rejection_reason=$2,verified_at=CASE WHEN $1=\'approved\' THEN NOW() ELSE NULL END,updated_at=NOW() WHERE id=$3', [status, reason || null, supplierId]); }
+  async setSupplierStatus(supplierId: string, status: string, reason?: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `UPDATE supplier_profiles
+       SET verification_status = $1::varchar,
+           rejection_reason = $2,
+           verified_at = CASE WHEN $1::varchar = 'approved' THEN NOW() ELSE NULL END,
+           updated_at = NOW()
+       WHERE id = $3`,
+      [status, reason ?? null, supplierId],
+    );
+  }
   async adminUsers() {
     if (!this.pool) return undefined;
     const result = await this.pool.query('SELECT id,email,full_name,phone_number,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
