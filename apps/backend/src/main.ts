@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 function corsOrigins(): string | string[] | boolean {
-  const raw = process.env.FRONTEND_URL ?? 'http://localhost:3002';
+  const raw = process.env.CORS_ORIGINS ?? process.env.FRONTEND_URL ?? 'http://localhost:3002';
   const origins = raw.split(',').map((value) => value.trim()).filter(Boolean);
   if (origins.length === 0) return 'http://localhost:3002';
   if (origins.length === 1) return origins[0];
