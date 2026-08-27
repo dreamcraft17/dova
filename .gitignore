@@ -11,3 +11,10 @@ coverage/
 *.tsbuildinfo
 docs/
 .DS_Store
+
+# Personal / compensation — Dozer only, never this app repo
+# (see ../company-wiki/docs/products/dova/private/)
+tests/*EQUITY*
+tests/*COUNTER-PROPOSAL*
+tests/*LAUNCH-BUDGET*
+*Partnership Proposal*
