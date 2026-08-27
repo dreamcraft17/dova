@@ -8,7 +8,6 @@ import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
-/* Email OTP verification — disabled for now; re-enable when needed.
 import { isValidOtpFormat } from 'dova-shared';
 import {
   generateOtpCode,
@@ -21,7 +20,6 @@ import {
   OTP_RESEND_WINDOW_MS,
   OTP_TTL_MS,
 } from './otp.util';
-*/
 
 type UserRecord = StoredUser;
 
@@ -82,13 +80,16 @@ export class AppService {
       this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: productImageUrl(name, categoryName), isActive: true });
     });
   }
-  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean }): UserRecord {
+  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean; emailVerified?: boolean }): UserRecord {
+    const isActive = opts?.active ?? true;
+    const emailVerified = opts?.emailVerified ?? isActive;
     return {
       id: randomUUID(),
       email,
       fullName,
       role,
-      isActive: opts?.active ?? true,
+      isActive,
+      emailVerifiedAt: emailVerified ? new Date().toISOString() : undefined,
       createdAt: new Date().toISOString(),
       passwordHash: bcrypt.hashSync(password, 12),
     };
@@ -104,18 +105,30 @@ export class AppService {
     }
     const normalizedEmail = email.toLowerCase();
     if (await this.findUser(normalizedEmail)) throw new BadRequestException('Email already registered');
-    const user = this.makeUser(normalizedEmail, fullName, 'customer', password);
+    const qaSmoke = Boolean(this.qaSmokeOtpCode(normalizedEmail));
+    if (process.env.NODE_ENV === 'production' && !qaSmoke && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
+      throw new BadRequestException('Registration is temporarily unavailable. Please try again later.');
+    }
+    const user = this.makeUser(normalizedEmail, fullName, 'customer', password, { active: false, emailVerified: false });
     this.users.push(user);
     await this.database.insertUser(user);
-    return this.publicUser(user);
+    const { emailResult } = await this.issueOtpForUser(user);
+    if (process.env.NODE_ENV === 'production' && !qaSmoke && !emailResult?.sent) {
+      throw new BadRequestException('Could not send verification email. Please try again later.');
+    }
+    return { message: 'Verification code sent. Check your email.', email: normalizedEmail };
   }
-  /* Email OTP verification — disabled for now.
   private syncUserRecord(user: UserRecord) {
     const index = this.users.findIndex((item) => item.id === user.id);
     if (index >= 0) this.users[index] = user;
   }
+  private qaSmokeOtpCode(email: string) {
+    const fixed = process.env.DOVA_QA_FIXED_OTP;
+    if (!fixed || !/^qa\.softlaunch\.\d+@example\.com$/i.test(email)) return undefined;
+    return fixed.replace(/\D/g, '').slice(-6).padStart(6, '0');
+  }
   private async issueOtpForUser(user: UserRecord) {
-    const code = generateOtpCode();
+    const code = this.qaSmokeOtpCode(user.email) ?? generateOtpCode();
     const otpHash = hashOtp(code);
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
     user.otpHash = otpHash;
@@ -124,9 +137,9 @@ export class AppService {
     user.otpLockedUntil = undefined;
     this.syncUserRecord(user);
     await this.database.saveUserOtp(user.id, otpHash, expiresAt, 0, null);
-    void this.notifySafely(this.notifications?.verificationOtp(user.email, code, user.fullName));
+    const emailResult = await this.notifySafely(this.notifications?.verificationOtp(user.email, code, user.fullName));
     if (process.env.NODE_ENV !== 'production') console.info(`[OTP] ${user.email}: ${code}`);
-    return code;
+    return { code, emailResult };
   }
   async verifyOtp(email: string, code: string, rememberMe = false) {
     if (!isValidOtpFormat(code)) throw new BadRequestException('Invalid verification code');
@@ -179,7 +192,7 @@ export class AppService {
       const issuedAt = new Date(u.otpExpiresAt).getTime() - OTP_TTL_MS;
       if (now - issuedAt < OTP_RESEND_COOLDOWN_MS) throw new BadRequestException('Please wait before requesting a new code.');
     }
-    const code = generateOtpCode();
+    const code = this.qaSmokeOtpCode(u.email) ?? generateOtpCode();
     const otpHash = hashOtp(code);
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
     resendCount += 1;
@@ -194,13 +207,13 @@ export class AppService {
     if (process.env.NODE_ENV !== 'production') console.info(`[OTP] ${u.email}: ${code}`);
     return { message: 'Verification code sent.', email: u.email };
   }
-  */
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }
   async login(email: string, password: string, rememberMe = false) {
     const u = await this.findUser(email);
-    if (!u || !bcrypt.compareSync(password, u.passwordHash) || !u.isActive) throw new UnauthorizedException('Invalid credentials');
+    if (!u || !bcrypt.compareSync(password, u.passwordHash)) throw new UnauthorizedException('Invalid credentials');
+    if (!u.isActive || !u.emailVerifiedAt) throw new UnauthorizedException('Please verify your email before signing in.');
     const result = this.tokensFor(u, rememberMe);
     const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
     await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));

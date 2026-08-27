@@ -29,7 +29,7 @@ export default function Register() {
     setError('');
     try {
       await api('/auth/register', { method: 'POST', body: JSON.stringify(form) });
-      router.push('/auth/login');
+      router.push(`/auth/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

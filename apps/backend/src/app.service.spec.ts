@@ -8,6 +8,11 @@ import { createHmac } from 'crypto';
 import { AppService } from './app.service';
 import { PaystackService } from './paystack.service';
 
+jest.mock('./otp.util', () => ({
+  ...jest.requireActual('./otp.util'),
+  generateOtpCode: jest.fn(() => '123456'),
+}));
+
 const SLOT = 'morning' as const;
 
 function addToCart(service: AppService, userId: string, productId: string, quantity: number, deliverySlot: 'morning' | 'evening' = SLOT) {
@@ -73,6 +78,14 @@ function makeService() {
   return { service, database, redis, notifications };
 }
 
+async function registerAndVerify(
+  service: AppService,
+  body: { fullName: string; email: string; password: string; confirmPassword: string },
+) {
+  await service.register(body);
+  return service.verifyOtp(body.email, '123456');
+}
+
 function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock }) {
   const database = {
     enabled: false,
@@ -91,13 +104,17 @@ function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock
 
 describe('AppService', () => {
   describe('registration and authentication', () => {
-    it('registers a customer with a hashed password and customer role', async () => {
-      const { service, database } = makeService();
-      const user = await service.register({ fullName: 'Jane Doe', email: 'JANE@example.com', password: 'password123', confirmPassword: 'password123' });
+    it('registers a customer as pending until email verification', async () => {
+      const { service, database, notifications } = makeService();
+      const result = await service.register({ fullName: 'Jane Doe', email: 'JANE@example.com', password: 'password123', confirmPassword: 'password123' });
 
-      expect(user).toMatchObject({ email: 'jane@example.com', fullName: 'Jane Doe', role: 'customer', isActive: true });
-      expect(user).not.toHaveProperty('passwordHash');
+      expect(result).toEqual({ message: 'Verification code sent. Check your email.', email: 'jane@example.com' });
+      const stored = service.users.find((entry) => entry.email === 'jane@example.com');
+      expect(stored).toMatchObject({ fullName: 'Jane Doe', role: 'customer', isActive: false });
+      expect(stored?.emailVerifiedAt).toBeUndefined();
       expect(database.insertUser).toHaveBeenCalledTimes(1);
+      expect(database.saveUserOtp).toHaveBeenCalledTimes(1);
+      expect(notifications.verificationOtp).toHaveBeenCalledWith('jane@example.com', '123456', 'Jane Doe');
     });
 
     it.each([
@@ -115,15 +132,32 @@ describe('AppService', () => {
       await expect(service.register({ fullName: 'Other', email: 'JANE@example.com', password: 'password123', confirmPassword: 'password123' })).rejects.toThrow('Email already registered');
     });
 
-    it('issues access and refresh tokens for valid credentials', async () => {
+    it('issues access and refresh tokens after OTP verification', async () => {
       const { service, database } = makeService();
-      await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      await registerAndVerify(service, { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
       const result = await service.login('JANE@example.com', 'password123');
 
       expect(result.user.email).toBe('jane@example.com');
       expect(result.accessToken.split('.')).toHaveLength(3);
       expect(result.refreshToken.split('.')).toHaveLength(3);
-      expect(database.saveSession).toHaveBeenCalledTimes(2);
+      expect(database.saveSession).toHaveBeenCalled();
+    });
+
+    it('blocks login until email is verified', async () => {
+      const { service } = makeService();
+      await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      await expect(service.login('jane@example.com', 'password123')).rejects.toEqual(
+        expect.objectContaining({ message: 'Please verify your email before signing in.' }),
+      );
+    });
+
+    it('verifies OTP and activates the account', async () => {
+      const { service, database } = makeService();
+      await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      const result = await service.verifyOtp('jane@example.com', '123456');
+      expect(result.user.email).toBe('jane@example.com');
+      expect(result.user.isActive).toBe(true);
+      expect(database.verifyUserEmail).toHaveBeenCalledTimes(1);
     });
 
     it('uses a generic error for invalid credentials', async () => {
@@ -133,8 +167,7 @@ describe('AppService', () => {
 
     it('refreshes a valid refresh token and rejects revoked access', async () => {
       const { service, database } = makeService();
-      await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
-      const session = await service.login('jane@example.com', 'password123');
+      const session = await registerAndVerify(service, { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
       const refreshed = await service.refresh(session.refreshToken);
       expect(refreshed.user.id).toBe(session.user.id);
       await service.revoke(session.accessToken, session.refreshToken);
@@ -570,7 +603,7 @@ describe('AppService', () => {
 
     it('deactivates and reactivates a user', async () => {
       const { service } = makeService();
-      await service.register({ fullName: 'Temp User', email: 'temp@example.com', password: 'password123', confirmPassword: 'password123' });
+      await registerAndVerify(service, { fullName: 'Temp User', email: 'temp@example.com', password: 'password123', confirmPassword: 'password123' });
       const user = service.users.find((entry) => entry.email === 'temp@example.com')!;
       const deactivated = await service.setUserActive(user.id, false);
       expect(deactivated).toEqual({ id: user.id, isActive: false });
@@ -580,7 +613,7 @@ describe('AppService', () => {
 
     it('returns admin user detail with order count', async () => {
       const { service } = makeService();
-      await service.register({ fullName: 'Detail User', email: 'detail@example.com', password: 'password123', confirmPassword: 'password123' });
+      await registerAndVerify(service, { fullName: 'Detail User', email: 'detail@example.com', password: 'password123', confirmPassword: 'password123' });
       const user = service.users.find((entry) => entry.email === 'detail@example.com')!;
       const detail = await service.adminUser(user.id);
       expect(detail.email).toBe('detail@example.com');
@@ -590,7 +623,7 @@ describe('AppService', () => {
 
     it('updates user profile and role from admin', async () => {
       const { service, database } = makeService();
-      await service.register({ fullName: 'Edit Me', email: 'edit@example.com', password: 'password123', confirmPassword: 'password123' });
+      await registerAndVerify(service, { fullName: 'Edit Me', email: 'edit@example.com', password: 'password123', confirmPassword: 'password123' });
       const user = service.users.find((entry) => entry.email === 'edit@example.com')!;
       const updated = await service.updateAdminUser(
         user.id,
@@ -616,7 +649,7 @@ describe('AppService', () => {
 
     it('resets a user password from admin', async () => {
       const { service, database } = makeService();
-      await service.register({ fullName: 'Reset Me', email: 'reset@example.com', password: 'password123', confirmPassword: 'password123' });
+      await registerAndVerify(service, { fullName: 'Reset Me', email: 'reset@example.com', password: 'password123', confirmPassword: 'password123' });
       const user = service.users.find((entry) => entry.email === 'reset@example.com')!;
       const oldHash = user.passwordHash;
       const result = await service.adminResetPassword(user.id, 'newpassword99');

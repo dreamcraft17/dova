@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
@@ -50,7 +50,6 @@ export class AppController {
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
 
-  /* Email OTP verification — disabled for now.
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/verify-otp') async verifyOtp(@Body() body: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
@@ -67,7 +66,6 @@ export class AppController {
   @Public()
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post('auth/resend-otp') resendOtp(@Body() body: ResendOtpDto) { return this.service.resendOtp(body.email); }
-  */
 
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })

@@ -61,12 +61,25 @@ PAYSTACK_CALLBACK_URL=https://dova.dntech.id/checkout/verify
 # REDIS_URL=redis://127.0.0.1:6379
 
 # PAYSTACK_CHANNELS=card,bank,ussd,bank_transfer
-
-# Email (Resend)
-# RESEND_API_KEY=re_GANTI
-# EMAIL_FROM=DOVA <noreply@dova.dntech.id>
-# SUPPORT_EMAIL=support@dova.dntech.id
 ```
+
+### Wajib untuk registrasi customer (production, sejak v0.5.4)
+
+```env
+RESEND_API_KEY=re_GANTI
+EMAIL_FROM=DOVA <noreply@dova.dntech.id>
+SUPPORT_EMAIL=support@dova.dntech.id
+```
+
+Tanpa `RESEND_API_KEY` + `EMAIL_FROM`, signup customer di production akan ditolak (supaya tidak ada akun pending tanpa email OTP).
+
+### Opsional — smoke QA otomatis
+
+```env
+DOVA_QA_FIXED_OTP=123456
+```
+
+Hanya untuk email pola `qa.softlaunch.*@example.com`. Set nilai yang sama saat menjalankan `SMOKE_OTP_CODE=123456 npm run smoke:production`.
 
 ### Generate secret
 

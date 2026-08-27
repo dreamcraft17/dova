@@ -2,10 +2,64 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [Unreleased]
+
+> **Author:** Dozer
+
+_No code changes since `v0.5.4`._
+
+---
+
+## [0.5.4] — 2026-08-27
+
+> **Author:** Dozer  
+> **SemVer bump:** `minor` · Email verification required for new customers on production
+
+### Added
+- **Email OTP verification (production)** — register creates pending account; `/auth/verify-otp` and `/auth/resend-otp` enabled; Resend sends 6-digit code (`RESEND_API_KEY` + `EMAIL_FROM` required on VPS).
+- **Production smoke OTP path** — register → login blocked → verify-otp → customer journey (`DOVA_QA_FIXED_OTP` + `SMOKE_OTP_CODE` for `qa.softlaunch.*` emails).
+- **132 unit tests** — OTP register/verify coverage + `verificationOtp` notification tests.
+
+### Changed
+- **Frontend** — register redirects to `/auth/verify-email`; verification is mandatory (no skip).
+- **`scripts/smoke-production-api.js`** — renamed from `smoke-staging-api.js`; log file `smoke-production-latest.log`.
+- **Production guard** — signup rejected when Resend is not configured (except QA smoke email pattern).
+
+### Production env (required for customer signup)
+
+```env
+RESEND_API_KEY=re_...
+EMAIL_FROM=DOVA <noreply@dova.dntech.id>
+DOVA_QA_FIXED_OTP=123456   # optional — automated smoke only
+```
+
+---
+
+## [0.5.3] — 2026-08-27
+
+> **Author:** Dozer  
+> **Range:** after `v0.5.2` → `dcb5c2f` · **SemVer bump:** `patch` · **Conventional lint:** 3/3 valid (docs only)
+
+### Changed
+- **Production terminology** — docs and README now label `dova.dntech.id` as **production**, not staging (`3e91759`, `dcb5c2f`).
+- **Release audit** — production sign-off and smoke result docs updated (`37bc795`).
+
+### Commit index (audit)
+
+| Hash | Message |
+|------|---------|
+| `37bc795` | docs: soft launch sign-off audit and staging smoke result. |
+| `3e91759` | docs: reframe dova.dntech.id as production, not staging. |
+| `dcb5c2f` | docs: finish production wording in README env and deploy sections. |
+
+**Tag command:** `git tag -a v0.5.3 -m 'Production docs v0.5.3' && git push origin v0.5.3`
+
+---
+
 ## [0.5.2] — 2026-08-27
 
 > **Author:** Dozer  
-> **Release:** Production launch — `dova.dntech.id`
+> **Range:** after `v0.5.1` → `b17e2a5` · **SemVer bump:** `minor` · **Conventional lint:** 1/1 valid in tag range
 
 ### Added
 - **`npm run smoke:production`** — automated 23-step API smoke + NEG-01..07 against production (`scripts/smoke-staging-api.js`; alias `smoke:staging` kept).
@@ -18,6 +72,12 @@ All notable changes to the DOVA marketplace project.
 ### Verified (production)
 - 127 unit tests green · full API smoke pass · VPS @ `v0.5.2` · Paystack `mode: paystack`
 
+### Commit index (audit)
+
+| Hash | Message |
+|------|---------|
+| `b17e2a5` | feat: soft launch gates — staging smoke script, UUID fix, guard tests. |
+
 **Tag command:** `git tag -a v0.5.2 -m 'Production v0.5.2' && git push origin v0.5.2`
 
 ---
@@ -25,18 +85,28 @@ All notable changes to the DOVA marketplace project.
 ## [0.5.1] — 2026-08-27
 
 > **Author:** Dozer  
-> **Range:** after `v0.5.0` → `HEAD` · **SemVer bump:** `patch`
+> **Range:** after `v0.5.0` → `7553e83` · **SemVer bump:** `patch` · **Conventional lint:** 2/6 valid — sections manually curated
 
 ### Added
 - **Release readiness audit** — combined QA, bug triage, and backend review (`tests/DOVA-RELEASE-READINESS-AUDIT.md`).
-- **QA Postman guide** — 67-endpoint checklist for manual API smoke (`tests/DOVA-API-QA-POSTMAN.md`) (`2d35c0c`, `54c3009`).
+- **QA Postman guide** — 67-endpoint checklist for manual API smoke (`tests/DOVA-API-QA-POSTMAN.md`) (`4eca2d7`, `5fe0640`).
 
 ### Fixed
-- **Supplier approve/reject** — Postgres `42P08` type coercion on `setSupplierStatus` (`00c8601`).
-- **Staging login loop** — stale API cookie overrode fresh Bearer token on `/auth/me`; guard prefers Authorization header (`fc177d6`).
+- **Supplier approve/reject** — Postgres `42P08` type coercion on `setSupplierStatus` (`bbbb1ff`).
+- **Production login loop** — stale API cookie overrode fresh Bearer token on `/auth/me`; guard prefers Authorization header (`1d7e77e`).
 
 ### Docs
 - Removed internal stakeholder / duplicate status docs from app repo (canonical copies live in `dova-company-wiki/`).
+
+### Commit index (audit)
+
+| Hash | Message |
+|------|---------|
+| `7553e83` | docs: add release readiness audit and changelog for v0.5.1. |
+| `5fe0640` | Rewrite QA Postman endpoint guide in English. |
+| `4eca2d7` | Add QA Postman endpoint checklist for manual API testing. |
+| `1d7e77e` | Fix staging login loop when stale API cookies override Bearer tokens. |
+| `bbbb1ff` | Fix supplier approve/reject failing on Postgres type coercion. |
 
 **Tag command:** `git tag -a v0.5.1 -m 'Release v0.5.1' && git push origin v0.5.1`
 

@@ -16,7 +16,7 @@ All engineering, deploy, and automated QA gates passed on **2026-08-27**. This i
 |-------|-------|-------|
 | MVP codebase | 100% | Week 1–4 + v0.5.x shipped |
 | Backend quality | 95% | UUID 404 fix, auth guard tests, supplier SQL tests |
-| Test automation | 90% | **127** unit tests; production API smoke automated |
+| Test automation | 90% | **132** unit tests; production API smoke with OTP path |
 | Production ops | 100% | VPS @ `b17e2a5`, PM2 healthy |
 | Payment go-live | 85% | Paystack live mode; init + refs verified on prod |
 | Business go/no-go | 90% | Live on `dntech.id`; optional `dovachain.com` alias later |
@@ -38,7 +38,7 @@ Checks run on **2026-08-27** against repo `main` @ `b17e2a5` (tag `v0.5.2`).
 
 | Check | Result |
 |-------|--------|
-| Unit tests | **127/127 pass** (~30s) |
+| Unit tests | **132/132 pass** |
 | Production API `/health` | **200** `{ "status": "ok", "service": "dova-api" }` |
 | Production storefront | **200** |
 | `npm run smoke:production` | **PASS** — 23 steps + NEG-01..07 |
@@ -106,7 +106,7 @@ Run locally: `npm run smoke:production`
 | # | Item | Status |
 |---|------|--------|
 | 9 | Postman 23-step smoke | ✅ Automated (`smoke:production`) |
-| 10 | Customer journey (API) | ✅ register → cart → order → pay init |
+| 10 | Customer journey (API) | ✅ register → verify-otp → cart → order → pay init |
 | 11 | Supplier journey (API) | ✅ products + orders |
 | 12 | Admin journey (API) | ✅ dashboard, users, suppliers, orders |
 | 13 | Mobile smoke (browser) | ⏭ Recommended spot-check |
@@ -121,6 +121,7 @@ Run locally: `npm run smoke:production`
 | 17 | Support contact | ✅ `/contact` + +234 903 269 6825 on site |
 | 18 | Launch date | ✅ **27 Aug 2026** (production) |
 | 19 | Custom domain alias | ⏭ `dovachain.com` — optional DNS later |
+| 20 | Email OTP verification | ✅ Required for new customers (`v0.5.4`) — needs `RESEND_*` on VPS |
 
 **Checklist score:** **16/19 done** · **3 deferred (non-blocking)**
 

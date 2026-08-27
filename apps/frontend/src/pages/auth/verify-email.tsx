@@ -69,8 +69,8 @@ export default function VerifyEmail() {
   return (
     <AuthShell>
       <div className="register-card verify-email-card">
-        <h1>Verify Your Email (Optional)</h1>
-        <p>Enter the 6-digit code from your inbox to add a verified badge to your account. You can skip this and keep using DOVA.</p>
+        <h1>Verify Your Email</h1>
+        <p>Enter the 6-digit code we sent to your inbox to activate your account.</p>
         <form onSubmit={submit}>
           <label>Email</label>
           <input
@@ -113,9 +113,6 @@ export default function VerifyEmail() {
           <button type="button" className="link-button" disabled={resendBusy || resendCooldown > 0} onClick={() => void resend()}>
             {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
           </button>
-        </div>
-        <div className="register-link">
-          Skip for now? <Link href="/products">Continue to shop</Link>
         </div>
         <div className="login-link">
           Wrong email? <Link href="/auth/register">Register again</Link>

@@ -82,12 +82,14 @@ Status: **200**
 | # | Method | Path | Auth | QA priority |
 |---|--------|------|------|-------------|
 | 4 | POST | `/auth/register` | — | P0 |
+| 4b | POST | `/auth/verify-otp` | — | **P0** |
+| 4c | POST | `/auth/resend-otp` | — | P1 |
 | 5 | POST | `/auth/login` | — | **P0** |
 | 6 | POST | `/auth/logout` | Bearer / cookie | P1 |
 | 7 | POST | `/auth/refresh` | refresh body/cookie | P1 |
 | 8 | GET | `/auth/me` | Bearer | **P0** |
 
-> OTP (`/auth/verify-otp`, `/auth/resend-otp`) is **disabled** in production — skip.
+> Email verification is **required** for new customers. After register, use `/auth/verify-otp` before login.
 
 ### Sample — POST `/auth/register`
 
@@ -102,9 +104,36 @@ Status: **200**
 
 | Case | Expected |
 |------|----------|
-| Valid | **201** — user object, no tokens (register only) |
+| Valid | **201** — `{ message, email }` (no tokens until OTP verified) |
 | Duplicate email | **400** — Email already registered |
 | Password < 8 | **400** validation error |
+
+### Sample — POST `/auth/verify-otp`
+
+```json
+{
+  "email": "qa.tester+001@example.com",
+  "code": "123456",
+  "rememberMe": true
+}
+```
+
+| Case | Expected |
+|------|----------|
+| Valid code | **200** — `{ user, accessToken, refreshToken }` |
+| Wrong code | **400** — Invalid verification code |
+| Expired code | **400** — Verification code expired |
+
+### Sample — POST `/auth/resend-otp`
+
+```json
+{ "email": "qa.tester+001@example.com" }
+```
+
+| Case | Expected |
+|------|----------|
+| Pending user | **200** — `{ message, email }` |
+| Already verified | **400** — No pending verification |
 
 ### Sample — POST `/auth/login`
 
@@ -120,7 +149,7 @@ Status: **200**
 |------|----------|
 | Valid admin | **201** — `{ user, accessToken, refreshToken }` |
 | Wrong password | **401** — Invalid credentials |
-| Inactive user | **401** — Invalid credentials |
+| Unverified customer | **401** — Please verify your email before signing in. |
 
 **Postman test script (login):**
 
@@ -413,7 +442,7 @@ Run in sequence; save IDs to environment variables.
 3.  GET  /auth/me
 4.  GET  /categories
 5.  GET  /products            → save productId
-6.  POST /auth/register       (new customer) → login as customer
+6.  POST /auth/register       (new customer) → POST /auth/verify-otp → customer token
 7.  POST /cart/add
 8.  GET  /cart
 9.  POST /orders              → save orderId

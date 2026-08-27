@@ -16,7 +16,7 @@ Agricultural marketplace MVP — connects buyers with verified suppliers in Nige
 |------|------------|
 | Storefront | Browse, search, filter catalog; product detail with delivery slots |
 | Commerce | Cart, checkout (pickup / delivery), Paystack or mock payment |
-| Auth | Customer register/login, supplier application, role guards |
+| Auth | Customer register/login + **email OTP verify**, supplier application, role guards |
 | Supplier | Product CRUD, image upload, stock, order fulfillment |
 | Admin | Users, suppliers, products, orders, contacts, feedback moderation |
 | Feedback | Native idea board at `/feedback` (replaces external FeedLog) |
@@ -62,7 +62,7 @@ npm run dev
 | Admin | `admin@dova.local` | `admin1234` |
 | Supplier | `supplier@dova.local` | `supplier1234` |
 
-Register a customer at `/auth/register`, or apply as supplier at `/auth/supplier-register`.
+Register a customer at `/auth/register` (email verification required), or apply as supplier at `/auth/supplier-register`.
 
 ---
 
@@ -86,7 +86,7 @@ dova/
 ## Environment variables
 
 Templates: `.env.example`, `apps/backend/.env.example`, `tests/vps-*.env.example`  
-**VPS / staging guide:** [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md)
+**VPS / production guide:** [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md)
 
 ### Backend (`apps/backend/.env`)
 
@@ -102,7 +102,8 @@ Templates: `.env.example`, `apps/backend/.env.example`, `tests/vps-*.env.example
 | `PAYSTACK_CURRENCY` | `NGN` |
 | `PAYSTACK_CALLBACK_URL` | Checkout verify page on frontend |
 | `REDIS_URL` | Optional — omit if Redis not running |
-| `RESEND_API_KEY` / `EMAIL_FROM` / `SUPPORT_EMAIL` | Optional contact/supplier email |
+| `RESEND_API_KEY` / `EMAIL_FROM` | **Required on production** for customer signup OTP; also contact/supplier email |
+| `DOVA_QA_FIXED_OTP` | Optional — fixed OTP for `qa.softlaunch.*` smoke emails only |
 
 ### Frontend (`apps/frontend/.env.local`)
 
@@ -132,8 +133,9 @@ npm run db:seed
 npm run db:seed:week3
 npm run db:reset-logins
 
-# API smoke (server must be running)
+# API smoke (production — api.dova.dntech.id)
 npm run smoke:week4
+npm run smoke:production   # needs DOVA_QA_FIXED_OTP on server + SMOKE_OTP_CODE locally
 ```
 
 **CI** (`.github/workflows/ci.yml`): build · typecheck · test on every push/PR to `main`.
@@ -146,7 +148,7 @@ npm run smoke:week4
 |------|-------|
 | Storefront | `/`, `/products`, `/products/[id]`, `/about`, `/contact` |
 | Commerce | `/cart`, `/checkout`, `/checkout/verify` |
-| Auth | `/auth/login`, `/auth/register`, `/auth/supplier-register` |
+| Auth | `/auth/login`, `/auth/register`, `/auth/verify-email`, `/auth/supplier-register` |
 | Customer | `/customer`, `/customer/profile`, `/customer/history`, `/customer/orders/[id]` |
 | Supplier | `/supplier` — products, stock, orders |
 | Admin | `/admin` — users, suppliers, products, orders, contacts, feedback |
@@ -162,7 +164,7 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock*
 |-----|----------|
 | [`tests/TEST-CASES.md`](./tests/TEST-CASES.md) | Automated + manual test catalog |
 | [`tests/GUIDE.md`](./tests/GUIDE.md) | Manual QA workflow |
-| [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md) | VPS/staging env setup (ID) |
+| [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md) | VPS/production env setup (ID) |
 | [`tests/DOVA-STATUS-LENGKAP.md`](./tests/DOVA-STATUS-LENGKAP.md) | Dokumen status teknis lengkap (ID) |
 | [`tests/UAT-BUG-FIXES.md`](./tests/UAT-BUG-FIXES.md) | UAT defect log + verification |
 

@@ -2,7 +2,7 @@
 
 **Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
-**Automated:** `npm run test` — **63 tests / 6 suites** · `npm run test:backend` (auth smoke) · `npm run smoke:week4` (API health + contact)  
+**Automated:** `npm run test` — **132 tests** · `npm run smoke:production` (production API) · `npm run smoke:week4`  
 **QA workflow:** see [GUIDE.md](./GUIDE.md)  
 **Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`  
 **Local URLs:** storefront http://localhost:3001 · API http://localhost:3000/api/v1 · feedback http://localhost:3001/feedback
@@ -16,7 +16,7 @@
 | **Unit** | `*.spec.ts` under `shared/`, `apps/backend/src/`, `apps/frontend/src/lib/` | Every PR / `npm run test` |
 | **Integration smoke** | `apps/backend/test/auth.test.js` | CI + `npm run test:backend` |
 | **API smoke** | `scripts/smoke-week4.js` | After deploy / with `npm run dev` |
-| **Manual UAT** | Tables below | Staging soft-launch, mobile + desktop |
+| **Manual UAT** | Tables below | Production (`dova.dntech.id`), mobile + desktop |
 
 **Pass criteria:** expected result matches; no 5xx; auth cookies set on login; ₦ amounts correct; feedback stays on native `/feedback` (no external FeedLog).
 
@@ -26,7 +26,8 @@
 
 | ID | Scenario | Steps | Expected |
 |----|----------|-------|----------|
-| AUTH-01 | Customer register | `/auth/register` → valid name, email, password ≥8, confirm match | Redirect/dashboard; role customer |
+| AUTH-01 | Customer register | `/auth/register` → valid data | Redirect to `/auth/verify-email`; pending until OTP |
+| AUTH-01b | Email verify | Enter 6-digit OTP from inbox | Account active; logged in as customer |
 | AUTH-02 | Register validation | Invalid email / short password / mismatch confirm | Error shown; no account |
 | AUTH-03 | Duplicate email | Register same email twice | “Email already registered” |
 | AUTH-04 | Customer login | `/auth/login` with valid credentials | JWT cookies; redirect by role |

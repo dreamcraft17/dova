@@ -67,6 +67,35 @@ describe('NotificationService', () => {
     });
   });
 
+  describe('verificationOtp', () => {
+    it('returns not-configured when Resend env is missing', async () => {
+      delete process.env.RESEND_API_KEY;
+      delete process.env.EMAIL_FROM;
+      const result = await service.verificationOtp('jane@example.com', '123456', 'Jane');
+      expect(result).toEqual({ sent: false, reason: 'email-provider-not-configured' });
+    });
+
+    it('sends verification email when provider is configured', async () => {
+      process.env.RESEND_API_KEY = 're_test_key';
+      process.env.EMAIL_FROM = 'DOVA <noreply@dova.local>';
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+      const result = await service.verificationOtp('jane@example.com', '123456', 'Jane Doe');
+      expect(result).toEqual({ sent: true });
+      const body = JSON.parse(String((fetchSpy.mock.calls[0][1] as RequestInit).body));
+      expect(body.subject).toBe('Verify your DOVA account');
+      expect(body.text).toContain('123456');
+      expect(body.text).toContain('Jane Doe');
+    });
+
+    it('returns provider-error when Resend responds with failure', async () => {
+      process.env.RESEND_API_KEY = 're_test_key';
+      process.env.EMAIL_FROM = 'DOVA <noreply@dova.local>';
+      jest.spyOn(global, 'fetch').mockResolvedValue(new Response('error', { status: 500 }));
+      const result = await service.verificationOtp('jane@example.com', '123456', 'Jane');
+      expect(result).toEqual({ sent: false, reason: 'provider-error' });
+    });
+  });
+
   describe('contactMessage', () => {
     it('returns not-configured when email env is incomplete', async () => {
       delete process.env.RESEND_API_KEY;

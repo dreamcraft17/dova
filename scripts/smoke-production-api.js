@@ -59,7 +59,7 @@ async function main() {
   const products = await req('GET', '/products', { expectStatus: 200 });
   const list = Array.isArray(products.data) ? products.data : products.data?.data;
   const productId = list?.[0]?.id;
-  if (!productId) throw new Error('no products on staging');
+  if (!productId) throw new Error('no products on production');
 
   const customerEmail = `qa.softlaunch.${Date.now()}@example.com`;
   log(`6. POST /auth/register (${customerEmail})`);
@@ -72,7 +72,24 @@ async function main() {
     },
     expectStatus: 201,
   });
-  const customer = await login(customerEmail, 'password123');
+
+  log('6b. login before verify → 401');
+  await req('POST', '/auth/login', {
+    body: { email: customerEmail, password: 'password123', rememberMe: true },
+    expectStatus: 401,
+  });
+
+  const otpCode = process.env.SMOKE_OTP_CODE || process.env.DOVA_QA_FIXED_OTP;
+  if (!otpCode) {
+    throw new Error('Set SMOKE_OTP_CODE or DOVA_QA_FIXED_OTP (must match server DOVA_QA_FIXED_OTP for qa.softlaunch.* emails)');
+  }
+  log(`6c. POST /auth/verify-otp (${customerEmail})`);
+  const verified = await req('POST', '/auth/verify-otp', {
+    body: { email: customerEmail, code: otpCode, rememberMe: true },
+    expectStatus: 200,
+  });
+  const customer = verified.data;
+  if (!customer.accessToken) throw new Error('verify-otp missing accessToken');
 
   log('7-8. Cart add + get');
   await req('POST', '/cart/add', {
@@ -175,14 +192,14 @@ async function main() {
   await req('GET', '/auth/me', { token: 'invalid.jwt.token', expectStatus: 401 });
 
   log('PASS — production API smoke (23 + 7 negative)');
-  const out = path.join(__dirname, '../tests/smoke-staging-latest.log');
+  const out = path.join(__dirname, '../tests/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);
 }
 
 main().catch((err) => {
   log(`FAIL — ${err.message}`);
-  const out = path.join(__dirname, '../tests/smoke-staging-latest.log');
+  const out = path.join(__dirname, '../tests/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   process.exit(1);
 });
