@@ -4,7 +4,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { passwordToggleState } from 'dova-shared';
 import { Loading } from './Loading';
 import { api, configureLoginPersistence } from '../lib/api';
-import { getRememberedEmail, setRememberedEmail } from '../lib/auth-session';
+import { clearTokens, getRememberedEmail, setRememberedEmail } from '../lib/auth-session';
+import type { User } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useRouter } from 'next/router';
@@ -24,7 +25,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   const passwordToggle = passwordToggleState(showPassword);
   const [rememberMe, setRememberMe] = useState(true);
   const [busy, setBusy] = useState(false);
-  const { refresh } = useAuth();
+  const { establishSession } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -62,18 +63,19 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
     e.preventDefault();
     setBusy(true);
     try {
+      clearTokens();
       configureLoginPersistence(rememberMe);
-      const r = await api<{ user: { role: string } }>('/auth/login', {
+      const r = await api<{ user: User }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password, rememberMe }),
       });
       setRememberedEmail(rememberMe ? email : null);
-      await refresh();
+      establishSession(r.user);
       onClose();
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(
+        await router.push(
           r.user.role === 'admin'
             ? '/admin'
             : r.user.role === 'supplier'
@@ -83,6 +85,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
       }
     } catch (err) {
       showToast((err as Error).message, 'error');
+    } finally {
       setBusy(false);
     }
   }

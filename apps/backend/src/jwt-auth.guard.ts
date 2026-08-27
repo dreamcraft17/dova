@@ -8,7 +8,11 @@ export class JwtAuthGuard implements CanActivate {
   constructor(private readonly reflector: Reflector, private readonly appService: AppService) {}
 
   private extractToken(req: AuthenticatedRequest) {
-    return req.cookies?.accessToken ?? req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '').trim();
+    // Prefer explicit Bearer token — stale httpOnly cookies on cross-subdomain staging
+    // must not override a fresh token the SPA just stored after login.
+    if (bearer) return bearer;
+    return req.cookies?.accessToken;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { api, configureLoginPersistence } from '../../lib/api';
-import { getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
+import { clearTokens, getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
+import type { User } from 'dova-shared';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -18,7 +19,7 @@ export default function Login() {
   const passwordToggle = passwordToggleState(showPassword);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { establishSession } = useAuth();
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -33,18 +34,20 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
+      clearTokens();
       configureLoginPersistence(rememberMe);
-      const r = await api<{ user: { role: string } }>('/auth/login', {
+      const r = await api<{ user: User }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password, rememberMe }),
       });
       setRememberedEmail(rememberMe ? email : null);
-      await refresh();
-      router.push(
+      establishSession(r.user);
+      await router.push(
         r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/products',
       );
     } catch (err) {
       showToast((err as Error).message, 'error');
+    } finally {
       setBusy(false);
     }
   }

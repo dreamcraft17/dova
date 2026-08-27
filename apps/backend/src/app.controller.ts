@@ -95,7 +95,7 @@ export class AppController {
   @Public()
   @Throttle({ auth: { limit: 20, ttl: 60_000 } })
   @Post('auth/refresh') async refresh(@Req() req: AuthenticatedRequest, @Body() body: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refreshToken ?? body.refreshToken;
+    const refreshToken = body.refreshToken ?? req.cookies?.refreshToken;
     const result = await this.service.refresh(refreshToken);
     res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
     res.cookie('refreshToken', result.refreshToken, this.cookieOptions(604800000));
