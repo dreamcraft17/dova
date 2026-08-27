@@ -2,6 +2,26 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.5.1] — 2026-08-27
+
+> **Author:** Dozer  
+> **Range:** after `v0.5.0` → `HEAD` · **SemVer bump:** `patch`
+
+### Added
+- **Release readiness audit** — combined QA, bug triage, and backend review (`tests/DOVA-RELEASE-READINESS-AUDIT.md`).
+- **QA Postman guide** — 67-endpoint checklist for manual API smoke (`tests/DOVA-API-QA-POSTMAN.md`) (`2d35c0c`, `54c3009`).
+
+### Fixed
+- **Supplier approve/reject** — Postgres `42P08` type coercion on `setSupplierStatus` (`00c8601`).
+- **Staging login loop** — stale API cookie overrode fresh Bearer token on `/auth/me`; guard prefers Authorization header (`fc177d6`).
+
+### Docs
+- Removed internal stakeholder / duplicate status docs from app repo (canonical copies live in `dova-company-wiki/`).
+
+**Tag command:** `git tag -a v0.5.1 -m 'Release v0.5.1' && git push origin v0.5.1`
+
+---
+
 ## [0.5.0] — 2026-08-26
 
 > **Author:** Dozer  
