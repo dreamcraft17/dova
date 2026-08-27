@@ -86,8 +86,10 @@ async function main() {
   log(`6c. POST /auth/verify-otp (${customerEmail})`);
   const verified = await req('POST', '/auth/verify-otp', {
     body: { email: customerEmail, code: otpCode, rememberMe: true },
-    expectStatus: 200,
   });
+  if (verified.status !== 200 && verified.status !== 201) {
+    throw new Error(`verify-otp expected 200/201 got ${verified.status}: ${JSON.stringify(verified.data)}`);
+  }
   const customer = verified.data;
   if (!customer.accessToken) throw new Error('verify-otp missing accessToken');
 
