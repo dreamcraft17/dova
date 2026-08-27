@@ -96,7 +96,7 @@ Templates: `.env.example`, `apps/backend/.env.example`, `tests/vps-*.env.example
 | `DATABASE_URL` | PostgreSQL (required when in-memory off) |
 | `JWT_SECRET` | Auth signing secret (`openssl rand -hex 32`) |
 | `FRONTEND_URL` | CORS + redirects — must match storefront origin |
-| `CROSS_SITE_COOKIES` | `true` when API and frontend are on different domains (staging) |
+| `CROSS_SITE_COOKIES` | `true` when API and frontend are on different domains (production) |
 | `ADMIN_PASSWORD` / `SUPPLIER_PASSWORD` | Demo account passwords for seed/bootstrap |
 | `PAYSTACK_SECRET_KEY` | Paystack secret; empty → mock payment |
 | `PAYSTACK_CURRENCY` | `NGN` |
@@ -170,7 +170,7 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock*
 
 ## Deployment
 
-### Staging / VPS (PM2)
+### Production / VPS (PM2)
 
 ```bash
 git pull
@@ -216,4 +216,4 @@ In-memory when `USE_IN_MEMORY=true`; admin UI under **Admin → Feedback**.
 - Currency UI is **₦ (NGN)** throughout.
 - Supplier products accept multipart **image** upload (JPG/PNG/WEBP, max 5 MB) or image URL.
 - Contact submissions appear under Admin → **Contacts**.
-- Auth on cross-origin staging uses **Bearer tokens** in `sessionStorage` plus optional cookies when `CROSS_SITE_COOKIES=true`.
+- Auth on cross-origin production uses **Bearer tokens** in `sessionStorage` plus optional cookies when `CROSS_SITE_COOKIES=true`.
