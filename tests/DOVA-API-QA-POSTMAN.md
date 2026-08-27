@@ -1,9 +1,9 @@
-# DOVA — Daftar API Endpoint untuk QA (Postman / Insomnia)
+# DOVA — API Endpoint List for QA (Postman / Insomnia)
 
 > **Status:** Active · **Last updated:** 2026-08-27 · **Author:** Dozer  
-> **Base path:** `/api/v1` · **Sumber:** `apps/backend/src/app.controller.ts` (HEAD `fc177d6`)
+> **Base path:** `/api/v1` · **Source:** `apps/backend/src/app.controller.ts` (HEAD `fc177d6`)
 
-Dokumen ini untuk **manual API testing** oleh QA — Postman, Insomnia, Bruno, atau `curl`. Untuk skenario UI/UAT, lihat [TEST-CASES.md](./TEST-CASES.md).
+This document is for **manual API testing** by QA — Postman, Insomnia, Bruno, or `curl`. For UI/UAT scenarios, see [TEST-CASES.md](./TEST-CASES.md).
 
 ---
 
@@ -14,25 +14,25 @@ Dokumen ini untuk **manual API testing** oleh QA — Postman, Insomnia, Bruno, a
 | **Staging** | `https://api.dova.dntech.id/api/v1` | https://dova.dntech.id |
 | **Local** | `http://localhost:3000/api/v1` | http://localhost:3001 |
 
-### Postman — variabel disarankan
+### Postman — recommended variables
 
-| Variable | Contoh |
-|----------|--------|
+| Variable | Example |
+|----------|---------|
 | `baseUrl` | `https://api.dova.dntech.id/api/v1` |
-| `accessToken` | *(isi otomatis setelah login)* |
-| `refreshToken` | *(isi otomatis setelah login)* |
-| `orderId` | *(set setelah create order)* |
-| `productId` | *(dari GET /products)* |
-| `supplierProfileId` | *(dari GET /admin/suppliers/pending)* |
+| `accessToken` | *(auto-fill after login)* |
+| `refreshToken` | *(auto-fill after login)* |
+| `orderId` | *(set after create order)* |
+| `productId` | *(from GET /products)* |
+| `supplierProfileId` | *(from GET /admin/suppliers/pending)* |
 
-### Auth di Postman
+### Auth in Postman
 
-Staging memakai **subdomain terpisah** (frontend ≠ API). Untuk API test, pakai **Bearer token** dari body response login — jangan andalkan cookie saja.
+Staging uses **separate subdomains** (frontend ≠ API). For API tests, use the **Bearer token** from the login response body — do not rely on cookies alone.
 
-1. `POST {{baseUrl}}/auth/login` dengan body JSON (lihat § Auth).
-2. Copy `accessToken` dari response → set `{{accessToken}}`.
+1. `POST {{baseUrl}}/auth/login` with JSON body (see § Auth).
+2. Copy `accessToken` from the response → set `{{accessToken}}`.
 3. Collection auth type: **Bearer Token** = `{{accessToken}}`.
-4. Header wajib: `Content-Type: application/json` (kecuali multipart).
+4. Required header: `Content-Type: application/json` (except multipart).
 
 **Demo accounts**
 
@@ -40,22 +40,22 @@ Staging memakai **subdomain terpisah** (frontend ≠ API). Untuk API test, pakai
 |------|-------|----------|
 | Admin | `admin@dova.local` | `admin1234` |
 | Supplier | `supplier@dova.local` | `supplier1234` |
-| Customer | Register via API atau UI | password ≥ 8 karakter |
+| Customer | Register via API or UI | password ≥ 8 characters |
 
-### Rate limit (auth)
+### Rate limits (auth)
 
 | Group | Limit |
 |-------|-------|
-| `POST /auth/login`, `/auth/register` | 10 req / menit / IP |
-| `POST /auth/refresh` | 20 req / menit / IP |
+| `POST /auth/login`, `/auth/register` | 10 req / minute / IP |
+| `POST /auth/refresh` | 20 req / minute / IP |
 
 ---
 
-## Ringkasan endpoint (67 route)
+## Endpoint summary (67 routes)
 
-| Grup | Public | Customer | Supplier | Admin | Auth campuran |
-|------|--------|----------|----------|-------|----------------|
-| Jumlah | 18 | 12 | 11 | 14 | 12 |
+| Group | Public | Customer | Supplier | Admin | Mixed auth |
+|-------|--------|----------|----------|-------|------------|
+| Count | 18 | 12 | 11 | 14 | 12 |
 
 ---
 
@@ -87,7 +87,7 @@ Status: **200**
 | 7 | POST | `/auth/refresh` | refresh body/cookie | P1 |
 | 8 | GET | `/auth/me` | Bearer | **P0** |
 
-> OTP (`/auth/verify-otp`, `/auth/resend-otp`) **disabled** di production — skip.
+> OTP (`/auth/verify-otp`, `/auth/resend-otp`) is **disabled** in production — skip.
 
 ### Sample — POST `/auth/register`
 
@@ -103,8 +103,8 @@ Status: **200**
 | Case | Expected |
 |------|----------|
 | Valid | **201** — user object, no tokens (register only) |
-| Email duplikat | **400** — Email already registered |
-| Password < 8 | **400** validation |
+| Duplicate email | **400** — Email already registered |
+| Password < 8 | **400** validation error |
 
 ### Sample — POST `/auth/login`
 
@@ -158,10 +158,10 @@ Expected: **200** — user profile (role, email, isActive)
 
 **Query — GET `/products`**
 
-| Param | Contoh |
-|-------|--------|
+| Param | Example |
+|-------|---------|
 | `search` | `rice` |
-| `categoryId` | *(UUID dari /categories)* |
+| `categoryId` | *(UUID from /categories)* |
 | `page` | `1` |
 | `limit` | `20` |
 
@@ -194,9 +194,9 @@ Expected: **200** — `{ data: [...], pagination: { page, limit, total } }`
 | Case | Expected |
 |------|----------|
 | Valid | **201** — cart updated |
-| Tanpa slot | **400** |
+| Missing delivery slot | **400** |
 | Qty > stock | **400** |
-| Bukan customer (admin token) | **403** |
+| Non-customer token (admin) | **403** |
 
 ### Sample — POST `/orders`
 
@@ -209,13 +209,13 @@ Expected: **200** — `{ data: [...], pagination: { page, limit, total } }`
 }
 ```
 
-**Min order (NGN):** pickup **₦3,000** · delivery **₦5,000**
+**Minimum order (NGN):** pickup **₦3,000** · delivery **₦5,000**
 
 | Case | Expected |
 |------|----------|
-| Cart di bawah minimum | **400** — “Add ₦X more…” |
+| Cart below minimum | **400** — “Add ₦X more…” |
 | Valid delivery | **201** — order + `orderId` |
-| Pickup | `fulfillmentType: "pickup"` — alamat opsional |
+| Pickup | `fulfillmentType: "pickup"` — address optional |
 
 ---
 
@@ -237,15 +237,15 @@ Expected: **200** — `{ data: [...], pagination: { page, limit, total } }`
 }
 ```
 
-> Amount in **kobo** (₦5,500 = `550000`). Confirm dengan response order.
+> Amount is in **kobo** (₦5,500 = `550000`). Confirm against the order response.
 
 | Case | Expected |
 |------|----------|
 | Valid + Paystack key set | **201** — authorization URL / reference |
 | Mock mode (no secret) | **201** — mock reference |
-| Order bukan milik user | **403/404** |
+| Order not owned by user | **403/404** |
 
-**Webhook:** butuh header `x-paystack-signature` — test via Paystack dashboard atau skip manual QA.
+**Webhook:** requires `x-paystack-signature` header — test via Paystack dashboard or skip in manual QA.
 
 ---
 
@@ -274,7 +274,7 @@ Expected: **200** — `{ data: [...], pagination: { page, limit, total } }`
 | `email` | `supplier.qa+001@example.com` |
 | `password` | `password123` |
 | `phone` | `+2348012345678` |
-| `verificationDocs` | *(file PDF/JPG/PNG ≤ 5 MB)* |
+| `verificationDocs` | *(PDF/JPG/PNG file ≤ 5 MB)* |
 
 Expected: **201** — `{ status: "pending", id }`
 
@@ -284,7 +284,7 @@ Expected: **201** — `{ status: "pending", id }`
 { "status": "processing" }
 ```
 
-Allowed: `processing` → `shipped` → `delivered`
+Allowed flow: `processing` → `shipped` → `delivered`
 
 ---
 
@@ -334,7 +334,7 @@ Allowed: `processing` → `shipped` → `delivered`
 
 | Case | Expected |
 |------|----------|
-| Admin deactivate diri sendiri | **400** |
+| Admin deactivates own account | **400** |
 | Valid toggle | **200** |
 
 ### Sample — POST `/admin/users/:id/reset-password`
@@ -359,7 +359,7 @@ Allowed: `processing` → `shipped` → `delivered`
 }
 ```
 
-Expected: **201** — muncul di `GET /admin/contacts`
+Expected: **201** — appears in `GET /admin/contacts`
 
 ---
 
@@ -403,9 +403,9 @@ Values: `open` | `planned` | `in_progress` | `done`
 
 ---
 
-## Urutan smoke test (QA — ~30 menit)
+## Smoke test order (QA — ~30 min)
 
-Jalankan berurutan; simpan ID ke environment variables.
+Run in sequence; save IDs to environment variables.
 
 ```
 1.  GET  /health
@@ -413,7 +413,7 @@ Jalankan berurutan; simpan ID ke environment variables.
 3.  GET  /auth/me
 4.  GET  /categories
 5.  GET  /products            → save productId
-6.  POST /auth/register       (customer baru) → login customer
+6.  POST /auth/register       (new customer) → login as customer
 7.  POST /cart/add
 8.  GET  /cart
 9.  POST /orders              → save orderId
@@ -424,7 +424,7 @@ Jalankan berurutan; simpan ID ke environment variables.
 14. GET  /suppliers/orders
 15. POST /auth/login          (admin)
 16. GET  /admin/dashboard
-17. GET  /admin/suppliers/pending → approve jika ada
+17. GET  /admin/suppliers/pending → approve if any pending
 18. GET  /admin/users
 19. GET  /admin/orders
 20. POST /contact
@@ -439,17 +439,17 @@ Jalankan berurutan; simpan ID ke environment variables.
 
 | ID | Request | Expected |
 |----|---------|----------|
-| NEG-01 | GET `/admin/dashboard` dengan customer token | **403** |
-| NEG-02 | GET `/cart` tanpa token | **401** |
+| NEG-01 | GET `/admin/dashboard` with customer token | **403** |
+| NEG-02 | GET `/cart` without token | **401** |
 | NEG-03 | POST `/cart/add` qty = 0 | **400** |
 | NEG-04 | GET `/products/not-a-uuid` | **404** |
-| NEG-05 | POST `/auth/login` password salah | **401** |
-| NEG-06 | GET `/auth/me` token expired / invalid | **401** |
-| NEG-07 | POST `/orders` cart kosong | **400** |
+| NEG-05 | POST `/auth/login` wrong password | **401** |
+| NEG-06 | GET `/auth/me` expired / invalid token | **401** |
+| NEG-07 | POST `/orders` with empty cart | **400** |
 
 ---
 
-## curl cepat (copy-paste)
+## Quick curl (copy-paste)
 
 ```bash
 BASE=https://api.dova.dntech.id/api/v1
@@ -469,12 +469,12 @@ curl -s -H "Authorization: Bearer $TOKEN" "$BASE/admin/dashboard"
 
 ---
 
-## Referensi
+## References
 
 | Doc | Path |
 |-----|------|
-| API ringkas (wiki) | `dova-company-wiki/docs/API.md` |
-| Test cases UI | [TEST-CASES.md](./TEST-CASES.md) |
+| API summary (wiki) | `dova-company-wiki/docs/API.md` |
+| UI test cases | [TEST-CASES.md](./TEST-CASES.md) |
 | QA workflow | [GUIDE.md](./GUIDE.md) |
 | Paystack test mode | [PAYSTACK-TEST-MODE.md](./PAYSTACK-TEST-MODE.md) |
 | Deploy / env | [ENV-SETUP.md](./ENV-SETUP.md) |
