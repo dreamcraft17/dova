@@ -430,6 +430,11 @@ describe('AppService', () => {
       }
     });
 
+    it('returns not found for invalid product id format', async () => {
+      const { service } = makeService();
+      await expect(service.product('not-a-uuid')).rejects.toThrow('Product not found');
+    });
+
     it('supports supplier product CRUD and stock adjustments', async () => {
       const { service } = makeService();
       const supplier = service.users.find(user => user.role === 'supplier')!;

@@ -19,6 +19,7 @@
     "db:reset-logins": "node scripts/reset-demo-logins.js",
     "db:seed:week3": "node scripts/seed-week3.js",
     "smoke:week4": "node scripts/smoke-week4.js",
+    "smoke:staging": "node scripts/smoke-staging-api.js",
     "typecheck": "npm run build -w shared && npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "lint": "npm run typecheck"
   },

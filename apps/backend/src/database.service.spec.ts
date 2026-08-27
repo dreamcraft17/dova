@@ -120,4 +120,29 @@ describe('DatabaseService', () => {
       expect.any(Array),
     );
   });
+
+  it('setSupplierStatus casts status param as varchar (approved)', async () => {
+    const { pool, queries } = makePool();
+    const service = new DatabaseService();
+    (service as unknown as { pool: typeof pool }).pool = pool;
+
+    await service.setSupplierStatus('sup-1', 'approved');
+    expect(queries.some((q) => q.text.includes('$1::varchar'))).toBe(true);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('verification_status = $1::varchar'),
+      ['approved', null, 'sup-1'],
+    );
+  });
+
+  it('setSupplierStatus stores rejection reason', async () => {
+    const { pool } = makePool();
+    const service = new DatabaseService();
+    (service as unknown as { pool: typeof pool }).pool = pool;
+
+    await service.setSupplierStatus('sup-2', 'rejected', 'Incomplete docs');
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('rejection_reason = $2'),
+      ['rejected', 'Incomplete docs', 'sup-2'],
+    );
+  });
 });

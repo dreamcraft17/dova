@@ -2,6 +2,26 @@
 
 All notable changes to the DOVA marketplace project.
 
+## [0.5.2] — 2026-08-27
+
+> **Author:** Dozer  
+> **Release:** Soft launch — staging `dova.dntech.id`
+
+### Added
+- **`npm run smoke:staging`** — automated 23-step API smoke + NEG-01..07 against staging (`scripts/smoke-staging-api.js`).
+- **JWT guard tests** — Bearer token preferred over stale cookie (`jwt-auth.guard.spec.ts`).
+- **`setSupplierStatus` DB tests** — varchar cast regression coverage.
+
+### Fixed
+- **GET `/products/:id`** — invalid UUID returns **404** instead of **500** (Postgres error).
+
+### Verified (staging)
+- 127 unit tests green · full API smoke pass · VPS @ `v0.5.2` · Paystack `mode: paystack`
+
+**Tag command:** `git tag -a v0.5.2 -m 'Soft launch v0.5.2' && git push origin v0.5.2`
+
+---
+
 ## [0.5.1] — 2026-08-27
 
 > **Author:** Dozer  
