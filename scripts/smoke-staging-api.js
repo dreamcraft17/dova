@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Full staging API smoke (23 steps + NEG-01..07). Saves log to tests/smoke-staging-latest.log */
+/** Full production API smoke (23 steps + NEG-01..07). Default: api.dova.dntech.id */
 const fs = require('fs');
 const path = require('path');
 
@@ -174,7 +174,7 @@ async function main() {
   log('NEG-06 invalid token → 401');
   await req('GET', '/auth/me', { token: 'invalid.jwt.token', expectStatus: 401 });
 
-  log('PASS — staging API smoke (23 + 7 negative)');
+  log('PASS — production API smoke (23 + 7 negative)');
   const out = path.join(__dirname, '../tests/smoke-staging-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);

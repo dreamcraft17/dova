@@ -11,7 +11,7 @@ This document is for **manual API testing** by QA — Postman, Insomnia, Bruno, 
 
 | Env | Base URL | Storefront |
 |-----|----------|------------|
-| **Staging** | `https://api.dova.dntech.id/api/v1` | https://dova.dntech.id |
+| **Production** | `https://api.dova.dntech.id/api/v1` | https://dova.dntech.id |
 | **Local** | `http://localhost:3000/api/v1` | http://localhost:3001 |
 
 ### Postman — recommended variables
@@ -27,7 +27,7 @@ This document is for **manual API testing** by QA — Postman, Insomnia, Bruno, 
 
 ### Auth in Postman
 
-Staging uses **separate subdomains** (frontend ≠ API). For API tests, use the **Bearer token** from the login response body — do not rely on cookies alone.
+Production uses **separate subdomains** (frontend ≠ API). For API tests, use the **Bearer token** from the login response — do not rely on cookies alone.
 
 1. `POST {{baseUrl}}/auth/login` with JSON body (see § Auth).
 2. Copy `accessToken` from the response → set `{{accessToken}}`.

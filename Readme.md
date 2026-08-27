@@ -6,7 +6,7 @@ Agricultural marketplace MVP — connects buyers with verified suppliers in Nige
 **Stack:** Node.js 20 · NestJS 11 · Next.js 16 · PostgreSQL · Redis (optional) · Paystack  
 **UI:** DOVA-Startup brand (green / gold)
 
-**Staging:** [dova.dntech.id](https://dova.dntech.id) · API [api.dova.dntech.id](https://api.dova.dntech.id/api/v1/health)
+**Production:** [dova.dntech.id](https://dova.dntech.id) · API [api.dova.dntech.id](https://api.dova.dntech.id/api/v1/health)
 
 ---
 

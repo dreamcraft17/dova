@@ -1,8 +1,9 @@
-# DOVA — Staging Smoke Result
+# DOVA — Production Smoke Result
 
-> **Author:** Dozer · **Date:** 2026-08-27 · **HEAD:** `b17e2a5` · **Tag:** `v0.5.2`
+> **Author:** Dozer · **Date:** 2026-08-27 · **HEAD:** `b17e2a5` · **Tag:** `v0.5.2`  
+> **Environment:** **Production** — `dova.dntech.id` / `api.dova.dntech.id`
 
-**Command:** `npm run smoke:staging`  
+**Command:** `npm run smoke:production`  
 **Result:** **PASS** — 23 API steps + NEG-01..07
 
 ```
@@ -30,7 +31,7 @@ NEG-02 cart without token → 401
 NEG-04 invalid product id → 404
 NEG-05 wrong password → 401
 NEG-06 invalid token → 401
-PASS — staging API smoke (23 + 7 negative)
+PASS — production API smoke (23 + 7 negative)
 ```
 
 Also: `API_URL=https://api.dova.dntech.id/api/v1 npm run smoke:week4` → **PASS**
