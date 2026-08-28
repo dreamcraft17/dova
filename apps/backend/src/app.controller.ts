@@ -269,6 +269,11 @@ export class AppController {
   }
 
   @Roles('admin')
+  @Delete('admin/users/:id') deleteAdminUser(@Param('id') id: string, @CurrentUser() actor: StoredUser) {
+    return this.service.deleteAdminUser(id, actor.id);
+  }
+
+  @Roles('admin')
   @Get('admin/products') adminProducts() { return this.service.adminProducts(); }
 
   @Roles('admin')

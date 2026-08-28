@@ -139,6 +139,25 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
     }
   }
 
+  async function deleteUser() {
+    if (!userId || isSelf) return;
+    const label = detail?.email || 'this user';
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await api(`/admin/users/${userId}`, { method: 'DELETE' });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  const canDelete = Boolean(detail && !isSelf && (detail.orderCount ?? 0) === 0);
+
   if (!open || !userId || !mounted) return null;
 
   return createPortal(
@@ -276,6 +295,27 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
                   </button>
                 </div>
               </form>
+
+              {!isSelf && (
+                <div className="admin-user-form admin-user-danger">
+                  <h2>Delete account</h2>
+                  <p className="form-hint">
+                    {canDelete
+                      ? 'Permanently remove this user. Use this for failed registrations or test accounts.'
+                      : 'Users with order history cannot be deleted. Deactivate the account instead.'}
+                  </p>
+                  <div className="admin-user-form-actions">
+                    <button
+                      type="button"
+                      className="admin-dash-btn admin-dash-btn-danger"
+                      disabled={busy || !canDelete}
+                      onClick={() => void deleteUser()}
+                    >
+                      Delete user
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {error && <p className="error admin-user-error">{error}</p>}
               {message && <p className="admin-user-success">{message}</p>}

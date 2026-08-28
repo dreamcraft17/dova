@@ -705,6 +705,31 @@ export class AppService {
     if (user) user.isActive = active;
     return { id, isActive: active };
   }
+  async deleteAdminUser(id: string, actorId: string) {
+    if (id === actorId) throw new BadRequestException('You cannot delete your own account');
+    const user = await this.findUser(id, true);
+    if (!user) throw new NotFoundException('User not found');
+    const supplier = this.suppliers.find((entry) => entry.userId === id)
+      ?? (this.database.enabled ? await this.database.findSupplierByUser(id) : undefined);
+    const orderCount = (await this.database.userOrderCount(id))
+      ?? this.orders.filter((order) => order.customerId === id).length;
+    const supplierOrderCount = (await this.database.userSupplierOrderCount(id))
+      ?? (supplier
+        ? this.orders.reduce(
+            (count, order) => count + order.items.filter((item) => item.product.supplierId === supplier.id).length,
+            0,
+          )
+        : 0);
+    if (orderCount > 0 || supplierOrderCount > 0) {
+      throw new BadRequestException('Cannot delete a user with order history. Deactivate the account instead.');
+    }
+    await this.database.revokeAllUserSessions(id);
+    await this.database.deleteUser(id);
+    this.users = this.users.filter((entry) => entry.id !== id);
+    this.suppliers = this.suppliers.filter((entry) => entry.userId !== id);
+    this.carts.delete(id);
+    return { message: 'User deleted successfully' };
+  }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }

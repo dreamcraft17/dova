@@ -111,6 +111,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async revokeAllUserSessions(userId: string) {
     if (this.pool) await this.pool.query('DELETE FROM user_sessions WHERE user_id=$1', [userId]);
   }
+  async userOrderCount(userId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT COUNT(*)::int AS count FROM orders WHERE customer_id=$1', [userId]);
+    return result.rows[0].count as number;
+  }
+  async userSupplierOrderCount(userId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM order_items oi
+       JOIN supplier_profiles sp ON sp.id = oi.supplier_id
+       WHERE sp.user_id = $1`,
+      [userId],
+    );
+    return result.rows[0].count as number;
+  }
+  async deleteUser(userId: string) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE supplier_profiles SET verified_by = NULL WHERE verified_by = $1', [userId]);
+    await this.pool.query('DELETE FROM users WHERE id = $1', [userId]);
+  }
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
   async revokeSession(refreshToken?: string) { if (this.pool && refreshToken) await this.pool.query('DELETE FROM user_sessions WHERE token_hash=$1', [digest(refreshToken)]); }

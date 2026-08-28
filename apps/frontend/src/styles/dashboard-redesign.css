@@ -474,6 +474,21 @@
   background: #d5ddd8;
 }
 
+.admin-dash-btn-danger {
+  background: #b42318;
+  color: #fff;
+}
+
+.admin-dash-btn-danger:hover:not(:disabled) {
+  background: #912018;
+}
+
+.admin-user-danger {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid #ececec;
+}
+
 .admin-user-modal-backdrop {
   z-index: 2000;
 }

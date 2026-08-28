@@ -31,6 +31,9 @@ function makeService() {
     updatePasswordResetResend: jest.fn(),
     clearPasswordReset: jest.fn(),
     revokeAllUserSessions: jest.fn(),
+    userOrderCount: jest.fn().mockResolvedValue(0),
+    userSupplierOrderCount: jest.fn().mockResolvedValue(0),
+    deleteUser: jest.fn(),
     saveSession: jest.fn(),
     hasSession: jest.fn().mockResolvedValue(true),
     revokeSession: jest.fn(),
@@ -698,6 +701,30 @@ describe('AppService', () => {
       expect(result.message).toContain('Password updated');
       expect(user.passwordHash).not.toBe(oldHash);
       expect(database.updateUserPassword).toHaveBeenCalled();
+    });
+
+    it('deletes a user without order history', async () => {
+      const { service, database } = makeService();
+      await service.register({ fullName: 'Delete Me', email: 'delete@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'delete@example.com')!;
+      const result = await service.deleteAdminUser(user.id, 'other-admin-id');
+      expect(result.message).toContain('deleted');
+      expect(service.users.some((entry) => entry.id === user.id)).toBe(false);
+      expect(database.deleteUser).toHaveBeenCalledWith(user.id);
+    });
+
+    it('blocks deleting users with order history', async () => {
+      const { service, database } = makeService();
+      await registerAndVerify(service, { fullName: 'Buyer', email: 'buyer@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'buyer@example.com')!;
+      database.userOrderCount.mockResolvedValueOnce(1);
+      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
+    });
+
+    it('blocks admins from deleting themselves', async () => {
+      const { service } = makeService();
+      const admin = service.users.find((entry) => entry.email === 'admin@dova.local')!;
+      await expect(service.deleteAdminUser(admin.id, admin.id)).rejects.toThrow('your own account');
     });
 
     it('deactivates a product from the admin catalog', async () => {
