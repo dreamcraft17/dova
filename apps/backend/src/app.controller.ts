@@ -1,9 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
@@ -111,6 +111,14 @@ export class AppController {
   }
 
   @Get('auth/me') me(@CurrentUser() user: StoredUser) { return this.service.publicUser(user); }
+
+  @Patch('auth/me') updateProfile(@CurrentUser() user: StoredUser, @Body() body: UpdateProfileDto) {
+    return this.service.updateProfile(user.id, body);
+  }
+
+  @Post('auth/change-password') changePassword(@CurrentUser() user: StoredUser, @Body() body: ChangePasswordDto) {
+    return this.service.changePassword(user.id, body.currentPassword, body.newPassword, body.confirmPassword);
+  }
 
   @Public()
   @Get('categories') categories() { return this.service.listCategories(); }

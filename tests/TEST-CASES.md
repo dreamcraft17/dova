@@ -2,7 +2,7 @@
 
 **Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
-**Automated:** `npm run test` — **146 tests** · `npm run smoke:production` (28 API steps + 10 negative) · `npm run smoke:week4`  
+**Automated:** `npm run test` — **151 tests** · `npm run smoke:production` (29 API steps + 10 negative) · `npm run smoke:week4`  
 **QA workflow:** see [GUIDE.md](./GUIDE.md)  
 **Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`  
 **Local URLs:** storefront http://localhost:3001 · API http://localhost:3000/api/v1 · feedback http://localhost:3001/feedback
@@ -38,8 +38,11 @@
 | AUTH-09 | Checkout login modal | Guest checkout → prompted to login | Modal login; resume checkout after auth |
 | AUTH-10 | Forgot password | `/auth/forgot-password` verified email | Generic success message; reset email sent |
 | AUTH-11 | Reset password | `/auth/reset-password` with OTP | Password updated; old sessions revoked; login with new password |
+| AUTH-12 | Edit profile | `/customer/profile` → change name/phone → Save | `PATCH /auth/me` persists; badge shows verified email |
+| AUTH-13 | Change password (signed in) | Profile → Security → current + new password | Sessions revoked; redirect to login; new password works |
+| AUTH-14 | Route consolidation | Visit `/customer` or `?tab=history` | Redirects to `/customer/history`; profile nav links to history/cart |
 
-**Automated coverage:** `AppService` register/login/refresh/revoke/forgot/reset · `auth.test.js` · smoke steps 24–26
+**Automated coverage:** `AppService` register/login/refresh/revoke/forgot/reset/profile/change-password · `auth.test.js` · smoke step 6d + steps 24–26
 
 ---
 

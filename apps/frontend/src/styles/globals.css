@@ -1633,6 +1633,7 @@ form .button {
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .profile-nav-item:last-child {

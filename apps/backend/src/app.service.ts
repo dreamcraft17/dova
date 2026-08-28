@@ -287,6 +287,45 @@ export class AppService {
     await this.database.revokeAllUserSessions(u.id);
     return { message: 'Password updated. You can sign in with your new password.' };
   }
+  async updateProfile(userId: string, body: { fullName: string; phoneNumber?: string }) {
+    const fullName = body.fullName?.trim();
+    if (!fullName || fullName.length < 2) throw new BadRequestException('Invalid profile data');
+    let phoneNumber: string | undefined;
+    if (body.phoneNumber !== undefined) {
+      const trimmed = body.phoneNumber.trim();
+      if (trimmed && trimmed.length < 7) throw new BadRequestException('Invalid phone number');
+      phoneNumber = trimmed || undefined;
+    }
+    const user = await this.findUser(userId, true);
+    if (!user) throw new NotFoundException('User not found');
+    user.fullName = fullName;
+    if (body.phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    this.syncUserRecord(user);
+    await this.database.updateSelfProfile(userId, {
+      fullName,
+      phoneNumber: body.phoneNumber !== undefined ? phoneNumber : user.phoneNumber,
+    });
+    return this.publicUser(user);
+  }
+  async changePassword(userId: string, currentPassword: string, newPassword: string, confirmPassword: string) {
+    if (!currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 8) {
+      throw new BadRequestException('Invalid password data');
+    }
+    const user = await this.findUser(userId, true);
+    if (!user) throw new NotFoundException('User not found');
+    if (!this.canSelfResetPassword(user)) throw new ForbiddenException('Password change is not available for this account');
+    if (!bcrypt.compareSync(currentPassword, user.passwordHash)) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    if (bcrypt.compareSync(newPassword, user.passwordHash)) {
+      throw new BadRequestException('New password must be different from your current password');
+    }
+    user.passwordHash = bcrypt.hashSync(newPassword, 12);
+    this.syncUserRecord(user);
+    await this.database.updateUserPassword(userId, user.passwordHash);
+    await this.database.revokeAllUserSessions(userId);
+    return { message: 'Password updated. Please sign in again with your new password.' };
+  }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }

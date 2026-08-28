@@ -120,3 +120,14 @@ export class AdminUpdateUserDto {
 export class AdminResetPasswordDto {
   @IsString() @MinLength(8) password!: string;
 }
+
+export class UpdateProfileDto {
+  @IsString() @MinLength(2) fullName!: string;
+  @IsOptional() @IsString() @MinLength(7) phoneNumber?: string;
+}
+
+export class ChangePasswordDto {
+  @IsString() @MinLength(8) currentPassword!: string;
+  @IsString() @MinLength(8) newPassword!: string;
+  @IsString() @MinLength(8) confirmPassword!: string;
+}

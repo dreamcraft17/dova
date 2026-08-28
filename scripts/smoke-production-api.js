@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Full production API smoke (28 steps + NEG-01..10). Default: api.dova.dntech.id */
+/** Full production API smoke (29 steps + NEG-01..10). Default: api.dova.dntech.id */
 const fs = require('fs');
 const path = require('path');
 
@@ -120,6 +120,19 @@ async function main() {
   }
   const customer = verified.data;
   if (!customer.accessToken) throw new Error('verify-otp missing accessToken');
+
+  log('6d. PATCH /auth/me + GET verify');
+  await reqOk('PATCH', '/auth/me', {
+    token: customer.accessToken,
+    body: { fullName: 'QA Soft Launch Updated', phoneNumber: '+2348012345678' },
+  });
+  const meAfterPatch = await req('GET', '/auth/me', { token: customer.accessToken, expectStatus: 200 });
+  if (meAfterPatch.data.fullName !== 'QA Soft Launch Updated') {
+    throw new Error(`PATCH profile fullName mismatch: ${meAfterPatch.data.fullName}`);
+  }
+  if (meAfterPatch.data.phoneNumber !== '+2348012345678') {
+    throw new Error(`PATCH profile phoneNumber mismatch: ${meAfterPatch.data.phoneNumber}`);
+  }
 
   log('7-8. Cart add + get');
   await req('POST', '/cart/add', {
@@ -270,7 +283,7 @@ async function main() {
     expectStatus: 401,
   });
 
-  log('PASS — production API smoke (28 + 10 negative)');
+  log('PASS — production API smoke (29 + 10 negative)');
   const out = path.join(__dirname, '../tests/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);

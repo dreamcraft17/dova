@@ -10,7 +10,9 @@ import {
   IconHome,
   IconMoney,
   IconPlusSquare,
+  IconUser,
 } from '../components/DashboardIcons';
+import { ProfileAccountEditor } from '../components/ProfileAccountEditor';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import type { Category, Product } from 'dova-shared';
@@ -35,6 +37,7 @@ const NAV = [
   { id: 'products', label: 'Products', icon: <IconBox /> },
   { id: 'add', label: 'Add Product', icon: <IconPlusSquare /> },
   { id: 'orders', label: 'Orders', icon: <IconCart /> },
+  { id: 'profile', label: 'Profile', icon: <IconUser /> },
 ];
 
 function productBadge(p: Product) {
@@ -612,43 +615,13 @@ export default function Supplier() {
             </>
           )}
 
-          {tab === 'profile' && (
+          {tab === 'profile' && user && (
             <>
               <h2 className="supplier-dash-title">Profile</h2>
-              <p className="supplier-dash-subtitle">Your account and business information.</p>
+              <p className="supplier-dash-subtitle">Update your account details and password.</p>
 
               <div className="supplier-dash-profile-grid">
-                <div className="supplier-dash-panel supplier-dash-profile-card">
-                  <h3>Account</h3>
-                  <dl>
-                    <div className="supplier-dash-profile-row">
-                      <dt>Full name</dt>
-                      <dd>{user?.fullName || '—'}</dd>
-                    </div>
-                    <div className="supplier-dash-profile-row">
-                      <dt>Email</dt>
-                      <dd>{user?.email || '—'}</dd>
-                    </div>
-                    <div className="supplier-dash-profile-row">
-                      <dt>Phone</dt>
-                      <dd>{user?.phoneNumber || '—'}</dd>
-                    </div>
-                    <div className="supplier-dash-profile-row">
-                      <dt>Role</dt>
-                      <dd>{user?.role || 'supplier'}</dd>
-                    </div>
-                    <div className="supplier-dash-profile-row">
-                      <dt>Account status</dt>
-                      <dd>
-                        <span
-                          className={`supplier-dash-badge ${user?.isActive ? 'success' : 'muted'}`}
-                        >
-                          {user?.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
+                <ProfileAccountEditor user={user} variant="supplier" />
 
                 <div className="supplier-dash-panel supplier-dash-profile-card">
                   <h3>Business</h3>

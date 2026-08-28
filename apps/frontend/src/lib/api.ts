@@ -38,6 +38,7 @@ const AUTH_NO_RETRY = new Set([
   '/auth/resend-otp',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/auth/change-password',
   '/auth/refresh',
 ]);
 

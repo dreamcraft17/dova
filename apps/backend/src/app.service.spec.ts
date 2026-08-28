@@ -67,6 +67,7 @@ function makeService() {
     adminUsers: jest.fn().mockResolvedValue(undefined),
     adminUserById: jest.fn().mockResolvedValue(undefined),
     updateUserProfile: jest.fn(),
+    updateSelfProfile: jest.fn(),
     updateUserPassword: jest.fn(),
     setUserActive: jest.fn(),
     adminProducts: jest.fn().mockResolvedValue(undefined),
@@ -203,6 +204,81 @@ describe('AppService', () => {
       const result = await service.forgotPassword('admin@dova.local');
       expect(result.message).toContain('password reset code');
       expect(notifications.passwordResetOtp).not.toHaveBeenCalled();
+    });
+
+    it('updates profile name and phone for signed-in users', async () => {
+      const { service, database } = makeService();
+      const session = await registerAndVerify(service, {
+        fullName: 'Jane',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      const updated = await service.updateProfile(session.user.id, {
+        fullName: 'Jane Updated',
+        phoneNumber: '+2348012345678',
+      });
+      expect(updated.fullName).toBe('Jane Updated');
+      expect(updated.phoneNumber).toBe('+2348012345678');
+      expect(database.updateSelfProfile).toHaveBeenCalledWith(session.user.id, {
+        fullName: 'Jane Updated',
+        phoneNumber: '+2348012345678',
+      });
+    });
+
+    it('rejects invalid profile phone numbers', async () => {
+      const { service } = makeService();
+      const session = await registerAndVerify(service, {
+        fullName: 'Jane',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      await expect(
+        service.updateProfile(session.user.id, { fullName: 'Jane', phoneNumber: '123' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('changes password when current password is correct', async () => {
+      const { service, database } = makeService();
+      const session = await registerAndVerify(service, {
+        fullName: 'Jane',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      const result = await service.changePassword(
+        session.user.id,
+        'password123',
+        'newpassword99',
+        'newpassword99',
+      );
+      expect(result.message).toContain('Password updated');
+      expect(database.updateUserPassword).toHaveBeenCalled();
+      expect(database.revokeAllUserSessions).toHaveBeenCalled();
+      await expect(service.login('jane@example.com', 'password123')).rejects.toBeInstanceOf(UnauthorizedException);
+      const login = await service.login('jane@example.com', 'newpassword99');
+      expect(login.user.email).toBe('jane@example.com');
+    });
+
+    it('rejects change password with wrong current password', async () => {
+      const { service } = makeService();
+      const session = await registerAndVerify(service, {
+        fullName: 'Jane',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+      await expect(
+        service.changePassword(session.user.id, 'wrongpass', 'newpassword99', 'newpassword99'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects admin in-app password change', async () => {
+      const { service } = makeService();
+      await expect(
+        service.changePassword(service.users[0].id, 'admin1234', 'newpassword99', 'newpassword99'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('uses a generic error for invalid credentials', async () => {

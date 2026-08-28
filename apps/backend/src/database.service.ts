@@ -257,6 +257,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       [profile.fullName, profile.email, profile.phoneNumber || null, profile.role, profile.isActive, userId],
     );
   }
+  async updateSelfProfile(userId: string, profile: { fullName: string; phoneNumber?: string }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET full_name=$1, phone_number=$2, updated_at=NOW() WHERE id=$3',
+      [profile.fullName, profile.phoneNumber || null, userId],
+    );
+  }
   async updateUserPassword(userId: string, passwordHash: string) {
     if (!this.pool) return;
     await this.pool.query('UPDATE users SET password_hash=$1,updated_at=NOW() WHERE id=$2', [passwordHash, userId]);

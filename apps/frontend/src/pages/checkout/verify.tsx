@@ -90,7 +90,7 @@ export default function Verify() {
                 <p>
                   Your order number is <strong>{order.orderNumber}</strong>.
                 </p>
-                <Link className="button" href="/customer">
+                <Link className="button" href="/customer/history">
                   View my orders
                 </Link>
               </>

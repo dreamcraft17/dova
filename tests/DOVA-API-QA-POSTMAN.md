@@ -90,6 +90,8 @@ Status: **200**
 | 6 | POST | `/auth/logout` | Bearer / cookie | P1 |
 | 7 | POST | `/auth/refresh` | refresh body/cookie | P1 |
 | 8 | GET | `/auth/me` | Bearer | **P0** |
+| 8b | PATCH | `/auth/me` | Bearer | P1 |
+| 8c | POST | `/auth/change-password` | Bearer | P1 |
 
 > Email verification is **required** for new customers. After register, use `/auth/verify-otp` before login.
 
@@ -211,7 +213,34 @@ Expected: **201** — new `accessToken` + `refreshToken`
 
 Header: `Authorization: Bearer {{accessToken}}`
 
-Expected: **200** — user profile (role, email, isActive)
+Expected: **200** — user profile (role, email, isActive, emailVerifiedAt, phoneNumber)
+
+### Sample — PATCH `/auth/me`
+
+Header: `Authorization: Bearer {{accessToken}}`
+
+```json
+{
+  "fullName": "Jane Updated",
+  "phoneNumber": "+2348012345678"
+}
+```
+
+Expected: **200** — updated user profile
+
+### Sample — POST `/auth/change-password`
+
+Header: `Authorization: Bearer {{accessToken}}`
+
+```json
+{
+  "currentPassword": "password123",
+  "newPassword": "newpassword123",
+  "confirmPassword": "newpassword123"
+}
+```
+
+Expected: **201** — `{ "message": "Password updated. Please sign in again with your new password." }` (all sessions revoked)
 
 ---
 
