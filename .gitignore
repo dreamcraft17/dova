@@ -18,3 +18,5 @@ tests/*EQUITY*
 tests/*COUNTER-PROPOSAL*
 tests/*LAUNCH-BUDGET*
 *Partnership Proposal*
+
+.cursor/
