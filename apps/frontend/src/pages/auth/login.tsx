@@ -52,8 +52,23 @@ export default function Login() {
     } catch (err) {
       const message = (err as Error).message;
       if (/verify your email/i.test(message)) {
-        showToast('Verify your email to continue.', 'error');
-        await router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&from=login`);
+        let sent = false;
+        try {
+          await api('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ email }) });
+          sent = true;
+          showToast('Verification code sent to your email.', 'success');
+        } catch (resendErr) {
+          const resendMessage = (resendErr as Error).message;
+          showToast(
+            /wait/i.test(resendMessage)
+              ? 'Check your inbox for the verification code we sent earlier.'
+              : resendMessage,
+            'error',
+          );
+        }
+        await router.push(
+          `/auth/verify-email?email=${encodeURIComponent(email)}&from=login${sent ? '&sent=1' : ''}`,
+        );
         return;
       }
       showToast(message, 'error');
@@ -63,8 +78,8 @@ export default function Login() {
   }
 
   const verifyHref = email
-    ? `/auth/verify-email?email=${encodeURIComponent(email)}`
-    : '/auth/verify-email';
+    ? `/auth/verify-email?email=${encodeURIComponent(email)}&from=login`
+    : '/auth/verify-email?from=login';
 
   return (
     <AuthShell>

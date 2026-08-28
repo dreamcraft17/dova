@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -18,18 +18,26 @@ export default function VerifyEmail() {
   const [resendBusy, setResendBusy] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [error, setError] = useState('');
+  const autoResendStarted = useRef(false);
 
   useEffect(() => {
     if (typeof router.query.email === 'string') setEmail(router.query.email);
   }, [router.query.email]);
 
   const fromLogin = router.query.from === 'login';
+  const alreadySent = router.query.sent === '1';
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
     return () => window.clearTimeout(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (!router.isReady || !fromLogin || !email || alreadySent || autoResendStarted.current) return;
+    autoResendStarted.current = true;
+    void resend({ auto: true });
+  }, [router.isReady, fromLogin, email, alreadySent]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -51,16 +59,24 @@ export default function VerifyEmail() {
     }
   }
 
-  async function resend() {
+  async function resend(options: { auto?: boolean } = {}) {
     if (!email || resendCooldown > 0) return;
     setResendBusy(true);
     setError('');
     try {
       await api('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ email }) });
-      showToast('Verification code sent.', 'success');
+      showToast(
+        options.auto ? 'We sent a verification code to your email.' : 'Verification code sent.',
+        'success',
+      );
       setResendCooldown(60);
     } catch (err) {
       const message = (err as Error).message;
+      if (options.auto && /wait/i.test(message)) {
+        showToast('Check your inbox for the verification code we sent earlier.', 'error');
+        setResendCooldown(60);
+        return;
+      }
       setError(message);
       if (err instanceof ApiError && message.includes('wait')) setResendCooldown(60);
     } finally {
@@ -77,6 +93,11 @@ export default function VerifyEmail() {
             ? 'Your account is not verified yet. Enter the 6-digit code we sent to your inbox to sign in.'
             : 'Enter the 6-digit code we sent to your inbox to activate your account.'}
         </p>
+        {fromLogin && resendBusy ? (
+          <p className="muted" style={{ marginTop: -8, marginBottom: 16, fontSize: 14 }}>
+            Sending verification code…
+          </p>
+        ) : null}
         <form onSubmit={submit}>
           <label>Email</label>
           <input
