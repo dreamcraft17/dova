@@ -1,12 +1,14 @@
-import { FormEvent, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { passwordToggleState } from 'dova-shared';
+import { FormEvent, useMemo, useState } from 'react';
+import { Lock, Mail, User } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
+import { AuthAside } from '../../components/auth/AuthAside';
+import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthField } from '../../components/auth/AuthField';
+import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
 import { api } from '../../lib/api';
-import { PasswordInput } from '../../components/PasswordInput';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -15,21 +17,29 @@ export default function Register() {
     password: '',
     confirmPassword: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const passwordToggle = passwordToggleState(showPassword);
-  const confirmPasswordToggle = passwordToggleState(showConfirmPassword);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
 
+  const passwordChecks = useMemo(
+    () => ({
+      length: form.password.length >= 8,
+      match: form.password.length > 0 && form.password === form.confirmPassword,
+    }),
+    [form.password, form.confirmPassword],
+  );
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setError('');
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setBusy(true);
     try {
       await api('/auth/register', { method: 'POST', body: JSON.stringify(form) });
-      router.push(`/auth/verify-email?email=${encodeURIComponent(form.email)}`);
+      await router.push(`/auth/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -37,72 +47,88 @@ export default function Register() {
   }
 
   return (
-    <AuthShell>
-      <div className="register-card">
-        <h1>Create Account</h1>
-        <p>Join DOVA and start shopping directly from verified suppliers.</p>
-        <form onSubmit={submit}>
-          <label>Full Name</label>
-          <input
+    <AuthShell aside={<AuthAside variant="register" />}>
+      <AuthCard
+        title="Create your account"
+        subtitle="Register as a buyer to shop directly from verified farms and suppliers."
+        steps={[
+          { label: 'Account details', state: 'current' },
+          { label: 'Verify email', state: 'upcoming' },
+        ]}
+        notice={<p>We&apos;ll email you a 6-digit code to confirm your address before your first sign-in.</p>}
+        footer={
+          <p>
+            Already have an account? <Link href="/auth/login">Sign in</Link>
+          </p>
+        }
+      >
+        <form className="auth-form" onSubmit={submit} noValidate>
+          <AuthField
+            id="register-name"
+            label="Full name"
             type="text"
+            name="name"
+            autoComplete="name"
             required
-            placeholder="Enter your full name"
+            minLength={2}
+            placeholder="Ada Okonkwo"
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            icon={<User size={18} />}
           />
-          <label>Email</label>
-          <input
+          <AuthField
+            id="register-email"
+            label="Email address"
             type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
             required
-            placeholder="Enter your email"
+            placeholder="you@company.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            icon={<Mail size={18} />}
           />
-          <label>Password</label>
-          <div className="password-input-wrap">
-            <input
-              type={passwordToggle.inputType}
-              required
-              placeholder="Create a password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-            <button
-              type="button"
-              className="password-toggle-btn"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={passwordToggle.ariaLabel}
-            >
-              {passwordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <label>Confirm Password</label>
-          <div className="password-input-wrap">
-            <input
-              type={confirmPasswordToggle.inputType}
-              required
-              placeholder="Confirm your password"
-              value={form.confirmPassword}
-              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            />
-            <button
-              type="button"
-              className="password-toggle-btn"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={confirmPasswordToggle.ariaLabel}
-            >
-              {confirmPasswordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <button type="submit" disabled={busy}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Register'}
+          <AuthPasswordField
+            id="register-password"
+            label="Password"
+            name="new-password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="At least 8 characters"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            icon={<Lock size={18} />}
+            hint="Use at least 8 characters with letters and numbers."
+          />
+          <AuthPasswordField
+            id="register-confirm-password"
+            label="Confirm password"
+            name="confirm-password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="Re-enter your password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            icon={<Lock size={18} />}
+            error={
+              form.confirmPassword && !passwordChecks.match ? 'Passwords do not match.' : undefined
+            }
+          />
+          {form.password ? (
+            <ul className="auth-checklist" aria-live="polite">
+              <li className={passwordChecks.length ? 'is-met' : ''}>At least 8 characters</li>
+              <li className={passwordChecks.match ? 'is-met' : ''}>Passwords match</li>
+            </ul>
+          ) : null}
+          {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
+          <button type="submit" className="auth-submit" disabled={busy}>
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Continue to verification'}
           </button>
-          {error && <p className="error">{error}</p>}
         </form>
-        <div className="login-link">
-          Already have an account? <Link href="/auth/login">Login</Link>
-        </div>
-      </div>
+      </AuthCard>
     </AuthShell>
   );
 }

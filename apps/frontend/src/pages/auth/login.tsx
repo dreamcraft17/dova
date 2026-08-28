@@ -1,10 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { passwordToggleState } from 'dova-shared';
+import { Lock, Mail } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
+import { AuthAside } from '../../components/auth/AuthAside';
+import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthField } from '../../components/auth/AuthField';
+import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
 import { api, configureLoginPersistence } from '../../lib/api';
 import { clearTokens, getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
 import type { User } from 'dova-shared';
@@ -15,12 +18,12 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
-  const passwordToggle = passwordToggleState(showPassword);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { establishSession } = useAuth();
   const { showToast } = useToast();
+
+  const passwordChanged = router.query.reason === 'password-changed';
 
   useEffect(() => {
     const savedEmail = getRememberedEmail();
@@ -82,62 +85,73 @@ export default function Login() {
     : '/auth/verify-email?from=login';
 
   return (
-    <AuthShell>
-      <div className="login-card">
-        <h1>Welcome Back</h1>
-        <p>Login to continue exploring trusted agricultural products.</p>
-        <form onSubmit={submit}>
-          <label>Email</label>
-          <input
+    <AuthShell aside={<AuthAside variant="login" />}>
+      <AuthCard
+        title="Welcome back"
+        subtitle="Sign in to continue shopping from verified agricultural suppliers."
+        notice={
+          passwordChanged ? (
+            <p>Your password was updated. Sign in with your new password.</p>
+          ) : undefined
+        }
+        footer={
+          <>
+            <p>
+              Don&apos;t have an account? <Link href="/auth/register">Create one</Link>
+            </p>
+            <p className="auth-footer-secondary">
+              Selling on DOVA? <Link href="/auth/supplier-register">Apply as a supplier</Link>
+            </p>
+          </>
+        }
+      >
+        <form className="auth-form" onSubmit={submit}>
+          <AuthField
+            id="login-email"
+            label="Email address"
             type="email"
+            name="email"
+            autoComplete="email"
+            inputMode="email"
             required
-            placeholder="Enter your email"
+            placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            icon={<Mail size={18} />}
           />
-          <label>Password</label>
-          <div className="password-input-wrap">
-            <input
-              type={passwordToggle.inputType}
-              required
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              className="password-toggle-btn"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={passwordToggle.ariaLabel}
-            >
-              {passwordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <div className="remember">
-            <label>
+          <AuthPasswordField
+            id="login-password"
+            label="Password"
+            name="password"
+            autoComplete="current-password"
+            required
+            minLength={8}
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            icon={<Lock size={18} />}
+          />
+          <div className="auth-form-row">
+            <label className="auth-checkbox">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-              />{' '}
-              Remember Me
+              />
+              <span>Remember me</span>
             </label>
-            <Link href="/auth/forgot-password">Forgot Password?</Link>
+            <Link href="/auth/forgot-password" className="auth-inline-link">
+              Forgot password?
+            </Link>
           </div>
-          <button type="submit" disabled={busy}>
-            {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
+          <button type="submit" className="auth-submit" disabled={busy}>
+            {busy ? <Loading label="Signing in…" inline size="sm" /> : 'Sign in'}
           </button>
+          <p className="auth-helper-text">
+            Haven&apos;t verified your email yet? <Link href={verifyHref}>Enter verification code</Link>
+          </p>
         </form>
-        <div className="login-link">
-          Haven&apos;t verified yet? <Link href={verifyHref}>Verify email</Link>
-        </div>
-        <div className="register-link">
-          Don&apos;t have an account? <Link href="/auth/register">Register</Link>
-        </div>
-        <div className="supplier-link">
-          <Link href="/auth/supplier-register">Become a Supplier</Link>
-        </div>
-      </div>
+      </AuthCard>
     </AuthShell>
   );
 }

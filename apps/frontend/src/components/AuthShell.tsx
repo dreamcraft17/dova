@@ -1,14 +1,24 @@
 import Link from 'next/link';
 import { ReactNode } from 'react';
 
-export function AuthShell({ children }: { children: ReactNode }) {
+type AuthShellProps = {
+  children: ReactNode;
+  aside?: ReactNode;
+};
+
+export function AuthShell({ children, aside }: AuthShellProps) {
   return (
     <div className="auth-shell">
-      <Link href="/" className="auth-brand">
-        <img src="/images/logo.jpg" alt="DOVA" />
-        DOVA
-      </Link>
-      {children}
+      <div className="auth-layout">
+        {aside}
+        <div className="auth-main">
+          <Link href="/" className="auth-brand">
+            <img src="/images/logo.jpg" alt="" width={44} height={44} />
+            <span>DOVA</span>
+          </Link>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
