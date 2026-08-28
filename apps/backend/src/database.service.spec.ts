@@ -145,4 +145,51 @@ describe('DatabaseService', () => {
       ['rejected', 'Incomplete docs', 'sup-2'],
     );
   });
+
+  it('deleteUser removes user in a transaction when no order history exists', async () => {
+    const queries: Array<{ text: string; values?: unknown[] }> = [];
+    const client = {
+      query: jest.fn(async (text: string, values?: unknown[]) => {
+        queries.push({ text, values });
+        if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+        if (text.includes('has_customer_orders')) {
+          return { rows: [{ has_customer_orders: false, has_supplier_orders: false }], rowCount: 1 };
+        }
+        if (text.includes('DELETE FROM users')) return { rows: [], rowCount: 1 };
+        return { rows: [], rowCount: 0 };
+      }),
+      release: jest.fn(),
+    };
+    const pool = { connect: jest.fn(async () => client) };
+    const service = new DatabaseService();
+    (service as unknown as { pool: typeof pool }).pool = pool;
+
+    await expect(service.deleteUser('user-1')).resolves.toBe('deleted');
+    expect(queries.some((q) => q.text === 'BEGIN')).toBe(true);
+    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
+    expect(queries.some((q) => q.text.includes('DELETE FROM user_sessions'))).toBe(true);
+    expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(true);
+  });
+
+  it('deleteUser rolls back when order history exists', async () => {
+    const queries: Array<{ text: string; values?: unknown[] }> = [];
+    const client = {
+      query: jest.fn(async (text: string, values?: unknown[]) => {
+        queries.push({ text, values });
+        if (text === 'BEGIN' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+        if (text.includes('has_customer_orders')) {
+          return { rows: [{ has_customer_orders: true, has_supplier_orders: false }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: jest.fn(),
+    };
+    const pool = { connect: jest.fn(async () => client) };
+    const service = new DatabaseService();
+    (service as unknown as { pool: typeof pool }).pool = pool;
+
+    await expect(service.deleteUser('user-2')).resolves.toBe('has_orders');
+    expect(queries.some((q) => q.text === 'ROLLBACK')).toBe(true);
+    expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(false);
+  });
 });

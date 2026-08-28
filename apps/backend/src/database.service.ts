@@ -126,10 +126,40 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     return result.rows[0].count as number;
   }
-  async deleteUser(userId: string) {
-    if (!this.pool) return;
-    await this.pool.query('UPDATE supplier_profiles SET verified_by = NULL WHERE verified_by = $1', [userId]);
-    await this.pool.query('DELETE FROM users WHERE id = $1', [userId]);
+  async deleteUser(userId: string): Promise<'deleted' | 'has_orders' | 'not_found' | 'skipped'> {
+    if (!this.pool) return 'skipped';
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const orderCheck = await client.query(
+        `SELECT
+          EXISTS(SELECT 1 FROM orders WHERE customer_id = $1) AS has_customer_orders,
+          EXISTS(
+            SELECT 1 FROM order_items oi
+            JOIN supplier_profiles sp ON sp.id = oi.supplier_id
+            WHERE sp.user_id = $1
+          ) AS has_supplier_orders`,
+        [userId],
+      );
+      if (orderCheck.rows[0].has_customer_orders || orderCheck.rows[0].has_supplier_orders) {
+        await client.query('ROLLBACK');
+        return 'has_orders';
+      }
+      await client.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
+      await client.query('UPDATE supplier_profiles SET verified_by = NULL WHERE verified_by = $1', [userId]);
+      const deleted = await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      if (deleted.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return 'not_found';
+      }
+      await client.query('COMMIT');
+      return 'deleted';
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
@@ -194,7 +224,15 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (!result.rowCount) return undefined;
     const row = result.rows[0];
     const orders = await this.pool.query('SELECT COUNT(*)::int AS count FROM orders WHERE customer_id=$1', [userId]);
+    const supplierOrders = await this.pool.query(
+      `SELECT COUNT(*)::int AS count FROM order_items oi
+       JOIN supplier_profiles sp ON sp.id = oi.supplier_id
+       WHERE sp.user_id = $1`,
+      [userId],
+    );
     const supplier = await this.pool.query('SELECT id,business_name,verification_status FROM supplier_profiles WHERE user_id=$1 LIMIT 1', [userId]);
+    const orderCount = orders.rows[0].count as number;
+    const supplierOrderCount = supplierOrders.rows[0].count as number;
     return {
       id: row.id,
       email: row.email,
@@ -204,7 +242,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
       createdAt: new Date(row.created_at).toISOString(),
-      orderCount: orders.rows[0].count,
+      orderCount,
+      supplierOrderCount,
+      canDelete: orderCount === 0 && supplierOrderCount === 0,
       supplier: supplier.rows[0]
         ? { id: supplier.rows[0].id, businessName: supplier.rows[0].business_name, status: supplier.rows[0].verification_status }
         : undefined,

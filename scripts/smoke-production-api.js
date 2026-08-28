@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Full production API smoke (23 steps + NEG-01..07). Default: api.dova.dntech.id */
+/** Full production API smoke (26 steps + NEG-01..09). Default: api.dova.dntech.id */
 const fs = require('fs');
 const path = require('path');
 
@@ -161,6 +161,30 @@ async function main() {
   await req('GET', '/admin/users', { token: admin.accessToken, expectStatus: 200 });
   await req('GET', '/admin/orders', { token: admin.accessToken, expectStatus: 200 });
 
+  log('19b. Admin delete pending user (no orders)');
+  const pendingEmail = `qa.delete.${Date.now()}@example.com`;
+  await req('POST', '/auth/register', {
+    body: {
+      fullName: 'QA Delete Target',
+      email: pendingEmail,
+      password: 'password123',
+      confirmPassword: 'password123',
+    },
+    expectStatus: 201,
+  });
+  const usersAfterRegister = await req('GET', '/admin/users', { token: admin.accessToken, expectStatus: 200 });
+  const userList = Array.isArray(usersAfterRegister.data) ? usersAfterRegister.data : usersAfterRegister.data?.data;
+  const pendingUser = userList.find((entry) => entry.email === pendingEmail);
+  if (!pendingUser?.id) throw new Error(`pending user ${pendingEmail} not found in admin users`);
+  await req('DELETE', `/admin/users/${pendingUser.id}`, { token: admin.accessToken, expectStatus: 200 });
+
+  log('NEG-08 customer DELETE admin user → 403');
+  const adminMe = await req('GET', '/auth/me', { token: admin.accessToken, expectStatus: 200 });
+  await req('DELETE', `/admin/users/${adminMe.data.id}`, { token: customer.accessToken, expectStatus: 403 });
+
+  log('NEG-09 admin DELETE self → 400');
+  await req('DELETE', `/admin/users/${adminMe.data.id}`, { token: admin.accessToken, expectStatus: 400 });
+
   log('20-21. Contact + admin contacts');
   const contact = await req('POST', '/contact', {
     body: { name: 'Smoke Soft Launch', email: 'smoke@dova.local', message: 'Soft launch API smoke' },
@@ -193,7 +217,7 @@ async function main() {
   log('NEG-06 invalid token → 401');
   await req('GET', '/auth/me', { token: 'invalid.jwt.token', expectStatus: 401 });
 
-  log('PASS — production API smoke (23 + 7 negative)');
+  log('PASS — production API smoke (26 + 9 negative)');
   const out = path.join(__dirname, '../tests/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);

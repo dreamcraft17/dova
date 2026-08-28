@@ -14,6 +14,8 @@ export type AdminUserDetail = {
   emailVerifiedAt?: string;
   createdAt: string;
   orderCount?: number;
+  supplierOrderCount?: number;
+  canDelete?: boolean;
   supplier?: { id: string; businessName: string; status: string };
 };
 
@@ -156,7 +158,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
     }
   }
 
-  const canDelete = Boolean(detail && !isSelf && (detail.orderCount ?? 0) === 0);
+  const canDeleteUser = Boolean(detail && !isSelf && detail.canDelete);
 
   if (!open || !userId || !mounted) return null;
 
@@ -194,6 +196,11 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
                   {typeof detail.orderCount === 'number' && (
                     <p>
                       <strong>Orders:</strong> {detail.orderCount}
+                    </p>
+                  )}
+                  {typeof detail.supplierOrderCount === 'number' && detail.supplierOrderCount > 0 && (
+                    <p>
+                      <strong>Supplier orders:</strong> {detail.supplierOrderCount}
                     </p>
                   )}
                   {detail.supplier && (
@@ -300,7 +307,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
                 <div className="admin-user-form admin-user-danger">
                   <h2>Delete account</h2>
                   <p className="form-hint">
-                    {canDelete
+                    {canDeleteUser
                       ? 'Permanently remove this user. Use this for failed registrations or test accounts.'
                       : 'Users with order history cannot be deleted. Deactivate the account instead.'}
                   </p>
@@ -308,7 +315,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
                     <button
                       type="button"
                       className="admin-dash-btn admin-dash-btn-danger"
-                      disabled={busy || !canDelete}
+                      disabled={busy || !canDeleteUser}
                       onClick={() => void deleteUser()}
                     >
                       Delete user

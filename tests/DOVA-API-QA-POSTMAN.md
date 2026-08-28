@@ -330,10 +330,11 @@ Allowed flow: `processing` → `shipped` → `delivered`
 | 40 | PUT | `/admin/users/:id` | admin | P1 |
 | 41 | POST | `/admin/users/:id/reset-password` | admin | P1 |
 | 42 | PUT | `/admin/users/:id/active` | admin | P1 |
-| 43 | GET | `/admin/products` | admin | P0 |
-| 44 | PUT | `/admin/products/:id/active` | admin | P1 |
-| 45 | GET | `/admin/orders` | admin | P0 |
-| 46 | GET | `/admin/contacts` | admin | P1 |
+| 43 | DELETE | `/admin/users/:id` | admin | P1 |
+| 44 | GET | `/admin/products` | admin | P0 |
+| 45 | PUT | `/admin/products/:id/active` | admin | P1 |
+| 46 | GET | `/admin/orders` | admin | P0 |
+| 47 | GET | `/admin/contacts` | admin | P1 |
 
 **Query — GET `/admin/orders`:** `status`, `search`
 
@@ -372,13 +373,26 @@ Allowed flow: `processing` → `shipped` → `delivered`
 { "password": "newpassword123" }
 ```
 
+### Sample — DELETE `/admin/users/:id`
+
+No body.
+
+| Case | Expected |
+|------|----------|
+| Pending user with no orders | **200** — `{ "message": "User deleted successfully" }` |
+| User with customer or supplier order history | **400** |
+| Admin deletes own account | **400** |
+| Customer token | **403** |
+| Missing/invalid token | **401** |
+| Unknown user id | **404** |
+
 ---
 
 ## 8. Contact (public)
 
 | # | Method | Path | Auth | QA priority |
 |---|--------|------|------|-------------|
-| 47 | POST | `/contact` | — | P1 |
+| 48 | POST | `/contact` | — | P1 |
 
 ```json
 {
@@ -396,18 +410,18 @@ Expected: **201** — appears in `GET /admin/contacts`
 
 | # | Method | Path | Auth | QA priority |
 |---|--------|------|------|-------------|
-| 48 | GET | `/feedback/posts` | — | P1 |
-| 49 | GET | `/feedback/posts/:id` | — | P1 |
-| 50 | GET | `/feedback/roadmap` | — | P2 |
-| 51 | POST | `/feedback/posts` | optional | P1 |
-| 52 | POST | `/feedback/posts/:id/vote` | login | P1 |
-| 53 | PUT | `/feedback/posts/:id/status` | admin | P1 |
-| 54 | GET | `/feedback/posts/:id/comments` | — | P2 |
-| 55 | POST | `/feedback/posts/:id/comments` | optional | P2 |
-| 56 | POST | `/feedback/posts/:id/official-reply` | admin | P2 |
-| 57 | GET | `/feedback/changelog` | — | P2 |
-| 58 | GET | `/feedback/changelog/:slug` | — | P2 |
-| 59 | POST | `/feedback/changelog` | admin | P2 |
+| 49 | GET | `/feedback/posts` | — | P1 |
+| 50 | GET | `/feedback/posts/:id` | — | P1 |
+| 51 | GET | `/feedback/roadmap` | — | P2 |
+| 52 | POST | `/feedback/posts` | optional | P1 |
+| 53 | POST | `/feedback/posts/:id/vote` | login | P1 |
+| 54 | PUT | `/feedback/posts/:id/status` | admin | P1 |
+| 55 | GET | `/feedback/posts/:id/comments` | — | P2 |
+| 56 | POST | `/feedback/posts/:id/comments` | optional | P2 |
+| 57 | POST | `/feedback/posts/:id/official-reply` | admin | P2 |
+| 58 | GET | `/feedback/changelog` | — | P2 |
+| 59 | GET | `/feedback/changelog/:slug` | — | P2 |
+| 60 | POST | `/feedback/changelog` | admin | P2 |
 
 **Query — GET `/feedback/posts`:** `sort=votes|new`, `search=`
 

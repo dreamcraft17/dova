@@ -652,10 +652,19 @@ export class AppService {
     const user = this.users.find((u) => u.id === id);
     if (!user) throw new NotFoundException('User not found');
     const supplierProfile = this.suppliers.find((s) => s.userId === id);
+    const orderCount = this.orders.filter((order) => order.customerId === id).length;
+    const supplierOrderCount = supplierProfile
+      ? this.orders.reduce(
+          (count, order) => count + order.items.filter((item) => item.product.supplierId === supplierProfile.id).length,
+          0,
+        )
+      : 0;
     return {
       ...this.publicUser(user),
       emailVerifiedAt: user.emailVerifiedAt,
-      orderCount: this.orders.filter((order) => order.customerId === id).length,
+      orderCount,
+      supplierOrderCount,
+      canDelete: orderCount === 0 && supplierOrderCount === 0,
       supplier: supplierProfile
         ? { id: supplierProfile.id, businessName: supplierProfile.businessName, status: supplierProfile.status }
         : undefined,
@@ -723,11 +732,16 @@ export class AppService {
     if (orderCount > 0 || supplierOrderCount > 0) {
       throw new BadRequestException('Cannot delete a user with order history. Deactivate the account instead.');
     }
-    await this.database.revokeAllUserSessions(id);
-    await this.database.deleteUser(id);
+    const result = await this.database.deleteUser(id);
+    if (result === 'has_orders') {
+      throw new BadRequestException('Cannot delete a user with order history. Deactivate the account instead.');
+    }
+    if (result === 'not_found') throw new NotFoundException('User not found');
+    if (result === 'skipped') await this.database.revokeAllUserSessions(id);
     this.users = this.users.filter((entry) => entry.id !== id);
     this.suppliers = this.suppliers.filter((entry) => entry.userId !== id);
     this.carts.delete(id);
+    console.info(`[Admin] Deleted user ${user.email} (${id}) by admin ${actorId}`);
     return { message: 'User deleted successfully' };
   }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }

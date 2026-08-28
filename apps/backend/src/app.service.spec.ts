@@ -33,7 +33,7 @@ function makeService() {
     revokeAllUserSessions: jest.fn(),
     userOrderCount: jest.fn().mockResolvedValue(0),
     userSupplierOrderCount: jest.fn().mockResolvedValue(0),
-    deleteUser: jest.fn(),
+    deleteUser: jest.fn().mockResolvedValue('deleted'),
     saveSession: jest.fn(),
     hasSession: jest.fn().mockResolvedValue(true),
     revokeSession: jest.fn(),
@@ -663,6 +663,8 @@ describe('AppService', () => {
       const detail = await service.adminUser(user.id);
       expect(detail.email).toBe('detail@example.com');
       expect(detail.orderCount).toBe(0);
+      expect(detail.supplierOrderCount).toBe(0);
+      expect(detail.canDelete).toBe(true);
       expect(detail).not.toHaveProperty('passwordHash');
     });
 
@@ -713,11 +715,27 @@ describe('AppService', () => {
       expect(database.deleteUser).toHaveBeenCalledWith(user.id);
     });
 
-    it('blocks deleting users with order history', async () => {
+    it('blocks deleting users with customer order history', async () => {
       const { service, database } = makeService();
       await registerAndVerify(service, { fullName: 'Buyer', email: 'buyer@example.com', password: 'password123', confirmPassword: 'password123' });
       const user = service.users.find((entry) => entry.email === 'buyer@example.com')!;
       database.userOrderCount.mockResolvedValueOnce(1);
+      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
+    });
+
+    it('blocks deleting suppliers with order item history', async () => {
+      const { service, database } = makeService();
+      await registerAndVerify(service, { fullName: 'Supplier Buyer', email: 'supplier-buyer@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'supplier-buyer@example.com')!;
+      database.userSupplierOrderCount.mockResolvedValueOnce(2);
+      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
+    });
+
+    it('blocks delete when database detects order history during transaction', async () => {
+      const { service, database } = makeService();
+      await service.register({ fullName: 'Race User', email: 'race@example.com', password: 'password123', confirmPassword: 'password123' });
+      const user = service.users.find((entry) => entry.email === 'race@example.com')!;
+      database.deleteUser.mockResolvedValueOnce('has_orders');
       await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
     });
 
