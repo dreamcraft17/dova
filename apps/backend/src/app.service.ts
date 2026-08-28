@@ -208,6 +208,85 @@ export class AppService {
     if (process.env.NODE_ENV !== 'production') console.info(`[OTP] ${u.email}: ${code}`);
     return { message: 'Verification code sent.', email: u.email };
   }
+  private static readonly forgotPasswordMessage = {
+    message: 'If that email is registered, we sent a password reset code.',
+  };
+  private canSelfResetPassword(u: UserRecord) {
+    return u.isActive && Boolean(u.emailVerifiedAt) && u.role !== 'admin';
+  }
+  async forgotPassword(email: string) {
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) throw new BadRequestException('Invalid email');
+    const normalizedEmail = email.toLowerCase();
+    const u = await this.findUser(normalizedEmail);
+    if (!u || !this.canSelfResetPassword(u)) return AppService.forgotPasswordMessage;
+    if (process.env.NODE_ENV === 'production' && !isEmailProviderConfigured()) {
+      throw new BadRequestException('Password reset is temporarily unavailable. Please try again later.');
+    }
+    const now = Date.now();
+    const windowStartMs = u.resetResendWindowStart ? new Date(u.resetResendWindowStart).getTime() : 0;
+    let resendCount = u.resetResendCount ?? 0;
+    if (!windowStartMs || now - windowStartMs > OTP_RESEND_WINDOW_MS) {
+      resendCount = 0;
+      u.resetResendWindowStart = new Date(now).toISOString();
+    }
+    if (resendCount >= OTP_MAX_RESEND) throw new BadRequestException('Too many reset attempts. Try again in an hour.');
+    if (u.resetExpiresAt) {
+      const issuedAt = new Date(u.resetExpiresAt).getTime() - OTP_TTL_MS;
+      if (now - issuedAt < OTP_RESEND_COOLDOWN_MS) throw new BadRequestException('Please wait before requesting a new code.');
+    }
+    const code = this.qaSmokeOtpCode(u.email) ?? generateOtpCode();
+    const resetHash = hashOtp(code);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+    resendCount += 1;
+    u.resetResendCount = resendCount;
+    u.resetHash = resetHash;
+    u.resetExpiresAt = expiresAt.toISOString();
+    u.resetAttempts = 0;
+    u.resetLockedUntil = undefined;
+    this.syncUserRecord(u);
+    await this.database.updatePasswordResetResend(u.id, resendCount, new Date(u.resetResendWindowStart!), resetHash, expiresAt);
+    const emailResult = await this.notifySafely(this.notifications?.passwordResetOtp(u.email, code, u.fullName));
+    if (process.env.NODE_ENV !== 'production') console.info(`[Reset OTP] ${u.email}: ${code}`);
+    if (process.env.NODE_ENV === 'production' && !emailResult?.sent) {
+      throw new BadRequestException('Could not send password reset email. Please try again later.');
+    }
+    return AppService.forgotPasswordMessage;
+  }
+  async resetPassword(email: string, code: string, password: string, confirmPassword: string) {
+    if (!isValidOtpFormat(code)) throw new BadRequestException('Invalid reset code');
+    if (!password || password !== confirmPassword || password.length < 8) {
+      throw new BadRequestException('Invalid password data');
+    }
+    const u = await this.findUser(email);
+    if (!u || !this.canSelfResetPassword(u)) throw new BadRequestException('Invalid reset code');
+    if (u.resetLockedUntil && new Date(u.resetLockedUntil).getTime() > Date.now()) {
+      throw new BadRequestException('Too many failed attempts. Try again later.');
+    }
+    if (!u.resetExpiresAt || new Date(u.resetExpiresAt).getTime() < Date.now()) {
+      throw new BadRequestException('Reset code expired. Request a new one.');
+    }
+    if (!verifyOtpHash(code, u.resetHash)) {
+      const attempts = (u.resetAttempts ?? 0) + 1;
+      u.resetAttempts = attempts;
+      const lockedUntil = attempts >= OTP_MAX_ATTEMPTS ? new Date(Date.now() + OTP_LOCK_MS) : null;
+      if (lockedUntil) u.resetLockedUntil = lockedUntil.toISOString();
+      this.syncUserRecord(u);
+      await this.database.saveUserPasswordReset(u.id, u.resetHash!, new Date(u.resetExpiresAt), attempts, lockedUntil);
+      throw new BadRequestException('Invalid reset code');
+    }
+    u.passwordHash = bcrypt.hashSync(password, 12);
+    u.resetHash = undefined;
+    u.resetExpiresAt = undefined;
+    u.resetAttempts = 0;
+    u.resetLockedUntil = undefined;
+    u.resetResendCount = 0;
+    u.resetResendWindowStart = undefined;
+    this.syncUserRecord(u);
+    await this.database.updateUserPassword(u.id, u.passwordHash);
+    await this.database.clearPasswordReset(u.id);
+    await this.database.revokeAllUserSessions(u.id);
+    return { message: 'Password updated. You can sign in with your new password.' };
+  }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }

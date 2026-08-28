@@ -19,6 +19,12 @@ export class NotificationService {
     return sendEmail({ to: email, subject, text });
   }
 
+  async passwordResetOtp(email: string, code: string, fullName: string) {
+    const subject = 'Reset your DOVA password';
+    const text = `Hello ${fullName},\n\nYour DOVA password reset code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`;
+    return sendEmail({ to: email, subject, text });
+  }
+
   async contactMessage(payload: { name: string; email: string; message: string }) {
     const support = process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM;
     if (!support) return { sent: false, reason: 'email-provider-not-configured' };

@@ -31,7 +31,15 @@ function parseErrorPayload(data: Record<string, unknown>) {
   };
 }
 
-const AUTH_NO_RETRY = new Set(['/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp', '/auth/refresh']);
+const AUTH_NO_RETRY = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/verify-otp',
+  '/auth/resend-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/refresh',
+]);
 
 let pendingRememberMe: boolean | undefined;
 

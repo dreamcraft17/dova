@@ -54,6 +54,17 @@ describe('NotificationService', () => {
         }),
       );
     });
+
+    it('sends password reset email', async () => {
+      await service.passwordResetOtp('jane@example.com', '654321', 'Jane Doe');
+      expect(sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'jane@example.com',
+          subject: 'Reset your DOVA password',
+          text: expect.stringContaining('654321'),
+        }),
+      );
+    });
   });
 
   describe('contactMessage', () => {

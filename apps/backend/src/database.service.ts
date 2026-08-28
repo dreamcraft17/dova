@@ -12,6 +12,12 @@ export type StoredUser = User & {
   otpLockedUntil?: string;
   otpResendCount?: number;
   otpResendWindowStart?: string;
+  resetHash?: string;
+  resetExpiresAt?: string;
+  resetAttempts?: number;
+  resetLockedUntil?: string;
+  resetResendCount?: number;
+  resetResendWindowStart?: string;
 };
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -39,6 +45,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       otpLockedUntil: row.otp_locked_until ? new Date(row.otp_locked_until).toISOString() : undefined,
       otpResendCount: row.otp_resend_count ?? 0,
       otpResendWindowStart: row.otp_resend_window_start ? new Date(row.otp_resend_window_start).toISOString() : undefined,
+      resetHash: row.reset_hash || undefined,
+      resetExpiresAt: row.reset_expires_at ? new Date(row.reset_expires_at).toISOString() : undefined,
+      resetAttempts: row.reset_attempts ?? 0,
+      resetLockedUntil: row.reset_locked_until ? new Date(row.reset_locked_until).toISOString() : undefined,
+      resetResendCount: row.reset_resend_count ?? 0,
+      resetResendWindowStart: row.reset_resend_window_start ? new Date(row.reset_resend_window_start).toISOString() : undefined,
     };
   }
   async findUserByEmail(email: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email.toLowerCase()]); return result.rows[0] ? this.mapUser(result.rows[0]) : undefined; }
@@ -74,6 +86,30 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       "UPDATE users SET email_verified_at=NOW(),is_active=TRUE,otp_hash=NULL,otp_expires_at=NULL,otp_attempts=0,otp_locked_until=NULL,updated_at=NOW() WHERE id=$1",
       [userId],
     );
+  }
+  async saveUserPasswordReset(userId: string, resetHash: string, expiresAt: Date, attempts: number, lockedUntil?: Date | null) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET reset_hash=$1,reset_expires_at=$2,reset_attempts=$3,reset_locked_until=$4,updated_at=NOW() WHERE id=$5',
+      [resetHash, expiresAt, attempts, lockedUntil ?? null, userId],
+    );
+  }
+  async updatePasswordResetResend(userId: string, resendCount: number, windowStart: Date, resetHash: string, expiresAt: Date) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET reset_resend_count=$1,reset_resend_window_start=$2,reset_hash=$3,reset_expires_at=$4,reset_attempts=0,reset_locked_until=NULL,updated_at=NOW() WHERE id=$5',
+      [resendCount, windowStart, resetHash, expiresAt, userId],
+    );
+  }
+  async clearPasswordReset(userId: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE users SET reset_hash=NULL,reset_expires_at=NULL,reset_attempts=0,reset_locked_until=NULL,reset_resend_count=0,reset_resend_window_start=NULL,updated_at=NOW() WHERE id=$1',
+      [userId],
+    );
+  }
+  async revokeAllUserSessions(userId: string) {
+    if (this.pool) await this.pool.query('DELETE FROM user_sessions WHERE user_id=$1', [userId]);
   }
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }

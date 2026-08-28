@@ -27,6 +27,10 @@ function makeService() {
     saveUserOtp: jest.fn(),
     updateOtpResend: jest.fn(),
     verifyUserEmail: jest.fn(),
+    saveUserPasswordReset: jest.fn(),
+    updatePasswordResetResend: jest.fn(),
+    clearPasswordReset: jest.fn(),
+    revokeAllUserSessions: jest.fn(),
     saveSession: jest.fn(),
     hasSession: jest.fn().mockResolvedValue(true),
     revokeSession: jest.fn(),
@@ -71,6 +75,7 @@ function makeService() {
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
   const notifications = {
     verificationOtp: jest.fn().mockResolvedValue({ sent: true }),
+    passwordResetOtp: jest.fn().mockResolvedValue({ sent: true }),
     supplierStatus: jest.fn().mockResolvedValue({ sent: true }),
     contactMessage: jest.fn().mockResolvedValue({ sent: true }),
   };
@@ -158,6 +163,43 @@ describe('AppService', () => {
       expect(result.user.email).toBe('jane@example.com');
       expect(result.user.isActive).toBe(true);
       expect(database.verifyUserEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends password reset code for verified customers', async () => {
+      const { service, database, notifications } = makeService();
+      await registerAndVerify(service, { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      const result = await service.forgotPassword('jane@example.com');
+      expect(result.message).toContain('password reset code');
+      expect(notifications.passwordResetOtp).toHaveBeenCalledWith('jane@example.com', '123456', 'Jane');
+      expect(database.updatePasswordResetResend).toHaveBeenCalled();
+    });
+
+    it('returns generic message for unknown email without sending', async () => {
+      const { service, notifications } = makeService();
+      const result = await service.forgotPassword('missing@example.com');
+      expect(result.message).toContain('password reset code');
+      expect(notifications.passwordResetOtp).not.toHaveBeenCalled();
+    });
+
+    it('resets password with a valid code and revokes sessions', async () => {
+      const { service, database } = makeService();
+      await registerAndVerify(service, { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      await service.forgotPassword('jane@example.com');
+      const result = await service.resetPassword('jane@example.com', '123456', 'newpassword99', 'newpassword99');
+      expect(result.message).toContain('Password updated');
+      expect(database.updateUserPassword).toHaveBeenCalled();
+      expect(database.clearPasswordReset).toHaveBeenCalled();
+      expect(database.revokeAllUserSessions).toHaveBeenCalled();
+      await expect(service.login('jane@example.com', 'password123')).rejects.toBeInstanceOf(UnauthorizedException);
+      const login = await service.login('jane@example.com', 'newpassword99');
+      expect(login.user.email).toBe('jane@example.com');
+    });
+
+    it('rejects admin self-service password reset', async () => {
+      const { service, notifications } = makeService();
+      const result = await service.forgotPassword('admin@dova.local');
+      expect(result.message).toContain('password reset code');
+      expect(notifications.passwordResetOtp).not.toHaveBeenCalled();
     });
 
     it('uses a generic error for invalid credentials', async () => {

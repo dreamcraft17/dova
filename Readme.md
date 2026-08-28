@@ -150,7 +150,7 @@ npm run smoke:production   # needs DOVA_QA_FIXED_OTP on server + SMOKE_OTP_CODE 
 |------|-------|
 | Storefront | `/`, `/products`, `/products/[id]`, `/about`, `/contact` |
 | Commerce | `/cart`, `/checkout`, `/checkout/verify` |
-| Auth | `/auth/login`, `/auth/register`, `/auth/verify-email`, `/auth/supplier-register` |
+| Auth | `/auth/login`, `/auth/register`, `/auth/verify-email`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/supplier-register` |
 | Customer | `/customer`, `/customer/profile`, `/customer/history`, `/customer/orders/[id]` |
 | Supplier | `/supplier` — products, stock, orders |
 | Admin | `/admin` — users, suppliers, products, orders, contacts, feedback |

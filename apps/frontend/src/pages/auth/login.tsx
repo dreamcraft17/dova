@@ -93,7 +93,7 @@ export default function Login() {
               />{' '}
               Remember Me
             </label>
-            <span style={{ color: '#999' }}>Forgot Password?</span>
+            <Link href="/auth/forgot-password">Forgot Password?</Link>
           </div>
           <button type="submit" disabled={busy}>
             {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}

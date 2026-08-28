@@ -34,6 +34,17 @@ export class ResendOtpDto {
   @IsEmail() email!: string;
 }
 
+export class ForgotPasswordDto {
+  @IsEmail() email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsEmail() email!: string;
+  @IsString() @Length(6, 6) code!: string;
+  @IsString() @MinLength(8) password!: string;
+  @IsString() @MinLength(8) confirmPassword!: string;
+}
+
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;
