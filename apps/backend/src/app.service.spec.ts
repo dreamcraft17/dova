@@ -23,6 +23,8 @@ function makeService() {
   const database = {
     enabled: false,
     insertUser: jest.fn(),
+    linkGoogleAccount: jest.fn(),
+    findUserByGoogleSub: jest.fn().mockResolvedValue(undefined),
     updatePendingUser: jest.fn(),
     saveUserOtp: jest.fn(),
     updateOtpResend: jest.fn(),
@@ -83,8 +85,12 @@ function makeService() {
     supplierStatus: jest.fn().mockResolvedValue({ sent: true }),
     contactMessage: jest.fn().mockResolvedValue({ sent: true }),
   };
-  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService(), notifications as never);
-  return { service, database, redis, notifications };
+  const google = {
+    isConfigured: jest.fn().mockReturnValue(true),
+    verifyIdToken: jest.fn(),
+  };
+  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService(), google as never, notifications as never);
+  return { service, database, redis, notifications, google };
 }
 
 async function registerAndVerify(
@@ -101,11 +107,13 @@ function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock
     insertContactSubmission: jest.fn().mockResolvedValue(undefined),
   };
   const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
+  const google = { isConfigured: jest.fn().mockReturnValue(true), verifyIdToken: jest.fn() };
   const service = new AppService(
     new JwtService({ secret: 'unit-test-secret' }),
     database as never,
     redis as never,
     new PaystackService(),
+    google as never,
     notifications as never,
   );
   return { service };
@@ -158,6 +166,71 @@ describe('AppService', () => {
       await expect(service.login('jane@example.com', 'password123')).rejects.toEqual(
         expect.objectContaining({ message: 'Please verify your email before signing in.' }),
       );
+    });
+
+    it('creates a verified customer from Google sign-in', async () => {
+      const { service, database, google } = makeService();
+      google.verifyIdToken.mockResolvedValue({
+        sub: 'google-new-user',
+        email: 'google.user@example.com',
+        emailVerified: true,
+        name: 'Google User',
+      });
+      const result = await service.loginWithGoogle('google-id-token', true);
+      expect(result.user).toMatchObject({
+        email: 'google.user@example.com',
+        fullName: 'Google User',
+        role: 'customer',
+        authProvider: 'google',
+      });
+      expect(result.user.emailVerifiedAt).toBeTruthy();
+      expect(database.insertUser).toHaveBeenCalledTimes(1);
+      expect(database.saveSession).toHaveBeenCalled();
+    });
+
+    it('links Google to an existing password account and signs in', async () => {
+      const { service, database, google } = makeService();
+      await registerAndVerify(service, { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      google.verifyIdToken.mockResolvedValue({
+        sub: 'google-linked-user',
+        email: 'jane@example.com',
+        emailVerified: true,
+        name: 'Jane',
+      });
+      const result = await service.loginWithGoogle('google-id-token');
+      expect(result.user.authProvider).toBe('google+local');
+      expect(database.linkGoogleAccount).toHaveBeenCalledWith(expect.any(String), 'google-linked-user', 'google+local', false);
+    });
+
+    it('rejects Google sign-in for admin accounts', async () => {
+      const { service, google } = makeService();
+      google.verifyIdToken.mockResolvedValue({
+        sub: 'google-admin',
+        email: 'admin@dova.local',
+        emailVerified: true,
+        name: 'DOVA Admin',
+      });
+      await expect(service.loginWithGoogle('google-id-token')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('registers a supplier with Google instead of password', async () => {
+      const { service, google } = makeService();
+      google.verifyIdToken.mockResolvedValue({
+        sub: 'google-supplier',
+        email: 'supplier.google@example.com',
+        emailVerified: true,
+        name: 'Supplier Google',
+      });
+      const application = await service.makeSupplierUser({
+        businessName: 'Green Farm',
+        contactName: 'Supplier Google',
+        phone: '08012345678',
+        idToken: 'google-id-token',
+      });
+      expect(application.status).toBe('pending');
+      const user = service.users.find((entry) => entry.email === 'supplier.google@example.com');
+      expect(user).toMatchObject({ role: 'supplier', authProvider: 'google', googleSub: 'google-supplier' });
+      expect(user?.passwordHash).toBeNull();
     });
 
     it('verifies OTP and activates the account', async () => {

@@ -3,13 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage } from 'dova-shared';
-import { DatabaseService, StoredUser } from './database.service';
+import { DatabaseService, AuthProvider, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { isEmailProviderConfigured } from './mail.util';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
 import { isValidOtpFormat } from 'dova-shared';
+import { GoogleAuthService, GoogleProfile } from './google-auth.service';
 import {
   generateOtpCode,
   hashOtp,
@@ -46,7 +47,14 @@ export class AppService {
     }
   }
 
-  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, @Optional() private readonly notifications?: NotificationService) {
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly database: DatabaseService,
+    private readonly redis: RedisService,
+    private readonly paystack: PaystackService,
+    private readonly google: GoogleAuthService,
+    @Optional() private readonly notifications?: NotificationService,
+  ) {
     const admin = this.makeUser('admin@dova.local', 'DOVA Admin', 'admin', 'admin1234');
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
@@ -81,7 +89,13 @@ export class AppService {
       this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: productImageUrl(name, categoryName), isActive: true });
     });
   }
-  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean; emailVerified?: boolean }): UserRecord {
+  private makeUser(
+    email: string,
+    fullName: string,
+    role: Role,
+    password?: string | null,
+    opts?: { active?: boolean; emailVerified?: boolean; authProvider?: AuthProvider; googleSub?: string },
+  ): UserRecord {
     const isActive = opts?.active ?? true;
     const emailVerified = opts?.emailVerified ?? isActive;
     return {
@@ -92,11 +106,13 @@ export class AppService {
       isActive,
       emailVerifiedAt: emailVerified ? new Date().toISOString() : undefined,
       createdAt: new Date().toISOString(),
-      passwordHash: bcrypt.hashSync(password, 12),
+      passwordHash: password ? bcrypt.hashSync(password, 12) : null,
+      authProvider: opts?.authProvider ?? (password ? 'local' : 'google'),
+      googleSub: opts?.googleSub,
     };
   }
   publicUser(u: UserRecord): User {
-    const { passwordHash: _passwordHash, ...user } = u;
+    const { passwordHash: _passwordHash, otpHash: _otpHash, otpExpiresAt: _otpExpiresAt, otpAttempts: _otpAttempts, otpLockedUntil: _otpLockedUntil, otpResendCount: _otpResendCount, otpResendWindowStart: _otpResendWindowStart, resetHash: _resetHash, resetExpiresAt: _resetExpiresAt, resetAttempts: _resetAttempts, resetLockedUntil: _resetLockedUntil, resetResendCount: _resetResendCount, resetResendWindowStart: _resetResendWindowStart, googleSub: _googleSub, ...user } = u;
     return user;
   }
   async register(body: any) {
@@ -212,7 +228,7 @@ export class AppService {
     message: 'If that email is registered, we sent a password reset code.',
   };
   private canSelfResetPassword(u: UserRecord) {
-    return u.isActive && Boolean(u.emailVerifiedAt) && u.role !== 'admin';
+    return u.isActive && Boolean(u.emailVerifiedAt) && u.role !== 'admin' && Boolean(u.passwordHash);
   }
   async forgotPassword(email: string) {
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) throw new BadRequestException('Invalid email');
@@ -313,7 +329,12 @@ export class AppService {
     }
     const user = await this.findUser(userId, true);
     if (!user) throw new NotFoundException('User not found');
-    if (!this.canSelfResetPassword(user)) throw new ForbiddenException('Password change is not available for this account');
+    if (!this.canSelfResetPassword(user)) {
+      throw new ForbiddenException('Password change is not available for this account');
+    }
+    if (!user.passwordHash) {
+      throw new BadRequestException('This account uses Google sign-in. Set a password from account settings after linking is enabled.');
+    }
     if (!bcrypt.compareSync(currentPassword, user.passwordHash)) {
       throw new UnauthorizedException('Current password is incorrect');
     }
@@ -327,18 +348,76 @@ export class AppService {
     return { message: 'Password updated. Please sign in again with your new password.' };
   }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
+  async findUserByGoogleSub(googleSub: string) {
+    const local = this.users.find((user) => user.googleSub === googleSub);
+    if (!this.database.enabled) return local;
+    return (await this.database.findUserByGoogleSub(googleSub)) ?? local;
+  }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }
-  async login(email: string, password: string, rememberMe = false) {
-    const u = await this.findUser(email);
-    if (!u || !bcrypt.compareSync(password, u.passwordHash)) throw new UnauthorizedException('Invalid credentials');
-    if (!u.isActive || !u.emailVerifiedAt) throw new UnauthorizedException('Please verify your email before signing in.');
+  private async completeLogin(u: UserRecord, rememberMe = false) {
     const result = this.tokensFor(u, rememberMe);
     const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
     await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));
     await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + refreshMs));
     await this.cacheSession(u.id, result.accessToken, result.refreshToken, refreshMs / 1000);
     return result;
+  }
+  private async linkGoogleAccount(user: UserRecord, profile: GoogleProfile) {
+    if (user.googleSub && user.googleSub !== profile.sub) {
+      throw new BadRequestException('This email is linked to a different Google account');
+    }
+    const shouldVerify = !user.emailVerifiedAt;
+    const authProvider: AuthProvider = user.passwordHash ? 'google+local' : 'google';
+    user.googleSub = profile.sub;
+    user.authProvider = authProvider;
+    if (shouldVerify) {
+      user.emailVerifiedAt = new Date().toISOString();
+      user.isActive = true;
+      user.otpHash = undefined;
+      user.otpExpiresAt = undefined;
+      user.otpAttempts = 0;
+      user.otpLockedUntil = undefined;
+      user.otpResendCount = 0;
+      user.otpResendWindowStart = undefined;
+    }
+    this.syncUserRecord(user);
+    await this.database.linkGoogleAccount(user.id, profile.sub, authProvider, shouldVerify);
+  }
+  async loginWithGoogle(idToken: string, rememberMe = false) {
+    const profile = await this.google.verifyIdToken(idToken);
+    let user = await this.findUserByGoogleSub(profile.sub);
+    if (!user) user = await this.findUser(profile.email);
+    if (user) {
+      if (user.role === 'admin') {
+        throw new ForbiddenException('Admin accounts must sign in with email and password');
+      }
+      await this.linkGoogleAccount(user, profile);
+      if (!user.isActive || !user.emailVerifiedAt) {
+        throw new UnauthorizedException('Account is not active. Contact support if you need help.');
+      }
+      return this.completeLogin(user, rememberMe);
+    }
+    const newUser = this.makeUser(profile.email, profile.name, 'customer', null, {
+      active: true,
+      emailVerified: true,
+      authProvider: 'google',
+      googleSub: profile.sub,
+    });
+    this.users.push(newUser);
+    await this.database.insertUser(newUser);
+    return this.completeLogin(newUser, rememberMe);
+  }
+  async login(email: string, password: string, rememberMe = false) {
+    const u = await this.findUser(email);
+    if (!u || !u.passwordHash || !bcrypt.compareSync(password, u.passwordHash)) {
+      if (u && !u.passwordHash) {
+        throw new UnauthorizedException('This account uses Google sign-in. Continue with Google instead.');
+      }
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (!u.isActive || !u.emailVerifiedAt) throw new UnauthorizedException('Please verify your email before signing in.');
+    return this.completeLogin(u, rememberMe);
   }
   tokensFor(u: UserRecord, rememberMe = false) { return { user: this.publicUser(u), accessToken: this.jwt.sign({ sub: u.id, email: u.email, role: u.role }), refreshToken: this.jwt.sign({ sub: u.id, type: 'refresh' }, { expiresIn: rememberMe ? '30d' : '1d' }) }; }
   private useLocalRevocation() { return !this.database.enabled; }
@@ -787,12 +866,46 @@ export class AppService {
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }
   async makeSupplierUser(body: any) {
-    if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data');
-    const normalizedEmail = body.email.toLowerCase();
+    if (!body.businessName) throw new BadRequestException('Invalid supplier data');
+    let normalizedEmail = body.email?.toLowerCase();
+    let fullName = body.contactName || body.businessName;
+    let password: string | null = body.password ?? null;
+    let googleSub: string | undefined;
+    let authProvider: AuthProvider = 'local';
+
+    if (body.idToken) {
+      const profile = await this.google.verifyIdToken(body.idToken);
+      if (normalizedEmail && normalizedEmail !== profile.email) {
+        throw new BadRequestException('Google account email does not match the form email');
+      }
+      normalizedEmail = profile.email;
+      fullName = body.contactName || profile.name;
+      googleSub = profile.sub;
+      authProvider = 'google';
+      password = null;
+    } else if (!password || password.length < 8) {
+      throw new BadRequestException('Invalid supplier data');
+    }
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      throw new BadRequestException('Invalid supplier data');
+    }
     if (await this.findUser(normalizedEmail) || this.suppliers.some((s) => this.users.find((u) => u.id === s.userId)?.email === normalizedEmail)) {
+      const existing = await this.findUser(normalizedEmail);
+      if (existing?.role === 'customer') {
+        throw new BadRequestException('This email is already registered as a customer. Use a different email or contact support.');
+      }
       throw new BadRequestException('Email already registered');
     }
-    const user = this.makeUser(normalizedEmail, body.contactName || body.businessName, 'supplier', body.password);
+    if (googleSub && await this.findUserByGoogleSub(googleSub)) {
+      throw new BadRequestException('Google account already registered');
+    }
+    const user = this.makeUser(normalizedEmail, fullName, 'supplier', password, {
+      active: true,
+      emailVerified: true,
+      authProvider,
+      googleSub,
+    });
     this.users.push(user);
     const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl };
     this.suppliers.push(supplier);

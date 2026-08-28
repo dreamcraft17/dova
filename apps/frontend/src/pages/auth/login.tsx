@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { api, configureLoginPersistence } from '../../lib/api';
 import { clearTokens, getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
 import type { User } from 'dova-shared';
@@ -33,6 +34,13 @@ export default function Login() {
   useEffect(() => {
     if (typeof router.query.email === 'string') setEmail(router.query.email);
   }, [router.query.email]);
+
+  async function afterGoogleLogin(user: User) {
+    establishSession(user);
+    await router.push(
+      user.role === 'admin' ? '/admin' : user.role === 'supplier' ? '/supplier' : '/products',
+    );
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -128,6 +136,7 @@ export default function Login() {
             {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
           </button>
         </form>
+        <GoogleSignInButton rememberMe={rememberMe} onSuccess={afterGoogleLogin} disabled={busy} text="signin_with" />
         <div className="login-link">
           Haven&apos;t verified yet? <Link href={verifyHref}>Verify email</Link>
         </div>

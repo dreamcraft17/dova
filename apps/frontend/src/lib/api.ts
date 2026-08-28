@@ -38,6 +38,7 @@ const AUTH_NO_RETRY = new Set([
   '/auth/resend-otp',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/auth/google',
   '/auth/change-password',
   '/auth/refresh',
 ]);
@@ -57,7 +58,9 @@ function persistAuthTokens(path: string, data: unknown) {
   }
   if (payload.accessToken) {
     const remember =
-      path === '/auth/login' || path === '/auth/verify-otp' ? pendingRememberMe : undefined;
+      path === '/auth/login' || path === '/auth/verify-otp' || path === '/auth/google'
+        ? pendingRememberMe
+        : undefined;
     setTokens(payload.accessToken, payload.refreshToken, remember);
     pendingRememberMe = undefined;
   }

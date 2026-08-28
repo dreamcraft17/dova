@@ -61,6 +61,9 @@ PAYSTACK_CALLBACK_URL=https://dova.dntech.id/checkout/verify
 ### Opsional
 
 ```env
+# Google Sign-In (OAuth Web client — same ID on backend + frontend)
+# GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+
 # Hanya jika Redis benar-benar jalan — kalau tidak ada, JANGAN set (backend fallback tanpa Redis)
 # REDIS_URL=redis://127.0.0.1:6379
 
@@ -118,12 +121,14 @@ openssl rand -hex 32
 ```env
 NEXT_PUBLIC_API_URL=https://api.dova.dntech.id/api/v1
 NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_test_GANTI
+# NEXT_PUBLIC_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
 ```
 
 | Variable | Keterangan |
 |----------|------------|
 | `NEXT_PUBLIC_API_URL` | Base URL API + `/api/v1` |
 | `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` | Public key Paystack (pair dengan `PAYSTACK_SECRET_KEY`) |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Same Web client ID as backend `GOOGLE_CLIENT_ID` (optional — hides Google buttons if unset) |
 
 > **Penting:** variabel `NEXT_PUBLIC_*` di-embed saat **`npm run build`**. Setelah ganti `.env.local`, wajib build ulang frontend.
 

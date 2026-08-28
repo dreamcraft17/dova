@@ -36,7 +36,8 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
     year: 'numeric',
   });
   const verified = Boolean(user.emailVerifiedAt);
-  const canChangePassword = user.role !== 'admin';
+  const showSecuritySection = user.role !== 'admin';
+  const canChangePassword = showSecuritySection && user.authProvider !== 'google';
 
   async function saveProfile(e: FormEvent) {
     e.preventDefault();
@@ -175,7 +176,7 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
         </form>
       </section>
 
-      {canChangePassword ? (
+      {showSecuritySection ? (
         <section className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined} style={cardStyle}>
           {variant === 'customer' ? (
             <h2 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--green)' }}>Security</h2>
@@ -183,9 +184,21 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
             <h3>Security</h3>
           )}
           <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--muted)' }}>
-            Change your password while signed in, or use{' '}
-            <Link href="/auth/forgot-password">forgot password</Link> if you cannot sign in.
+            {user.authProvider === 'google'
+              ? 'This account uses Google sign-in. Password changes are not required.'
+              : (
+                <>
+                  Change your password while signed in, or use{' '}
+                  <Link href="/auth/forgot-password">forgot password</Link> if you cannot sign in.
+                </>
+              )}
           </p>
+          {user.authProvider === 'google+local' ? (
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--muted)' }}>
+              Google sign-in is linked. You can still change your password below.
+            </p>
+          ) : null}
+          {canChangePassword ? (
           <form onSubmit={(e) => void submitPassword(e)} className="form-grid">
             <label>
               Current password
@@ -228,6 +241,7 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
               </button>
             </div>
           </form>
+          ) : null}
         </section>
       ) : null}
     </div>

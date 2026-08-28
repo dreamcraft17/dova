@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -11,6 +11,14 @@ export class RegisterDto {
 export class LoginDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(8) password!: string;
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
+export class GoogleAuthDto {
+  @IsString() @MinLength(20) idToken!: string;
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
   @IsBoolean()
@@ -48,8 +56,14 @@ export class ResetPasswordDto {
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;
-  @IsEmail() email!: string;
-  @IsString() @MinLength(8) password!: string;
+  @ValidateIf((body) => !body.idToken)
+  @IsEmail()
+  email?: string;
+  @ValidateIf((body) => !body.idToken)
+  @IsString()
+  @MinLength(8)
+  password?: string;
+  @IsOptional() @IsString() idToken?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() documentUrl?: string;
 }
