@@ -32,6 +32,25 @@ async function req(method, urlPath, { token, body, expectStatus } = {}) {
   return { status: res.status, data };
 }
 
+async function waitForHealth(maxAttempts = 15, delayMs = 2000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(`${BASE}/health`);
+      if (res.status === 200) {
+        const data = await res.json();
+        if (data?.status === 'ok') return;
+      }
+    } catch {
+      // upstream not ready yet (502 during PM2 restart)
+    }
+    if (attempt < maxAttempts) {
+      log(`   /health not ready (${attempt}/${maxAttempts}), retry in ${delayMs / 1000}s…`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw new Error(`GET /health did not return 200 after ${maxAttempts} attempts (~${(maxAttempts * delayMs) / 1000}s)`);
+}
+
 async function login(email, password) {
   const res = await req('POST', '/auth/login', {
     body: { email, password, rememberMe: true },
@@ -46,6 +65,7 @@ async function login(email, password) {
 async function main() {
   log(`BASE=${BASE}`);
   log('1. GET /health');
+  await waitForHealth();
   await req('GET', '/health', { expectStatus: 200 });
 
   log('2-3. Admin login + /auth/me');
