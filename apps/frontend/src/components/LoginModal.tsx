@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { passwordToggleState } from 'dova-shared';
 import { Loading } from './Loading';
-import { GoogleSignInButton } from './GoogleSignInButton';
 import { api, configureLoginPersistence } from '../lib/api';
 import { clearTokens, getRememberedEmail, setRememberedEmail } from '../lib/auth-session';
 import type { User } from 'dova-shared';
@@ -59,22 +58,6 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   }, [open]);
 
   if (!open) return null;
-
-  async function afterGoogleLogin(user: User) {
-    establishSession(user);
-    onClose();
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      await router.push(
-        user.role === 'admin'
-          ? '/admin'
-          : user.role === 'supplier'
-            ? '/supplier'
-            : '/products',
-      );
-    }
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -168,7 +151,6 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
           </button>
         </form>
-        <GoogleSignInButton rememberMe={rememberMe} onSuccess={afterGoogleLogin} disabled={busy} text="signin_with" />
         <div className="register-link">
           Don&apos;t have an account? <Link href="/auth/register">Register</Link>
         </div>

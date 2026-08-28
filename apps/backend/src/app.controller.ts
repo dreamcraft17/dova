@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, GoogleAuthDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
@@ -84,19 +84,6 @@ export class AppController {
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @Post('auth/reset-password') resetPassword(@Body() body: ResetPasswordDto) {
     return this.service.resetPassword(body.email, body.code, body.password, body.confirmPassword);
-  }
-
-  @Public()
-  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
-  @Post('auth/google') async googleAuth(@Body() body: GoogleAuthDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.service.loginWithGoogle(body.idToken, Boolean(body.rememberMe));
-    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
-    if (body.rememberMe) {
-      res.cookie('refreshToken', result.refreshToken, this.cookieOptions(30 * 24 * 60 * 60 * 1000));
-    } else {
-      res.cookie('refreshToken', result.refreshToken, this.sessionCookieOptions());
-    }
-    return result;
   }
 
   @Public()

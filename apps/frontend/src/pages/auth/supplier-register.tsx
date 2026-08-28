@@ -3,16 +3,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
-import { GoogleIdentityStep } from '../../components/GoogleSignInButton';
-import { isGoogleAuthEnabled } from '../../lib/google-auth';
 import { api } from '../../lib/api';
 import { PasswordInput } from '../../components/PasswordInput';
-
-type GoogleIdentity = {
-  idToken: string;
-  email: string;
-  fullName: string;
-};
 
 export default function SupplierRegister() {
   const router = useRouter();
@@ -23,8 +15,6 @@ export default function SupplierRegister() {
     phone: '',
     password: '',
   });
-  const [googleIdentity, setGoogleIdentity] = useState<GoogleIdentity | null>(null);
-  const [usePassword, setUsePassword] = useState(!isGoogleAuthEnabled());
   const [file, setFile] = useState<File>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -33,26 +23,10 @@ export default function SupplierRegister() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    if (!usePassword && !googleIdentity?.idToken) {
-      setError('Continue with Google to verify your identity, or switch to email and password.');
-      return;
-    }
-    if (usePassword && form.password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
     setBusy(true);
     try {
       const body = new FormData();
-      body.append('businessName', form.businessName);
-      body.append('contactName', form.contactName || form.businessName);
-      body.append('phone', form.phone);
-      if (usePassword) {
-        body.append('email', form.email);
-        body.append('password', form.password);
-      } else if (googleIdentity) {
-        body.append('idToken', googleIdentity.idToken);
-      }
+      Object.entries(form).forEach(([key, value]) => body.append(key, value));
       if (file) body.append('verificationDocs', file);
       const result = await api<{ message: string }>('/suppliers/register', {
         method: 'POST',
@@ -73,53 +47,6 @@ export default function SupplierRegister() {
         <p>
           Join our trusted supplier network and connect your products directly with buyers.
         </p>
-        {isGoogleAuthEnabled() ? (
-          <div style={{ marginBottom: 16 }}>
-            {!usePassword ? (
-              <>
-                {googleIdentity ? (
-                  <p className="form-hint">
-                    Signed in with Google as <strong>{googleIdentity.email}</strong>. Complete your business details below.
-                  </p>
-                ) : (
-                  <GoogleIdentityStep
-                    disabled={busy}
-                    text="continue_with"
-                    onVerified={(identity) => {
-                      setGoogleIdentity(identity);
-                      setForm((current) => ({
-                        ...current,
-                        email: identity.email,
-                        contactName: current.contactName || identity.fullName,
-                      }));
-                    }}
-                  />
-                )}
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => {
-                    setUsePassword(true);
-                    setGoogleIdentity(null);
-                  }}
-                >
-                  Use email and password instead
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => {
-                  setUsePassword(false);
-                  setForm((current) => ({ ...current, password: '' }));
-                }}
-              >
-                Continue with Google instead
-              </button>
-            )}
-          </div>
-        ) : null}
         <form onSubmit={submit}>
           <label>Contact / Full Name</label>
           <input
@@ -135,37 +62,28 @@ export default function SupplierRegister() {
             value={form.businessName}
             onChange={(e) => setForm({ ...form, businessName: e.target.value })}
           />
-          {usePassword ? (
-            <>
-              <label>Email</label>
-              <input
-                type="email"
-                required
-                placeholder="Enter your email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-              <label>Password</label>
-              <PasswordInput
-                minLength={8}
-                required
-                placeholder="Create a password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </>
-          ) : (
-            <>
-              <label>Email</label>
-              <input type="email" value={form.email} readOnly placeholder="Verified via Google" />
-            </>
-          )}
+          <label>Email</label>
+          <input
+            type="email"
+            required
+            placeholder="Enter your email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
           <label>Phone Number</label>
           <input
             required
             placeholder="Enter your phone number"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+          <label>Password</label>
+          <PasswordInput
+            minLength={8}
+            required
+            placeholder="Create a password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
           <label>Verification document (PDF / JPG / PNG, max 5 MB)</label>
           <p className="form-hint">

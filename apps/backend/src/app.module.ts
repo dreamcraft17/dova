@@ -10,7 +10,6 @@ import { NotificationService } from './notification.service';
 import { FeedbackService } from './feedback.service';
 import { PaystackService } from './paystack.service';
 import { UploadStorageService } from './upload-storage.service';
-import { GoogleAuthService } from './google-auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 
@@ -31,7 +30,6 @@ import { RolesGuard } from './roles.guard';
     FeedbackService,
     PaystackService,
     UploadStorageService,
-    GoogleAuthService,
     JwtAuthGuard,
     RolesGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },

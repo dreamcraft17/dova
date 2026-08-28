@@ -4,12 +4,8 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, shouldRefreshCatalogImage } from 'dova-shared';
 
-export type AuthProvider = 'local' | 'google' | 'google+local';
-
 export type StoredUser = User & {
-  passwordHash: string | null;
-  authProvider?: AuthProvider;
-  googleSub?: string;
+  passwordHash: string;
   otpHash?: string;
   otpExpiresAt?: string;
   otpAttempts?: number;
@@ -42,9 +38,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
       createdAt: new Date(row.created_at).toISOString(),
-      passwordHash: row.password_hash ?? null,
-      authProvider: (row.auth_provider as AuthProvider | undefined) ?? 'local',
-      googleSub: row.google_sub || undefined,
+      passwordHash: row.password_hash,
       otpHash: row.otp_hash || undefined,
       otpExpiresAt: row.otp_expires_at ? new Date(row.otp_expires_at).toISOString() : undefined,
       otpAttempts: row.otp_attempts ?? 0,
@@ -61,23 +55,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
   async findUserByEmail(email: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email.toLowerCase()]); return result.rows[0] ? this.mapUser(result.rows[0]) : undefined; }
   async findUserById(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]); return result.rows[0] ? this.mapUser(result.rows[0]) : undefined; }
-  async findUserByGoogleSub(googleSub: string) {
-    if (!this.pool) return undefined;
-    const result = await this.pool.query('SELECT * FROM users WHERE google_sub = $1 LIMIT 1', [googleSub]);
-    return result.rows[0] ? this.mapUser(result.rows[0]) : undefined;
-  }
   async insertUser(user: StoredUser) {
     if (!this.pool) return;
     await this.pool.query(
-      'INSERT INTO users (id,email,password_hash,full_name,role,is_active,created_at,updated_at,email_verified_at,otp_attempts,otp_resend_count,auth_provider,google_sub) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10,$11,$12)',
-      [user.id, user.email, user.passwordHash, user.fullName, user.role, user.isActive, user.createdAt, user.emailVerifiedAt || null, user.otpAttempts ?? 0, user.otpResendCount ?? 0, user.authProvider ?? 'local', user.googleSub ?? null],
-    );
-  }
-  async linkGoogleAccount(userId: string, googleSub: string, authProvider: AuthProvider, emailVerified: boolean) {
-    if (!this.pool) return;
-    await this.pool.query(
-      `UPDATE users SET google_sub=$1,auth_provider=$2,email_verified_at=CASE WHEN $3 THEN COALESCE(email_verified_at,NOW()) ELSE email_verified_at END,is_active=CASE WHEN $3 THEN TRUE ELSE is_active END,otp_hash=NULL,otp_expires_at=NULL,otp_attempts=0,otp_locked_until=NULL,updated_at=NOW() WHERE id=$4`,
-      [googleSub, authProvider, emailVerified, userId],
+      'INSERT INTO users (id,email,password_hash,full_name,role,is_active,created_at,updated_at,email_verified_at,otp_attempts,otp_resend_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10)',
+      [user.id, user.email, user.passwordHash, user.fullName, user.role, user.isActive, user.createdAt, user.emailVerifiedAt || null, user.otpAttempts ?? 0, user.otpResendCount ?? 0],
     );
   }
   async updatePendingUser(userId: string, fullName: string, passwordHash: string) {

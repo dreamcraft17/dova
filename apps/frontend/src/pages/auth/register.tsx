@@ -5,10 +5,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
-import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { api } from '../../lib/api';
-import type { User } from 'dova-shared';
-import { useAuth } from '../../context/AuthContext';
 import { PasswordInput } from '../../components/PasswordInput';
 
 export default function Register() {
@@ -25,12 +22,6 @@ export default function Register() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
-  const { establishSession } = useAuth();
-
-  async function afterGoogleRegister(user: User) {
-    establishSession(user);
-    await router.push('/products');
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -108,7 +99,6 @@ export default function Register() {
           </button>
           {error && <p className="error">{error}</p>}
         </form>
-        <GoogleSignInButton onSuccess={afterGoogleRegister} disabled={busy} text="signup_with" />
         <div className="login-link">
           Already have an account? <Link href="/auth/login">Login</Link>
         </div>

@@ -3,9 +3,7 @@ export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'deliv
 export type SupplierStatus = 'pending' | 'approved' | 'rejected';
 export type FulfillmentType = 'pickup' | 'delivery';
 
-export type AuthProvider = 'local' | 'google' | 'google+local';
-
-export interface User { id: string; email: string; fullName: string; phoneNumber?: string; role: Role; isActive: boolean; emailVerifiedAt?: string; createdAt: string; authProvider?: AuthProvider; }
+export interface User { id: string; email: string; fullName: string; phoneNumber?: string; role: Role; isActive: boolean; emailVerifiedAt?: string; createdAt: string; }
 export interface Category { id: string; name: string; }
 export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; isActive: boolean; }
 export type DeliverySlot = 'morning' | 'evening';
