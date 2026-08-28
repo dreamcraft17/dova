@@ -129,7 +129,7 @@ Dokumen ini merangkum status triage **seluruh modul MVP DOVA**: coverage otomati
 | `sup-003-deleted-visible` | Produk deleted masih tampil | ✅ Fixed |
 | `sup-approve-42p08` | Postgres cast saat approve | ✅ Fixed BF-017 |
 
-**Gap:** Multipart upload tidak di smoke production.
+| `sup-upload-multipart-smoke` | Multipart product image upload | ✅ Smoke step 14b (`POST /suppliers/products`) |
 
 ---
 

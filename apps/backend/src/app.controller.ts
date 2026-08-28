@@ -9,21 +9,30 @@ import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
+import { UploadStorageService } from './upload-storage.service';
 
 const imageUpload = FileInterceptor('image', {
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, callback) =>
-    ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)
-      ? callback(null, true)
-      : callback(new BadRequestException('Image must be JPG, PNG, or WEBP'), false),
+});
+
+const supplierDocUpload = FileInterceptor('verificationDocs', {
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 @Controller()
 export class AppController {
-  constructor(private readonly service: AppService, private readonly feedback: FeedbackService) {}
+  constructor(
+    private readonly service: AppService,
+    private readonly feedback: FeedbackService,
+    private readonly uploads: UploadStorageService,
+  ) {}
 
-  private applyImage(b: ProductDto, file?: { mimetype: string; buffer: Buffer }) {
-    if (file) b.imageUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  private async applyProductImage(b: ProductDto, file?: { mimetype: string; buffer: Buffer }) {
+    if (file) {
+      b.imageUrl = await this.uploads.saveProductImage(file);
+    } else if (b.imageUrl) {
+      this.uploads.validateExternalImageUrl(b.imageUrl);
+    }
     return b;
   }
 
@@ -191,9 +200,10 @@ export class AppController {
   }
 
   @Public()
-  @Post('suppliers/register') @UseInterceptors(FileInterceptor('verificationDocs', { limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, callback) => ['application/pdf', 'image/jpeg', 'image/png'].includes(file.mimetype) ? callback(null, true) : callback(new BadRequestException('Document must be PDF, JPG, or PNG'), false) }))
-  supplierRegister(@Body() b: SupplierRegisterDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
-    if (file) b.documentUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('suppliers/register') @UseInterceptors(supplierDocUpload)
+  async supplierRegister(@Body() b: SupplierRegisterDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
+    if (file) b.documentUrl = await this.uploads.saveSupplierDocument(file);
     return this.service.makeSupplierUser(b);
   }
 
@@ -204,13 +214,15 @@ export class AppController {
   @Get('suppliers/products') supplierProducts(@CurrentUser() user: StoredUser) { return this.service.supplierProducts(user.id); }
 
   @Roles('supplier')
-  @Post('suppliers/products') @UseInterceptors(imageUpload) supplierProductCreate(@CurrentUser() user: StoredUser, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
-    return this.service.addSupplierProduct(user.id, this.applyImage(b, file));
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@CurrentUser() user: StoredUser, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
+    return this.service.addSupplierProduct(user.id, await this.applyProductImage(b, file));
   }
 
   @Roles('supplier')
-  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) supplierProductUpdate(@CurrentUser() user: StoredUser, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
-    return this.service.updateSupplierProduct(user.id, id, this.applyImage(b, file));
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@CurrentUser() user: StoredUser, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
+    return this.service.updateSupplierProduct(user.id, id, await this.applyProductImage(b, file));
   }
 
   @Roles('supplier')

@@ -11,6 +11,8 @@ coverage/
 *.tsbuildinfo
 docs/
 .DS_Store
+apps/backend/uploads/*
+!apps/backend/uploads/.gitkeep
 
 # Personal / compensation — Dozer only, never this app repo
 # (see ../company-wiki/docs/products/dova/private/)
@@ -19,4 +21,4 @@ tests/*COUNTER-PROPOSAL*
 tests/*LAUNCH-BUDGET*
 *Partnership Proposal*
 
-.cursor/
+

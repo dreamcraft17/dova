@@ -62,6 +62,7 @@ export default function Supplier() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(empty);
   const [imageFile, setImageFile] = useState<File>();
+  const [imagePreview, setImagePreview] = useState<string>();
   const [editing, setEditing] = useState<string>();
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -108,6 +109,16 @@ export default function Supplier() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setImagePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setMessage('');
@@ -125,6 +136,7 @@ export default function Supplier() {
       await api(path, { method: editing ? 'PUT' : 'POST', body });
       setForm({ ...empty, categoryId: categories[0]?.id || '' });
       setImageFile(undefined);
+      setImagePreview(undefined);
       setEditing(undefined);
       await load();
       setMessage('Product saved.');
@@ -207,6 +219,8 @@ export default function Supplier() {
       categoryId: p.categoryId,
       imageUrl: p.imageUrl || '',
     });
+    setImageFile(undefined);
+    setImagePreview(undefined);
     setTab('add');
   }
 
@@ -487,7 +501,7 @@ export default function Supplier() {
                   <label>Stock</label>
                   <input
                     type="number"
-                    min={0}
+                    min={1}
                     required
                     value={form.quantity}
                     onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
@@ -507,9 +521,21 @@ export default function Supplier() {
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    onChange={(e) => setImageFile(e.target.files?.[0])}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      setImageFile(file);
+                      if (file) setForm((current) => ({ ...current, imageUrl: '' }));
+                    }}
                   />
                   {imageFile && <p className="form-hint">Selected: {imageFile.name}</p>}
+                  {(imagePreview || form.imageUrl) && (
+                    <img
+                      src={imagePreview || form.imageUrl}
+                      alt=""
+                      className="supplier-product-preview"
+                      style={{ maxWidth: 160, maxHeight: 160, marginTop: 8, borderRadius: 8 }}
+                    />
+                  )}
                   <label>Or image URL (optional)</label>
                   <input
                     value={form.imageUrl}

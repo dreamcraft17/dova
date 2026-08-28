@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, Length, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -91,7 +91,10 @@ export class ProductDto {
   @Transform(({ value }) => Number(value)) @IsNumber() @Min(1000) price!: number;
   @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
   @IsString() categoryId!: string;
-  @IsOptional() @IsString() imageUrl?: string;
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value == null ? undefined : value))
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  imageUrl?: string;
 }
 
 export class StockDto {

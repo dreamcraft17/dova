@@ -37,6 +37,8 @@ DATABASE_URL=postgresql://dova:GANTI_DB_PASSWORD@127.0.0.1:5432/dova
 
 FRONTEND_URL=https://dova.dntech.id
 CROSS_SITE_COOKIES=true
+API_PUBLIC_URL=https://api.dova.dntech.id
+UPLOAD_DIR=/var/lib/dova/uploads
 
 PAYSTACK_SECRET_KEY=sk_test_GANTI
 PAYSTACK_CURRENCY=NGN
@@ -50,6 +52,8 @@ PAYSTACK_CALLBACK_URL=https://dova.dntech.id/checkout/verify
 | `DATABASE_URL` | Postgres di server baru (Supabase: pakai connection string + `?sslmode=require`) |
 | `FRONTEND_URL` | URL publik storefront (tanpa trailing slash) |
 | `CROSS_SITE_COOKIES` | `true` jika frontend & API beda subdomain/domain |
+| `API_PUBLIC_URL` | Base URL publik API (untuk URL gambar upload `/uploads/...`) |
+| `UPLOAD_DIR` | Folder disk untuk file upload (buat dengan `mkdir -p`, owned by PM2 user) |
 | `ADMIN_PASSWORD` / `SUPPLIER_PASSWORD` | Password akun demo; dipakai seed & bootstrap |
 | `PAYSTACK_SECRET_KEY` | Secret key Paystack (test: `sk_test_...`, live: `sk_live_...`) |
 | `PAYSTACK_CALLBACK_URL` | Halaman verify checkout di frontend |
@@ -61,6 +65,9 @@ PAYSTACK_CALLBACK_URL=https://dova.dntech.id/checkout/verify
 # REDIS_URL=redis://127.0.0.1:6379
 
 # PAYSTACK_CHANNELS=card,bank,ussd,bank_transfer
+
+# Nginx: allow multipart uploads up to 5 MB
+# client_max_body_size 6m;
 ```
 
 ### Wajib untuk registrasi customer (production, sejak v0.5.4)

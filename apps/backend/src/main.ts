@@ -1,10 +1,13 @@
 import 'reflect-metadata';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { loadBackendEnv } from './load-env';
 loadBackendEnv();
 import { assertProductionSecrets } from './env-guard';
 assertProductionSecrets();
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -18,7 +21,11 @@ function corsOrigins(): string | string[] | boolean {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const uploadRoot = process.env.UPLOAD_DIR || join(process.cwd(), 'uploads');
+  if (!existsSync(uploadRoot)) mkdirSync(uploadRoot, { recursive: true });
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  app.useStaticAssets(uploadRoot, { prefix: '/uploads/', index: false, dotfiles: 'deny' });
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
   app.setGlobalPrefix('api/v1');
@@ -31,6 +38,6 @@ async function bootstrap() {
   });
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  console.log(`DOVA API listening on :${port} | CORS: ${process.env.FRONTEND_URL ?? 'default localhost'}`);
+  console.log(`DOVA API listening on :${port} | CORS: ${process.env.FRONTEND_URL ?? 'default localhost'} | uploads: ${uploadRoot}`);
 }
 bootstrap();

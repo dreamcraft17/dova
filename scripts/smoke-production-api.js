@@ -1,7 +1,12 @@
 #!/usr/bin/env node
-/** Full production API smoke (29 steps + NEG-01..10). Default: api.dova.dntech.id */
+/** Full production API smoke (30 steps + NEG-01..10). Default: api.dova.dntech.id */
 const fs = require('fs');
 const path = require('path');
+
+const SMOKE_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 const BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.dova.dntech.id/api/v1';
 const lines = [];
@@ -38,6 +43,33 @@ async function reqOk(method, urlPath, opts = {}) {
     throw new Error(`${method} ${urlPath} expected 200/201 got ${res.status}: ${JSON.stringify(res.data)}`);
   }
   return res;
+}
+
+async function reqMultipart(method, urlPath, { token, fields, file, expectStatus } = {}) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields || {})) {
+    form.append(key, String(value));
+  }
+  if (file) {
+    form.append(file.field, new Blob([file.buffer], { type: file.mime }), file.name);
+  }
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE}${urlPath}`, { method, headers, body: form });
+  let data;
+  const text = await res.text();
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text.slice(0, 200) };
+  }
+  if (expectStatus !== undefined && res.status !== expectStatus) {
+    throw new Error(`${method} ${urlPath} expected ${expectStatus} got ${res.status}: ${JSON.stringify(data)}`);
+  }
+  if (expectStatus === undefined && res.status !== 200 && res.status !== 201) {
+    throw new Error(`${method} ${urlPath} expected 200/201 got ${res.status}: ${JSON.stringify(data)}`);
+  }
+  return { status: res.status, data };
 }
 
 async function waitForHealth(maxAttempts = 15, delayMs = 2000) {
@@ -195,6 +227,34 @@ async function main() {
   const supplier = await login('supplier@dova.local', 'supplier1234');
   await req('GET', '/suppliers/products', { token: supplier.accessToken, expectStatus: 200 });
   await req('GET', '/suppliers/orders', { token: supplier.accessToken, expectStatus: 200 });
+
+  log('14b. Supplier multipart POST /suppliers/products (image upload)');
+  const categoriesRes = await req('GET', '/categories', { expectStatus: 200 });
+  const categoryList = Array.isArray(categoriesRes.data) ? categoriesRes.data : categoriesRes.data?.data;
+  const categoryId = categoryList?.[0]?.id;
+  if (!categoryId) throw new Error('no category available for supplier upload smoke');
+  const uploadName = `Smoke Upload ${Date.now()}`;
+  const created = await reqMultipart('POST', '/suppliers/products', {
+    token: supplier.accessToken,
+    fields: {
+      name: uploadName,
+      description: 'Automated multipart smoke product',
+      price: '5000',
+      quantity: '10',
+      categoryId,
+    },
+    file: { field: 'image', buffer: SMOKE_PNG, mime: 'image/png', name: 'smoke.png' },
+  });
+  const imageUrl = created.data?.imageUrl || '';
+  if (!imageUrl.includes('/uploads/products/') && !imageUrl.startsWith('data:image/')) {
+    throw new Error(`unexpected product imageUrl: ${imageUrl}`);
+  }
+  if (created.data?.id) {
+    await req('DELETE', `/suppliers/products/${created.data.id}`, {
+      token: supplier.accessToken,
+      expectStatus: 200,
+    });
+  }
 
   log('15-19. Admin dashboard, suppliers, users, orders');
   await req('GET', '/admin/dashboard', { token: admin.accessToken, expectStatus: 200 });

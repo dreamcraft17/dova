@@ -9,6 +9,7 @@ import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { FeedbackService } from './feedback.service';
 import { PaystackService } from './paystack.service';
+import { UploadStorageService } from './upload-storage.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 
@@ -28,6 +29,7 @@ import { RolesGuard } from './roles.guard';
     NotificationService,
     FeedbackService,
     PaystackService,
+    UploadStorageService,
     JwtAuthGuard,
     RolesGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },

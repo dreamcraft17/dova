@@ -600,7 +600,9 @@ describe('AppService', () => {
       expect(updated.name).toBe('Updated Greens');
       await service.removeSupplierProduct(supplier.id, product.id);
       const remaining = await service.supplierProducts(supplier.id);
-      expect(remaining.find((item) => item.id === product.id)).toBeUndefined();
+      const hidden = remaining.find((item) => item.id === product.id);
+      expect(hidden).toBeDefined();
+      expect(hidden!.isActive).toBe(false);
       await expect(service.product(product.id)).rejects.toThrow('Product not found');
     });
 
