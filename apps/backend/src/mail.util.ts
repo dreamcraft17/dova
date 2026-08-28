@@ -20,7 +20,7 @@ export function usesSmtp() {
 export async function sendViaSmtp(input: SendMailInput): Promise<{ sent: boolean; reason?: string }> {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const pass = process.env.SMTP_PASS?.replace(/\s/g, '');
   const from = process.env.EMAIL_FROM;
   if (!host || !user || !pass || !from) return { sent: false, reason: 'email-provider-not-configured' };
 
@@ -28,6 +28,7 @@ export async function sendViaSmtp(input: SendMailInput): Promise<{ sent: boolean
     host,
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === 'true',
+    requireTLS: host.includes('gmail.com'),
     auth: { user, pass },
   });
 
@@ -40,7 +41,8 @@ export async function sendViaSmtp(input: SendMailInput): Promise<{ sent: boolean
       replyTo: input.replyTo,
     });
     return { sent: true };
-  } catch {
+  } catch (error) {
+    console.warn('[Mail] SMTP send failed:', (error as Error).message);
     return { sent: false, reason: 'provider-error' };
   }
 }
