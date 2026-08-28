@@ -23,6 +23,8 @@ export default function VerifyEmail() {
     if (typeof router.query.email === 'string') setEmail(router.query.email);
   }, [router.query.email]);
 
+  const fromLogin = router.query.from === 'login';
+
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
@@ -70,7 +72,11 @@ export default function VerifyEmail() {
     <AuthShell>
       <div className="register-card verify-email-card">
         <h1>Verify Your Email</h1>
-        <p>Enter the 6-digit code we sent to your inbox to activate your account.</p>
+        <p>
+          {fromLogin
+            ? 'Your account is not verified yet. Enter the 6-digit code we sent to your inbox to sign in.'
+            : 'Enter the 6-digit code we sent to your inbox to activate your account.'}
+        </p>
         <form onSubmit={submit}>
           <label>Email</label>
           <input
@@ -116,6 +122,9 @@ export default function VerifyEmail() {
         </div>
         <div className="login-link">
           Wrong email? <Link href="/auth/register">Register again</Link>
+        </div>
+        <div className="login-link">
+          Already verified? <Link href={email ? `/auth/login?email=${encodeURIComponent(email)}` : '/auth/login'}>Back to login</Link>
         </div>
       </div>
     </AuthShell>

@@ -30,6 +30,10 @@ export default function Login() {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof router.query.email === 'string') setEmail(router.query.email);
+  }, [router.query.email]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -46,11 +50,21 @@ export default function Login() {
         r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/products',
       );
     } catch (err) {
-      showToast((err as Error).message, 'error');
+      const message = (err as Error).message;
+      if (/verify your email/i.test(message)) {
+        showToast('Verify your email to continue.', 'error');
+        await router.push(`/auth/verify-email?email=${encodeURIComponent(email)}&from=login`);
+        return;
+      }
+      showToast(message, 'error');
     } finally {
       setBusy(false);
     }
   }
+
+  const verifyHref = email
+    ? `/auth/verify-email?email=${encodeURIComponent(email)}`
+    : '/auth/verify-email';
 
   return (
     <AuthShell>
@@ -99,6 +113,9 @@ export default function Login() {
             {busy ? <Loading label="Logging in…" inline size="sm" /> : 'Login'}
           </button>
         </form>
+        <div className="login-link">
+          Haven&apos;t verified yet? <Link href={verifyHref}>Verify email</Link>
+        </div>
         <div className="register-link">
           Don&apos;t have an account? <Link href="/auth/register">Register</Link>
         </div>
