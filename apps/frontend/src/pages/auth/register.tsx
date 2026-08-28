@@ -1,5 +1,4 @@
 import { FormEvent, useMemo, useState } from 'react';
-import { Lock, Mail, User } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -49,16 +48,20 @@ export default function Register() {
   return (
     <AuthShell aside={<AuthAside variant="register" />}>
       <AuthCard
-        title="Create your account"
-        subtitle="Register as a buyer to shop directly from verified farms and suppliers."
+        title="Buyer registration"
+        subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
         steps={[
           { label: 'Account details', state: 'current' },
-          { label: 'Verify email', state: 'upcoming' },
+          { label: 'Email verification', state: 'upcoming' },
         ]}
-        notice={<p>We&apos;ll email you a 6-digit code to confirm your address before your first sign-in.</p>}
+        notice={
+          <p>
+            After you submit, check your inbox for a <strong>6-digit code</strong>. You cannot sign in until it is entered.
+          </p>
+        }
         footer={
           <p>
-            Already have an account? <Link href="/auth/login">Sign in</Link>
+            Already registered? <Link href="/auth/login">Sign in</Link>
           </p>
         }
       >
@@ -74,11 +77,10 @@ export default function Register() {
             placeholder="Ada Okonkwo"
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            icon={<User size={18} />}
           />
           <AuthField
             id="register-email"
-            label="Email address"
+            label="Work email"
             type="email"
             name="email"
             autoComplete="email"
@@ -87,7 +89,6 @@ export default function Register() {
             placeholder="you@company.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            icon={<Mail size={18} />}
           />
           <AuthPasswordField
             id="register-password"
@@ -99,8 +100,6 @@ export default function Register() {
             placeholder="At least 8 characters"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            icon={<Lock size={18} />}
-            hint="Use at least 8 characters with letters and numbers."
           />
           <AuthPasswordField
             id="register-confirm-password"
@@ -109,10 +108,9 @@ export default function Register() {
             autoComplete="new-password"
             required
             minLength={8}
-            placeholder="Re-enter your password"
+            placeholder="Repeat password"
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            icon={<Lock size={18} />}
             error={
               form.confirmPassword && !passwordChecks.match ? 'Passwords do not match.' : undefined
             }
@@ -125,7 +123,7 @@ export default function Register() {
           ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
           <button type="submit" className="auth-submit" disabled={busy}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Continue to verification'}
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account & verify email'}
           </button>
         </form>
       </AuthCard>

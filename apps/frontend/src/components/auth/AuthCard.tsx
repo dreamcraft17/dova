@@ -19,10 +19,12 @@ export function AuthCard({ title, subtitle, steps, notice, children, footer }: A
     <article className="auth-card">
       {steps?.length ? (
         <ol className="auth-steps" aria-label="Registration progress">
-          {steps.map((step) => (
+          {steps.map((step, index) => (
             <li key={step.label} className={`auth-step auth-step--${step.state}`}>
-              <span className="auth-step-dot" aria-hidden="true" />
-              <span>{step.label}</span>
+              <span className="auth-step-index" aria-hidden="true">
+                {index + 1}
+              </span>
+              <span className="auth-step-label">{step.label}</span>
             </li>
           ))}
         </ol>

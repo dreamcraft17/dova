@@ -1,47 +1,50 @@
-import { Leaf, ShieldCheck, Truck } from 'lucide-react';
-
 type AuthAsideProps = {
   variant: 'login' | 'register';
 };
 
-const copy = {
+const panels = {
   login: {
-    eyebrow: 'Welcome back',
-    title: 'Fresh produce, trusted suppliers.',
-    body: 'Sign in to browse verified farms, manage your cart, and track deliveries across Nigeria.',
-    points: [
-      { icon: ShieldCheck, text: 'Verified supplier network' },
-      { icon: Truck, text: 'Morning & evening delivery slots' },
-      { icon: Leaf, text: 'Farm-to-business sourcing' },
+    kicker: 'Buyer account',
+    headline: 'Pick up where your last order left off.',
+    detail:
+      'Browse verified suppliers, keep your cart, and choose morning or evening delivery when you checkout.',
+    facts: [
+      { label: 'Cut-off', value: 'Orders before 6:00 PM ship next day' },
+      { label: 'Coverage', value: 'Verified farms & suppliers across Nigeria' },
     ],
+    mobile: 'Sign in to access your cart and delivery slots.',
   },
   register: {
-    eyebrow: 'Join DOVA',
-    title: 'Shop direct from verified suppliers.',
-    body: 'Create your buyer account in minutes. We send a one-time code to confirm your email before your first order.',
-    points: [
-      { icon: ShieldCheck, text: 'Email verification keeps accounts secure' },
-      { icon: Leaf, text: 'Transparent pricing from source' },
-      { icon: Truck, text: 'Pickup or delivery at checkout' },
+    kicker: 'New buyer',
+    headline: 'Register once, verify your email, then shop.',
+    detail:
+      'DOVA connects businesses to verified agricultural suppliers. After signup we send a 6-digit code—no payment required yet.',
+    facts: [
+      { label: 'Step 1', value: 'Account details on this page' },
+      { label: 'Step 2', value: 'Enter the code from your inbox' },
     ],
+    mobile: 'We email a 6-digit code before your first sign-in.',
   },
 };
 
 export function AuthAside({ variant }: AuthAsideProps) {
-  const content = copy[variant];
+  const panel = panels[variant];
   return (
-    <aside className="auth-aside" aria-label="About DOVA">
-      <p className="auth-aside-eyebrow">{content.eyebrow}</p>
-      <h2>{content.title}</h2>
-      <p className="auth-aside-body">{content.body}</p>
-      <ul className="auth-aside-list">
-        {content.points.map(({ icon: Icon, text }) => (
-          <li key={text}>
-            <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
-            <span>{text}</span>
-          </li>
-        ))}
-      </ul>
-    </aside>
+    <>
+      <p className="auth-context-mobile">{panel.mobile}</p>
+      <aside className="auth-panel" aria-label="DOVA buyer information">
+        <p className="auth-panel-kicker">{panel.kicker}</p>
+        <h2 className="auth-panel-headline">{panel.headline}</h2>
+        <p className="auth-panel-detail">{panel.detail}</p>
+        <dl className="auth-panel-facts">
+          {panel.facts.map((fact) => (
+            <div key={fact.label} className="auth-panel-fact">
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </aside>
+    </>
   );
 }

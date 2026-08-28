@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Lock, Mail } from 'lucide-react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -87,20 +86,20 @@ export default function Login() {
   return (
     <AuthShell aside={<AuthAside variant="login" />}>
       <AuthCard
-        title="Welcome back"
-        subtitle="Sign in to continue shopping from verified agricultural suppliers."
+        title="Sign in to your buyer account"
+        subtitle="Use the email and password you registered with."
         notice={
           passwordChanged ? (
-            <p>Your password was updated. Sign in with your new password.</p>
+            <p>Password updated. Sign in with your new password.</p>
           ) : undefined
         }
         footer={
           <>
             <p>
-              Don&apos;t have an account? <Link href="/auth/register">Create one</Link>
+              New to DOVA? <Link href="/auth/register">Create a buyer account</Link>
             </p>
             <p className="auth-footer-secondary">
-              Selling on DOVA? <Link href="/auth/supplier-register">Apply as a supplier</Link>
+              List products on DOVA? <Link href="/auth/supplier-register">Supplier application</Link>
             </p>
           </>
         }
@@ -108,7 +107,7 @@ export default function Login() {
         <form className="auth-form" onSubmit={submit}>
           <AuthField
             id="login-email"
-            label="Email address"
+            label="Email"
             type="email"
             name="email"
             autoComplete="email"
@@ -117,7 +116,6 @@ export default function Login() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            icon={<Mail size={18} />}
           />
           <AuthPasswordField
             id="login-password"
@@ -126,10 +124,9 @@ export default function Login() {
             autoComplete="current-password"
             required
             minLength={8}
-            placeholder="Enter your password"
+            placeholder="Minimum 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            icon={<Lock size={18} />}
           />
           <div className="auth-form-row">
             <label className="auth-checkbox">
@@ -148,7 +145,7 @@ export default function Login() {
             {busy ? <Loading label="Signing in…" inline size="sm" /> : 'Sign in'}
           </button>
           <p className="auth-helper-text">
-            Haven&apos;t verified your email yet? <Link href={verifyHref}>Enter verification code</Link>
+            Pending verification? <Link href={verifyHref}>Enter your 6-digit code</Link>
           </p>
         </form>
       </AuthCard>
