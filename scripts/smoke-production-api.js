@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Full production API smoke (26 steps + NEG-01..09). Default: api.dova.dntech.id */
+/** Full production API smoke (28 steps + NEG-01..10). Default: api.dova.dntech.id */
 const fs = require('fs');
 const path = require('path');
 
@@ -217,7 +217,34 @@ async function main() {
   log('NEG-06 invalid token → 401');
   await req('GET', '/auth/me', { token: 'invalid.jwt.token', expectStatus: 401 });
 
-  log('PASS — production API smoke (26 + 9 negative)');
+  log('24-26. Forgot + reset password (verified customer)');
+  await req('POST', '/auth/forgot-password', {
+    body: { email: customerEmail },
+    expectStatus: 200,
+  });
+  await req('POST', '/auth/reset-password', {
+    body: {
+      email: customerEmail,
+      code: otpCode,
+      password: 'newpassword123',
+      confirmPassword: 'newpassword123',
+    },
+    expectStatus: 200,
+  });
+  const relogin = await req('POST', '/auth/login', {
+    body: { email: customerEmail, password: 'newpassword123', rememberMe: true },
+  });
+  if (relogin.status !== 200 && relogin.status !== 201) {
+    throw new Error(`login after reset expected 200/201 got ${relogin.status}`);
+  }
+
+  log('NEG-10 login with old password after reset → 401');
+  await req('POST', '/auth/login', {
+    body: { email: customerEmail, password: 'password123', rememberMe: false },
+    expectStatus: 401,
+  });
+
+  log('PASS — production API smoke (28 + 10 negative)');
   const out = path.join(__dirname, '../tests/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);

@@ -51,7 +51,7 @@ Production uses **separate subdomains** (frontend ≠ API). For API tests, use t
 
 ---
 
-## Endpoint summary (67 routes)
+## Endpoint summary (69 routes)
 
 | Group | Public | Customer | Supplier | Admin | Mixed auth |
 |-------|--------|----------|----------|-------|------------|
@@ -84,6 +84,8 @@ Status: **200**
 | 4 | POST | `/auth/register` | — | P0 |
 | 4b | POST | `/auth/verify-otp` | — | **P0** |
 | 4c | POST | `/auth/resend-otp` | — | P1 |
+| 4d | POST | `/auth/forgot-password` | — | P1 |
+| 4e | POST | `/auth/reset-password` | — | P1 |
 | 5 | POST | `/auth/login` | — | **P0** |
 | 6 | POST | `/auth/logout` | Bearer / cookie | P1 |
 | 7 | POST | `/auth/refresh` | refresh body/cookie | P1 |
@@ -134,6 +136,42 @@ Status: **200**
 |------|----------|
 | Pending user | **200** — `{ message, email }` |
 | Already verified | **400** — No pending verification |
+
+### Sample — POST `/auth/forgot-password`
+
+```json
+{ "email": "qa.tester+001@example.com" }
+```
+
+| Case | Expected |
+|------|----------|
+| Verified customer | **200** — `{ "message": "If that email is registered, we sent a password reset code." }` |
+| Unknown email | **200** — same generic message (no enumeration) |
+| Invalid email | **400** |
+| Admin email | **200** — generic message, no reset sent |
+| SMTP unavailable (prod) | **400** or **503** — reset unavailable |
+
+Uses same `DOVA_QA_FIXED_OTP` as verify-otp when email matches `qa.softlaunch.*@example.com`.
+
+### Sample — POST `/auth/reset-password`
+
+```json
+{
+  "email": "qa.tester+001@example.com",
+  "code": "123456",
+  "password": "newpassword123",
+  "confirmPassword": "newpassword123"
+}
+```
+
+| Case | Expected |
+|------|----------|
+| Valid code | **200** — `{ "message": "Password updated. You can sign in with your new password." }` |
+| Wrong code | **400** — Invalid reset code |
+| Expired code | **400** — Reset code expired |
+| Password mismatch | **400** — Invalid password data |
+
+After success, all sessions for that user are revoked.
 
 ### Sample — POST `/auth/login`
 

@@ -2,7 +2,7 @@
 
 **Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
-**Automated:** `npm run test` — **132 tests** · `npm run smoke:production` (production API) · `npm run smoke:week4`  
+**Automated:** `npm run test` — **146 tests** · `npm run smoke:production` (28 API steps + 10 negative) · `npm run smoke:week4`  
 **QA workflow:** see [GUIDE.md](./GUIDE.md)  
 **Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`  
 **Local URLs:** storefront http://localhost:3001 · API http://localhost:3000/api/v1 · feedback http://localhost:3001/feedback
@@ -36,8 +36,10 @@
 | AUTH-07 | Role guard — customer | Customer opens `/admin` | Blocked / redirect |
 | AUTH-08 | Role guard — supplier | Unapproved supplier opens `/supplier` products | Blocked until approved |
 | AUTH-09 | Checkout login modal | Guest checkout → prompted to login | Modal login; resume checkout after auth |
+| AUTH-10 | Forgot password | `/auth/forgot-password` verified email | Generic success message; reset email sent |
+| AUTH-11 | Reset password | `/auth/reset-password` with OTP | Password updated; old sessions revoked; login with new password |
 
-**Automated coverage:** `AppService` register/login/refresh/revoke · `auth.test.js`
+**Automated coverage:** `AppService` register/login/refresh/revoke/forgot/reset · `auth.test.js` · smoke steps 24–26
 
 ---
 
@@ -46,13 +48,13 @@
 | File | Tests | Covers |
 |------|-------|--------|
 | `shared/src/index.spec.ts` | 4 | Email/password validation, roles, min-order helpers |
-| `apps/backend/src/app.service.spec.ts` | 35 | Auth, cart, orders, payments, admin, supplier, webhook |
+| `apps/backend/src/app.service.spec.ts` | 40+ | Auth, cart, orders, payments, admin, supplier, webhook |
 | `apps/backend/src/feedback.service.spec.ts` | 6 | Posts, votes, comments, changelog, roadmap, admin guard |
 | `apps/backend/src/notification.service.spec.ts` | 7 | Supplier email, contact forwarding, provider errors |
 | `apps/frontend/src/lib/api.spec.ts` | 4 | API client, errors, FormData |
 | `apps/frontend/src/lib/feedlog.spec.ts` | 3 | Native `/feedback` link helpers (`FeedlogLink` contract) |
 | `apps/backend/test/auth.test.js` | 1 flow | Register → duplicate → login → refresh → revoke |
-| **Total** | **63** | 6 Jest suites + backend auth script |
+| **Total** | **146** | 17 Jest suites + backend auth script |
 
 Run: `npm run test` · Coverage: `npm run test:coverage`
 
@@ -208,7 +210,7 @@ See also internal runbook / staging docs (wiki mirror if available).
 ## Running automated tests
 
 ```bash
-npm run test              # all unit tests (63)
+npm run test              # all unit tests (146)
 npm run test:coverage     # with coverage report
 npm run test:backend      # compiled auth integration
 npm run smoke:week4       # requires API on :3000
