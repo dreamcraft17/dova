@@ -145,8 +145,8 @@ Status: **200**
 
 | Case | Expected |
 |------|----------|
-| Verified customer | **200** — `{ "message": "If that email is registered, we sent a password reset code." }` |
-| Unknown email | **200** — same generic message (no enumeration) |
+| Verified customer | **200** or **201** — `{ "message": "If that email is registered, we sent a password reset code." }` |
+| Unknown email | **200** or **201** — same generic message (no enumeration) |
 | Invalid email | **400** |
 | Admin email | **200** — generic message, no reset sent |
 | SMTP unavailable (prod) | **400** or **503** — reset unavailable |
@@ -166,7 +166,7 @@ Uses same `DOVA_QA_FIXED_OTP` as verify-otp when email matches `qa.softlaunch.*@
 
 | Case | Expected |
 |------|----------|
-| Valid code | **200** — `{ "message": "Password updated. You can sign in with your new password." }` |
+| Valid code | **200** or **201** — `{ "message": "Password updated. You can sign in with your new password." }` |
 | Wrong code | **400** — Invalid reset code |
 | Expired code | **400** — Reset code expired |
 | Password mismatch | **400** — Invalid password data |

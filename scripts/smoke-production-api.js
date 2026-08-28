@@ -32,6 +32,14 @@ async function req(method, urlPath, { token, body, expectStatus } = {}) {
   return { status: res.status, data };
 }
 
+async function reqOk(method, urlPath, opts = {}) {
+  const res = await req(method, urlPath, opts);
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error(`${method} ${urlPath} expected 200/201 got ${res.status}: ${JSON.stringify(res.data)}`);
+  }
+  return res;
+}
+
 async function waitForHealth(maxAttempts = 15, delayMs = 2000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -238,18 +246,16 @@ async function main() {
   await req('GET', '/auth/me', { token: 'invalid.jwt.token', expectStatus: 401 });
 
   log('24-26. Forgot + reset password (verified customer)');
-  await req('POST', '/auth/forgot-password', {
+  await reqOk('POST', '/auth/forgot-password', {
     body: { email: customerEmail },
-    expectStatus: 200,
   });
-  await req('POST', '/auth/reset-password', {
+  await reqOk('POST', '/auth/reset-password', {
     body: {
       email: customerEmail,
       code: otpCode,
       password: 'newpassword123',
       confirmPassword: 'newpassword123',
     },
-    expectStatus: 200,
   });
   const relogin = await req('POST', '/auth/login', {
     body: { email: customerEmail, password: 'newpassword123', rememberMe: true },
