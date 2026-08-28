@@ -65,13 +65,28 @@ PAYSTACK_CALLBACK_URL=https://dova.dntech.id/checkout/verify
 
 ### Wajib untuk registrasi customer (production, sejak v0.5.4)
 
+**Opsi B — Gmail (DOVA official):**
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=officialdovachain@gmail.com
+SMTP_PASS=xxxx xxxx xxxx xxxx
+EMAIL_FROM=DOVA <officialdovachain@gmail.com>
+SUPPORT_EMAIL=officialdovachain@gmail.com
+```
+
+`SMTP_PASS` = **App Password** Google (bukan password login). Buat di: Google Account → Security → 2-Step Verification ON → App passwords.
+
+**Opsi A — Resend + domain (alternatif):**
+
 ```env
 RESEND_API_KEY=re_GANTI
 EMAIL_FROM=DOVA <noreply@dova.dntech.id>
 SUPPORT_EMAIL=support@dova.dntech.id
 ```
 
-Tanpa `RESEND_API_KEY` + `EMAIL_FROM`, signup customer di production akan ditolak (supaya tidak ada akun pending tanpa email OTP).
+Tanpa SMTP **atau** Resend + `EMAIL_FROM`, signup customer di production ditolak.
 
 ### Opsional — smoke QA otomatis
 

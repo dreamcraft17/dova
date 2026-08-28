@@ -6,6 +6,7 @@ import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMes
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
+import { isEmailProviderConfigured } from './mail.util';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
 import { isValidOtpFormat } from 'dova-shared';
@@ -106,7 +107,7 @@ export class AppService {
     const normalizedEmail = email.toLowerCase();
     if (await this.findUser(normalizedEmail)) throw new BadRequestException('Email already registered');
     const qaSmoke = Boolean(this.qaSmokeOtpCode(normalizedEmail));
-    if (process.env.NODE_ENV === 'production' && !qaSmoke && (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM)) {
+    if (process.env.NODE_ENV === 'production' && !qaSmoke && !isEmailProviderConfigured()) {
       throw new BadRequestException('Registration is temporarily unavailable. Please try again later.');
     }
     const user = this.makeUser(normalizedEmail, fullName, 'customer', password, { active: false, emailVerified: false });

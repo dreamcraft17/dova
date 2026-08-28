@@ -102,7 +102,9 @@ Templates: `.env.example`, `apps/backend/.env.example`, `tests/vps-*.env.example
 | `PAYSTACK_CURRENCY` | `NGN` |
 | `PAYSTACK_CALLBACK_URL` | Checkout verify page on frontend |
 | `REDIS_URL` | Optional — omit if Redis not running |
-| `RESEND_API_KEY` / `EMAIL_FROM` | **Required on production** for customer signup OTP; also contact/supplier email |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | **Gmail SMTP** — OTP & notifications (`officialdovachain@gmail.com` + App Password) |
+| `EMAIL_FROM` | From header, e.g. `DOVA <officialdovachain@gmail.com>` |
+| `RESEND_API_KEY` | Alternative to SMTP — Resend API + verified domain |
 | `DOVA_QA_FIXED_OTP` | Optional — fixed OTP for `qa.softlaunch.*` smoke emails only |
 
 ### Frontend (`apps/frontend/.env.local`)
