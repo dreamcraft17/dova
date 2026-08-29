@@ -344,14 +344,14 @@ async function main() {
   });
 
   log('PASS — production API smoke (29 + 10 negative)');
-  const out = path.join(__dirname, '../tests/smoke-production-latest.log');
+  const out = path.join(__dirname, '../ops/logs/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   log(`Log saved: ${out}`);
 }
 
 main().catch((err) => {
   log(`FAIL — ${err.message}`);
-  const out = path.join(__dirname, '../tests/smoke-production-latest.log');
+  const out = path.join(__dirname, '../ops/logs/smoke-production-latest.log');
   fs.writeFileSync(out, lines.join('\n') + '\n');
   process.exit(1);
 });

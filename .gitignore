@@ -9,16 +9,16 @@ dist/
 coverage/
 *.log
 *.tsbuildinfo
-docs/
 .DS_Store
 apps/backend/uploads/*
 !apps/backend/uploads/.gitkeep
 
-# Personal / compensation — Dozer only, never this app repo
-# (see ../company-wiki/docs/products/dova/private/)
-tests/*EQUITY*
-tests/*COUNTER-PROPOSAL*
-tests/*LAUNCH-BUDGET*
+# Smoke / ops artifacts (not docs)
+ops/logs/*.log
+ops/logs/*.json
+
+# Personal / compensation — never this app repo
+*EQUITY*
+*COUNTER-PROPOSAL*
+*LAUNCH-BUDGET*
 *Partnership Proposal*
-
-
