@@ -2245,6 +2245,17 @@ form .button {
   font-size: 13px;
 }
 
+.auth-form-success {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .auth-field-control .password-toggle-btn {
   right: 10px;
 }

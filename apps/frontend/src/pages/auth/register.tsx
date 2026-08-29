@@ -24,6 +24,7 @@ export default function Register() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [sendBusy, setSendBusy] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { establishSession } = useAuth();
@@ -78,13 +79,17 @@ export default function Register() {
     setBusy(true);
     try {
       configureLoginPersistence(true);
-      const session = await api<{ user: User }>('/auth/register', {
+      const session = await api<{ user: User; message?: string }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ ...form, code, rememberMe: true }),
       });
       establishSession(session.user);
-      showToast('Account created successfully.', 'success');
-      await router.push('/products');
+      const message = session.message ?? 'Account created successfully.';
+      setSuccessMessage(message);
+      showToast(message, 'success');
+      window.setTimeout(() => {
+        void router.push('/products');
+      }, 1800);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -195,9 +200,14 @@ export default function Register() {
               <li className={passwordChecks.match ? 'is-met' : ''}>Passwords match</li>
             </ul>
           ) : null}
+          {successMessage ? (
+            <p className="auth-form-success" role="status" aria-live="polite">
+              {successMessage} Redirecting you to products…
+            </p>
+          ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
-          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
+          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || Boolean(successMessage)}>
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : successMessage ? 'Account created' : 'Create account'}
           </button>
         </form>
       </AuthCard>
