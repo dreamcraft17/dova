@@ -327,7 +327,7 @@ function EmailVerificationPanel({ user, variant }: EmailVerificationPanelProps) 
         Email verification
       </h2>
       <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--muted)', lineHeight: 1.55 }}>
-        Enter the 6-digit code we sent to <strong>{user.email}</strong>. Checkout stays blocked until this is done.
+        Enter the 6-digit code we sent to <strong>{user.email}</strong>. For older accounts created before inline verification, complete this here before checkout.
       </p>
       <form onSubmit={(e) => void submit(e)} className="form-grid">
         <label style={{ gridColumn: '1 / -1' }}>

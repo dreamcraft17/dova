@@ -6,6 +6,16 @@ export class RegisterDto {
   @IsEmail() email!: string;
   @IsString() @MinLength(8) password!: string;
   @IsString() @MinLength(8) confirmPassword!: string;
+  @IsString() @Length(6, 6) code!: string;
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  rememberMe?: boolean;
+}
+
+export class SendRegistrationCodeDto {
+  @IsEmail() email!: string;
+  @IsOptional() @IsString() @MinLength(2) fullName?: string;
 }
 
 export class LoginDto {

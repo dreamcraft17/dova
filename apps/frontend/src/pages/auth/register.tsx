@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
@@ -7,7 +7,7 @@ import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
-import { api, configureLoginPersistence } from '../../lib/api';
+import { ApiError, api, configureLoginPersistence } from '../../lib/api';
 import type { User } from 'dova-shared';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -19,6 +19,10 @@ export default function Register() {
     password: '',
     confirmPassword: '',
   });
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [sendBusy, setSendBusy] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -33,6 +37,33 @@ export default function Register() {
     [form.password, form.confirmPassword],
   );
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  async function sendCode() {
+    if (!form.email || sendBusy || resendCooldown > 0) return;
+    setSendBusy(true);
+    setError('');
+    try {
+      await api('/auth/send-registration-code', {
+        method: 'POST',
+        body: JSON.stringify({ email: form.email, fullName: form.fullName.trim() || undefined }),
+      });
+      setCodeSent(true);
+      setResendCooldown(60);
+      showToast('Verification code sent to your email.', 'success');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not send verification code.';
+      setError(message);
+      if (err instanceof ApiError && message.includes('wait')) setResendCooldown(60);
+    } finally {
+      setSendBusy(false);
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -40,17 +71,20 @@ export default function Register() {
       setError('Passwords do not match.');
       return;
     }
+    if (code.length !== 6) {
+      setError('Enter the 6-digit code from your email.');
+      return;
+    }
     setBusy(true);
     try {
-      await api('/auth/register', { method: 'POST', body: JSON.stringify(form) });
       configureLoginPersistence(true);
-      const session = await api<{ user: User }>('/auth/login', {
+      const session = await api<{ user: User }>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email: form.email, password: form.password, rememberMe: true }),
+        body: JSON.stringify({ ...form, code, rememberMe: true }),
       });
       establishSession(session.user);
-      showToast('Account created. Enter the 6-digit code we emailed you in Profile.', 'success');
-      await router.push('/customer/profile?verify=1');
+      showToast('Account created successfully.', 'success');
+      await router.push('/products');
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -64,7 +98,7 @@ export default function Register() {
         subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
         notice={
           <p>
-            After signup we email a <strong>6-digit code</strong>. Enter it in your Profile before your first order.
+            Enter your work email, tap <strong>Send code</strong>, then type the 6-digit OTP below before you create your account.
           </p>
         }
         footer={
@@ -96,8 +130,40 @@ export default function Register() {
             required
             placeholder="you@company.com"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, email: e.target.value });
+              setCode('');
+              setCodeSent(false);
+            }}
           />
+          <div className="auth-otp-row">
+            <label htmlFor="register-code" className="auth-field-label">
+              Email verification code
+            </label>
+            <div className="auth-otp-controls">
+              <input
+                id="register-code"
+                className="otp-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="\d{6}"
+                maxLength={6}
+                required
+                placeholder="000000"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              />
+              <button
+                type="button"
+                className="auth-inline-button"
+                disabled={sendBusy || resendCooldown > 0 || !form.email}
+                onClick={() => void sendCode()}
+              >
+                {sendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend ${resendCooldown}s` : codeSent ? 'Resend code' : 'Send code'}
+              </button>
+            </div>
+          </div>
           <AuthPasswordField
             id="register-password"
             label="Password"
@@ -130,11 +196,11 @@ export default function Register() {
             </ul>
           ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
-          <button type="submit" className="auth-submit" disabled={busy}>
+          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6}>
             {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
           </button>
         </form>
       </AuthCard>
     </AuthShell>
   );
-}
+};

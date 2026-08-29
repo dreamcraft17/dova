@@ -34,6 +34,7 @@ function parseErrorPayload(data: Record<string, unknown>) {
 const AUTH_NO_RETRY = new Set([
   '/auth/login',
   '/auth/register',
+  '/auth/send-registration-code',
   '/auth/verify-otp',
   '/auth/resend-otp',
   '/auth/forgot-password',

@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
@@ -57,7 +57,22 @@ export class AppController {
 
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
-  @Post('auth/register') register(@Body() body: RegisterDto) { return this.service.register(body); }
+  @Post('auth/send-registration-code') sendRegistrationCode(@Body() body: SendRegistrationCodeDto) {
+    return this.service.sendRegistrationCode(body.email, body.fullName);
+  }
+
+  @Public()
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post('auth/register') async register(@Body() body: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.service.register(body);
+    res.cookie('accessToken', result.accessToken, this.cookieOptions(900000));
+    if (body.rememberMe) {
+      res.cookie('refreshToken', result.refreshToken, this.cookieOptions(30 * 24 * 60 * 60 * 1000));
+    } else {
+      res.cookie('refreshToken', result.refreshToken, this.sessionCookieOptions());
+    }
+    return result;
+  }
 
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })

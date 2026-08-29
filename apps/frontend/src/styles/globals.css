@@ -2249,6 +2249,41 @@ form .button {
   right: 10px;
 }
 
+.auth-otp-row {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-otp-controls {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.auth-otp-controls .otp-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-inline-button {
+  flex-shrink: 0;
+  min-height: var(--touch);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 107, 67, 0.25);
+  background: var(--mint);
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.auth-inline-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .auth-form-row {
   display: flex;
   align-items: center;
