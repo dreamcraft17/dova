@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
+import { RegistrationSuccessModal } from '../../components/RegistrationSuccessModal';
 import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
@@ -25,6 +26,7 @@ export default function Register() {
   const [sendBusy, setSendBusy] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { establishSession } = useAuth();
@@ -65,6 +67,16 @@ export default function Register() {
     }
   }
 
+  const continueAfterRegistration = useCallback(() => {
+    void router.push('/products');
+  }, [router]);
+
+  useEffect(() => {
+    if (!showSuccessModal) return;
+    const timer = window.setTimeout(continueAfterRegistration, 4000);
+    return () => window.clearTimeout(timer);
+  }, [showSuccessModal, continueAfterRegistration]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -84,12 +96,9 @@ export default function Register() {
         body: JSON.stringify({ ...form, code, rememberMe: true }),
       });
       establishSession(session.user);
-      const message = session.message ?? 'Account created successfully.';
+      const message = session.message ?? 'Your account was created successfully.';
       setSuccessMessage(message);
-      showToast(message, 'success');
-      window.setTimeout(() => {
-        void router.push('/products');
-      }, 1800);
+      setShowSuccessModal(true);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -200,17 +209,17 @@ export default function Register() {
               <li className={passwordChecks.match ? 'is-met' : ''}>Passwords match</li>
             </ul>
           ) : null}
-          {successMessage ? (
-            <p className="auth-form-success" role="status" aria-live="polite">
-              {successMessage} Redirecting you to products…
-            </p>
-          ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
-          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || Boolean(successMessage)}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : successMessage ? 'Account created' : 'Create account'}
+          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || showSuccessModal}>
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
           </button>
         </form>
       </AuthCard>
+      <RegistrationSuccessModal
+        open={showSuccessModal}
+        message={successMessage}
+        onContinue={continueAfterRegistration}
+      />
     </AuthShell>
   );
 };
