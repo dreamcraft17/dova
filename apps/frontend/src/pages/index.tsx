@@ -44,7 +44,7 @@ const TRUST = [
   {
     icon: '🤝',
     title: 'Transparent Marketplace',
-    text: 'Honest, transparent relationships between farmers and buyers.',
+    text: 'Honest, transparent relationships between farmers and customers.',
   },
 ] as const;
 
@@ -140,7 +140,7 @@ export default function Home() {
       <section className="section">
         <h2 className="section-title">How DOVA Works</h2>
         <p className="section-sub">
-          Connecting farmers and buyers through a simple, trusted, and efficient process.
+          Connecting farmers and customers through a simple, trusted, and efficient process.
         </p>
         <div className="how-grid">
           {HOW.map((item) => (
@@ -172,7 +172,7 @@ export default function Home() {
           <h2>Become a DOVA Supplier</h2>
           <p>
             Join our growing network of verified farmers and connect your agricultural products with
-            buyers through a trusted, transparent marketplace.
+            customers through a trusted, transparent marketplace.
           </p>
           <Link href="/auth/supplier-register" className="button">
             Become a Supplier
@@ -186,7 +186,7 @@ export default function Home() {
       <section className="section trust">
         <h2 className="section-title">Why Choose DOVA?</h2>
         <p className="section-sub" style={{ marginBottom: 12, color: '#444', fontWeight: 500 }}>
-          Trusted by Farmers. Chosen by Buyers.
+          Trusted by Farmers. Chosen by Customers.
         </p>
         <p className="section-sub wide">
           We build trust through verified suppliers, transparent sourcing, and reliable delivery to

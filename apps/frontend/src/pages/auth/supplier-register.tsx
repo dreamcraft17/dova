@@ -45,7 +45,7 @@ export default function SupplierRegister() {
       <div className="supplier-card">
         <h1>Become a DOVA Supplier</h1>
         <p>
-          Join our trusted supplier network and connect your products directly with buyers.
+          Join our trusted supplier network and connect your products directly with customers.
         </p>
         <form onSubmit={submit}>
           <label>Contact / Full Name</label>

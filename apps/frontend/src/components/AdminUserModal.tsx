@@ -158,7 +158,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
     }
   }
 
-  const canDeleteUser = Boolean(detail && !isSelf && detail.canDelete);
+  const canDeleteUser = Boolean(detail && !isSelf);
 
   if (!open || !userId || !mounted) return null;
 
@@ -307,9 +307,7 @@ export function AdminUserModal({ userId, open, currentUserId, onClose, onSaved }
                 <div className="admin-user-form admin-user-danger">
                   <h2>Delete account</h2>
                   <p className="form-hint">
-                    {canDeleteUser
-                      ? 'Permanently remove this user. Use this for failed registrations or test accounts.'
-                      : 'Users with order history cannot be deleted. Deactivate the account instead.'}
+                    Permanently removes this account and related data, including order history tied to this user.
                   </p>
                   <div className="admin-user-form-actions">
                     <button

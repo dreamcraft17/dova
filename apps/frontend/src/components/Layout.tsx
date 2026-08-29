@@ -209,7 +209,7 @@ export function Layout({
           <div className="footer-logo">
             <h2>DOVA</h2>
             <p>
-              Connecting verified farmers and buyers through a trusted agricultural marketplace.
+              Connecting verified farmers and customers through a trusted agricultural marketplace.
             </p>
           </div>
           <div>

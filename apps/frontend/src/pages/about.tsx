@@ -8,14 +8,14 @@ export default function About() {
         <p className="eyebrow">About DOVA</p>
         <h1>Building a trusted agricultural marketplace.</h1>
         <p className="lead">
-          DOVA connects verified farmers and suppliers with buyers through a secure, transparent
+          DOVA connects verified farmers and suppliers with customers through a secure, transparent
           marketplace — so fresh produce moves with clarity, fair pricing, and reliable delivery.
         </p>
         <div className="how-grid" style={{ marginTop: 40, textAlign: 'left' }}>
           <div className="how-card">
             <div className="how-icon">✓</div>
             <h3>Verified network</h3>
-            <p>Suppliers are reviewed so buyers can source with confidence.</p>
+            <p>Suppliers are reviewed so customers can source with confidence.</p>
           </div>
           <div className="how-card">
             <div className="how-icon">🌿</div>

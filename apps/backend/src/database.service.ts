@@ -126,25 +126,53 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     return result.rows[0].count as number;
   }
-  async deleteUser(userId: string): Promise<'deleted' | 'has_orders' | 'not_found' | 'skipped'> {
+  async deleteUser(userId: string): Promise<'deleted' | 'not_found' | 'skipped'> {
     if (!this.pool) return 'skipped';
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const orderCheck = await client.query(
-        `SELECT
-          EXISTS(SELECT 1 FROM orders WHERE customer_id = $1) AS has_customer_orders,
-          EXISTS(
-            SELECT 1 FROM order_items oi
-            JOIN supplier_profiles sp ON sp.id = oi.supplier_id
-            WHERE sp.user_id = $1
-          ) AS has_supplier_orders`,
-        [userId],
+      const supplierResult = await client.query('SELECT id FROM supplier_profiles WHERE user_id = $1', [userId]);
+      const supplierId: string | null = supplierResult.rows[0]?.id ?? null;
+
+      await client.query(
+        `DELETE FROM payment_logs
+         WHERE order_id IN (
+           SELECT id FROM orders WHERE customer_id = $1
+           UNION
+           SELECT oi.order_id FROM order_items oi
+           WHERE $2::uuid IS NOT NULL AND oi.supplier_id = $2
+         )`,
+        [userId, supplierId],
       );
-      if (orderCheck.rows[0].has_customer_orders || orderCheck.rows[0].has_supplier_orders) {
-        await client.query('ROLLBACK');
-        return 'has_orders';
+      await client.query(
+        `DELETE FROM stock_adjustments
+         WHERE order_id IN (SELECT id FROM orders WHERE customer_id = $1)
+            OR ($2::uuid IS NOT NULL AND supplier_id = $2)`,
+        [userId, supplierId],
+      );
+      await client.query('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE customer_id = $1)', [userId]);
+      if (supplierId) {
+        await client.query('DELETE FROM order_items WHERE supplier_id = $1', [supplierId]);
       }
+      await client.query('DELETE FROM orders WHERE customer_id = $1', [userId]);
+      await client.query(
+        `DELETE FROM payment_logs
+         WHERE order_id IN (
+           SELECT o.id FROM orders o
+           WHERE NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id)
+         )`,
+      );
+      await client.query(
+        `DELETE FROM stock_adjustments
+         WHERE order_id IN (
+           SELECT o.id FROM orders o
+           WHERE NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id)
+         )`,
+      );
+      await client.query(
+        `DELETE FROM orders o
+         WHERE NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id)`,
+      );
       await client.query('DELETE FROM user_sessions WHERE user_id = $1', [userId]);
       await client.query('UPDATE supplier_profiles SET verified_by = NULL WHERE verified_by = $1', [userId]);
       const deleted = await client.query('DELETE FROM users WHERE id = $1', [userId]);
@@ -245,7 +273,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date(row.created_at).toISOString(),
       orderCount,
       supplierOrderCount,
-      canDelete: orderCount === 0 && supplierOrderCount === 0,
+      canDelete: true,
       supplier: supplier.rows[0]
         ? { id: supplier.rows[0].id, businessName: supplier.rows[0].business_name, status: supplier.rows[0].verification_status }
         : undefined,

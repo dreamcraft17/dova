@@ -4,7 +4,7 @@ type AuthAsideProps = {
 
 const panels = {
   login: {
-    kicker: 'Buyer account',
+    kicker: 'Customer account',
     headline: 'Pick up where your last order left off.',
     detail:
       'Browse verified suppliers, keep your cart, and choose morning or evening delivery when you checkout.',
@@ -15,7 +15,7 @@ const panels = {
     mobile: 'Sign in to access your cart and delivery slots.',
   },
   register: {
-    kicker: 'New buyer',
+    kicker: 'New customer',
     headline: 'Register once, then verify in Profile.',
     detail:
       'DOVA connects businesses to verified agricultural suppliers. After signup we email a 6-digit code—enter it from your Profile before checkout.',
@@ -32,7 +32,7 @@ export function AuthAside({ variant }: AuthAsideProps) {
   return (
     <>
       <p className="auth-context-mobile">{panel.mobile}</p>
-      <aside className="auth-panel" aria-label="DOVA buyer information">
+      <aside className="auth-panel" aria-label="DOVA customer information">
         <p className="auth-panel-kicker">{panel.kicker}</p>
         <h2 className="auth-panel-headline">{panel.headline}</h2>
         <p className="auth-panel-detail">{panel.detail}</p>

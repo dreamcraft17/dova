@@ -152,9 +152,7 @@ describe('DatabaseService', () => {
       query: jest.fn(async (text: string, values?: unknown[]) => {
         queries.push({ text, values });
         if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
-        if (text.includes('has_customer_orders')) {
-          return { rows: [{ has_customer_orders: false, has_supplier_orders: false }], rowCount: 1 };
-        }
+        if (text.includes('SELECT id FROM supplier_profiles')) return { rows: [], rowCount: 0 };
         if (text.includes('DELETE FROM users')) return { rows: [], rowCount: 1 };
         return { rows: [], rowCount: 0 };
       }),
@@ -171,15 +169,16 @@ describe('DatabaseService', () => {
     expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(true);
   });
 
-  it('deleteUser rolls back when order history exists', async () => {
+  it('deleteUser cascades order history before removing the user', async () => {
     const queries: Array<{ text: string; values?: unknown[] }> = [];
     const client = {
       query: jest.fn(async (text: string, values?: unknown[]) => {
         queries.push({ text, values });
-        if (text === 'BEGIN' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
-        if (text.includes('has_customer_orders')) {
-          return { rows: [{ has_customer_orders: true, has_supplier_orders: false }], rowCount: 1 };
+        if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+        if (text.includes('SELECT id FROM supplier_profiles')) {
+          return { rows: [{ id: 'supplier-1' }], rowCount: 1 };
         }
+        if (text.includes('DELETE FROM users')) return { rows: [], rowCount: 1 };
         return { rows: [], rowCount: 0 };
       }),
       release: jest.fn(),
@@ -188,8 +187,10 @@ describe('DatabaseService', () => {
     const service = new DatabaseService();
     (service as unknown as { pool: typeof pool }).pool = pool;
 
-    await expect(service.deleteUser('user-2')).resolves.toBe('has_orders');
-    expect(queries.some((q) => q.text === 'ROLLBACK')).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(false);
+    await expect(service.deleteUser('user-2')).resolves.toBe('deleted');
+    expect(queries.some((q) => q.text.includes('DELETE FROM payment_logs'))).toBe(true);
+    expect(queries.some((q) => q.text.includes('DELETE FROM order_items'))).toBe(true);
+    expect(queries.some((q) => q.text.includes('DELETE FROM orders'))).toBe(true);
+    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
   });
 });

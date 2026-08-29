@@ -707,7 +707,7 @@ export class AppService {
       emailVerifiedAt: user.emailVerifiedAt,
       orderCount,
       supplierOrderCount,
-      canDelete: orderCount === 0 && supplierOrderCount === 0,
+      canDelete: true,
       supplier: supplierProfile
         ? { id: supplierProfile.id, businessName: supplierProfile.businessName, status: supplierProfile.status }
         : undefined,
@@ -757,33 +757,33 @@ export class AppService {
     if (user) user.isActive = active;
     return { id, isActive: active };
   }
+  private purgeUserFromMemory(userId: string, supplierId?: string) {
+    this.orders = this.orders
+      .filter((order) => order.customerId !== userId)
+      .map((order) => ({
+        ...order,
+        items: supplierId
+          ? order.items.filter((item) => item.product.supplierId !== supplierId)
+          : order.items,
+      }))
+      .filter((order) => order.items.length > 0);
+    if (supplierId) {
+      this.products = this.products.filter((product) => product.supplierId !== supplierId);
+    }
+    this.users = this.users.filter((entry) => entry.id !== userId);
+    this.suppliers = this.suppliers.filter((entry) => entry.userId !== userId);
+    this.carts.delete(userId);
+  }
   async deleteAdminUser(id: string, actorId: string) {
     if (id === actorId) throw new BadRequestException('You cannot delete your own account');
     const user = await this.findUser(id, true);
     if (!user) throw new NotFoundException('User not found');
     const supplier = this.suppliers.find((entry) => entry.userId === id)
       ?? (this.database.enabled ? await this.database.findSupplierByUser(id) : undefined);
-    const orderCount = (await this.database.userOrderCount(id))
-      ?? this.orders.filter((order) => order.customerId === id).length;
-    const supplierOrderCount = (await this.database.userSupplierOrderCount(id))
-      ?? (supplier
-        ? this.orders.reduce(
-            (count, order) => count + order.items.filter((item) => item.product.supplierId === supplier.id).length,
-            0,
-          )
-        : 0);
-    if (orderCount > 0 || supplierOrderCount > 0) {
-      throw new BadRequestException('Cannot delete a user with order history. Deactivate the account instead.');
-    }
     const result = await this.database.deleteUser(id);
-    if (result === 'has_orders') {
-      throw new BadRequestException('Cannot delete a user with order history. Deactivate the account instead.');
-    }
     if (result === 'not_found') throw new NotFoundException('User not found');
     if (result === 'skipped') await this.database.revokeAllUserSessions(id);
-    this.users = this.users.filter((entry) => entry.id !== id);
-    this.suppliers = this.suppliers.filter((entry) => entry.userId !== id);
-    this.carts.delete(id);
+    this.purgeUserFromMemory(id, supplier?.id);
     console.info(`[Admin] Deleted user ${user.email} (${id}) by admin ${actorId}`);
     return { message: 'User deleted successfully' };
   }

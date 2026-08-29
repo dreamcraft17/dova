@@ -811,28 +811,20 @@ describe('AppService', () => {
       expect(database.deleteUser).toHaveBeenCalledWith(user.id);
     });
 
-    it('blocks deleting users with customer order history', async () => {
+    it('deletes a user with customer order history', async () => {
       const { service, database } = makeService();
-      await registerAndVerify(service, { fullName: 'Buyer', email: 'buyer@example.com', password: 'password123', confirmPassword: 'password123' });
-      const user = service.users.find((entry) => entry.email === 'buyer@example.com')!;
+      const session = await registerAndVerify(service, { fullName: 'Customer', email: 'customer-orders@example.com', password: 'password123', confirmPassword: 'password123' });
+      await addToCart(service, session.user.id, service.products[0].id, 2);
+      await service.createOrder(session.user.id, {
+        deliveryName: 'Customer',
+        deliveryAddress: 'Lagos',
+        deliveryPhone: '0812345678',
+        fulfillmentType: 'delivery',
+      });
       database.userOrderCount.mockResolvedValueOnce(1);
-      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
-    });
-
-    it('blocks deleting suppliers with order item history', async () => {
-      const { service, database } = makeService();
-      await registerAndVerify(service, { fullName: 'Supplier Buyer', email: 'supplier-buyer@example.com', password: 'password123', confirmPassword: 'password123' });
-      const user = service.users.find((entry) => entry.email === 'supplier-buyer@example.com')!;
-      database.userSupplierOrderCount.mockResolvedValueOnce(2);
-      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
-    });
-
-    it('blocks delete when database detects order history during transaction', async () => {
-      const { service, database } = makeService();
-      await service.register({ fullName: 'Race User', email: 'race@example.com', password: 'password123', confirmPassword: 'password123' });
-      const user = service.users.find((entry) => entry.email === 'race@example.com')!;
-      database.deleteUser.mockResolvedValueOnce('has_orders');
-      await expect(service.deleteAdminUser(user.id, 'other-admin-id')).rejects.toThrow('order history');
+      const result = await service.deleteAdminUser(session.user.id, 'other-admin-id');
+      expect(result.message).toContain('deleted');
+      expect(service.users.some((entry) => entry.id === session.user.id)).toBe(false);
     });
 
     it('blocks admins from deleting themselves', async () => {

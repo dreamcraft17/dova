@@ -67,7 +67,7 @@ export default function Login() {
   return (
     <AuthShell aside={<AuthAside variant="login" />}>
       <AuthCard
-        title="Sign in to your buyer account"
+        title="Sign in to your customer account"
         subtitle="Use the email and password you registered with."
         notice={
           passwordChanged ? (
@@ -77,7 +77,7 @@ export default function Login() {
         footer={
           <>
             <p>
-              New to DOVA? <Link href="/auth/register">Create a buyer account</Link>
+              New to DOVA? <Link href="/auth/register">Create a customer account</Link>
             </p>
             <p className="auth-footer-secondary">
               List products on DOVA? <Link href="/auth/supplier-register">Supplier application</Link>

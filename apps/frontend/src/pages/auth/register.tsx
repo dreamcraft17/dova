@@ -60,7 +60,7 @@ export default function Register() {
   return (
     <AuthShell aside={<AuthAside variant="register" />}>
       <AuthCard
-        title="Buyer registration"
+        title="Customer registration"
         subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
         notice={
           <p>
