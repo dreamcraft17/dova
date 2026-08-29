@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { buildOtpEmail } from './email-templates';
 import { sendEmail } from './mail.util';
 
 @Injectable()
@@ -8,21 +9,19 @@ export class NotificationService {
     const subject = status === 'approved' ? 'Your DOVA supplier application was approved' : 'Update on your DOVA supplier application';
     const text =
       status === 'approved'
-        ? `Hello ${businessName}, your supplier application is approved.`
-        : `Hello ${businessName}, your supplier application was rejected.${reason ? ` Reason: ${reason}` : ''}`;
+        ? `Hello ${businessName},\n\nYour supplier application on DOVA is approved. Sign in to list products and manage orders.\n\n— DOVA`
+        : `Hello ${businessName},\n\nYour supplier application on DOVA was not approved this time.${reason ? `\n\nReason: ${reason}` : ''}\n\nYou may update your documents and apply again.\n\n— DOVA`;
     return sendEmail({ to: email, subject, text });
   }
 
   async verificationOtp(email: string, code: string, fullName: string) {
-    const subject = 'Verify your DOVA account';
-    const text = `Hello ${fullName},\n\nYour DOVA email verification code is ${code}. It expires in 10 minutes.\n\nIf you did not create an account, you can ignore this email.`;
-    return sendEmail({ to: email, subject, text });
+    const message = buildOtpEmail('verification', fullName, code);
+    return sendEmail({ to: email, subject: message.subject, text: message.text, html: message.html });
   }
 
   async passwordResetOtp(email: string, code: string, fullName: string) {
-    const subject = 'Reset your DOVA password';
-    const text = `Hello ${fullName},\n\nYour DOVA password reset code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, you can ignore this email.`;
-    return sendEmail({ to: email, subject, text });
+    const message = buildOtpEmail('password-reset', fullName, code);
+    return sendEmail({ to: email, subject: message.subject, text: message.text, html: message.html });
   }
 
   async contactMessage(payload: { name: string; email: string; message: string }) {

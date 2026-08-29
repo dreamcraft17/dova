@@ -4,6 +4,7 @@ export type SendMailInput = {
   to: string | string[];
   subject: string;
   text: string;
+  html?: string;
   replyTo?: string;
 };
 
@@ -38,6 +39,7 @@ export async function sendViaSmtp(input: SendMailInput): Promise<{ sent: boolean
       to: input.to,
       subject: input.subject,
       text: input.text,
+      html: input.html,
       replyTo: input.replyTo,
     });
     return { sent: true };
@@ -62,6 +64,7 @@ export async function sendViaResend(input: SendMailInput): Promise<{ sent: boole
       reply_to: input.replyTo,
       subject: input.subject,
       text: input.text,
+      html: input.html,
     }),
   });
   if (!response.ok) return { sent: false, reason: 'provider-error' };

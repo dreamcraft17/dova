@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import type { User } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { ApiError, api } from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 type Props = {
   user: User;
@@ -90,6 +91,7 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
 
   return (
     <div style={variant === 'customer' ? { display: 'flex', flexDirection: 'column', gap: 20 } : undefined}>
+      {!verified ? <EmailVerificationPanel user={user} variant={variant} /> : null}
       <section className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined} style={cardStyle}>
         {variant === 'customer' ? (
           <h2 style={{ margin: '0 0 16px', fontSize: 18, color: 'var(--green)' }}>Profile Information</h2>
@@ -231,5 +233,133 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
         </section>
       ) : null}
     </div>
+  );
+}
+
+type EmailVerificationPanelProps = {
+  user: User;
+  variant: 'customer' | 'supplier';
+};
+
+function EmailVerificationPanel({ user, variant }: EmailVerificationPanelProps) {
+  const router = useRouter();
+  const { refresh, establishSession } = useAuth();
+  const { showToast } = useToast();
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [error, setError] = useState('');
+  const promptedResend = useRef(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  useEffect(() => {
+    if (!router.isReady || router.query.verify !== '1' || promptedResend.current) return;
+    promptedResend.current = true;
+    void resend({ quiet: true });
+  }, [router.isReady, router.query.verify]);
+
+  async function resend(options: { quiet?: boolean } = {}) {
+    if (resendBusy || resendCooldown > 0) return;
+    setResendBusy(true);
+    setError('');
+    try {
+      await api('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ email: user.email }) });
+      if (!options.quiet) {
+        showToast('Verification code sent to your email.', 'success');
+      }
+      setResendCooldown(60);
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Could not resend code.';
+      if (options.quiet && /wait/i.test(message)) {
+        setResendCooldown(60);
+        return;
+      }
+      setError(message);
+      if (err instanceof ApiError && message.includes('wait')) setResendCooldown(60);
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const result = await api<{ user: User }>('/auth/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: user.email, code }),
+      });
+      establishSession(result.user);
+      await refresh();
+      showToast('Email verified. You can place orders now.', 'success');
+      if (router.query.verify) {
+        const { verify: _verify, ...rest } = router.query;
+        await router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true });
+      }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Invalid verification code.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const cardStyle = variant === 'customer'
+    ? { background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 14, padding: '20px' }
+    : undefined;
+
+  return (
+    <section
+      className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined}
+      style={cardStyle}
+      aria-labelledby="email-verification-heading"
+    >
+      <h2
+        id="email-verification-heading"
+        style={{ margin: '0 0 8px', fontSize: variant === 'customer' ? 18 : undefined, color: 'var(--green)' }}
+      >
+        Email verification
+      </h2>
+      <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--muted)', lineHeight: 1.55 }}>
+        Enter the 6-digit code we sent to <strong>{user.email}</strong>. Checkout stays blocked until this is done.
+      </p>
+      <form onSubmit={(e) => void submit(e)} className="form-grid">
+        <label style={{ gridColumn: '1 / -1' }}>
+          Verification code
+          <input
+            className="otp-input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="\d{6}"
+            maxLength={6}
+            required
+            placeholder="000000"
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+          />
+        </label>
+        {error ? <p className="error" style={{ gridColumn: '1 / -1', margin: 0 }}>{error}</p> : null}
+        <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          <button type="submit" className="button" disabled={busy}>
+            {busy ? 'Verifying…' : 'Verify email'}
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={resendBusy || resendCooldown > 0}
+            onClick={() => void resend()}
+          >
+            {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }

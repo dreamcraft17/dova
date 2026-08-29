@@ -48,40 +48,21 @@ export default function Login() {
       });
       setRememberedEmail(rememberMe ? email : null);
       establishSession(r.user);
-      await router.push(
-        r.user.role === 'admin' ? '/admin' : r.user.role === 'supplier' ? '/supplier' : '/products',
-      );
+      const destination =
+        r.user.role === 'admin'
+          ? '/admin'
+          : r.user.role === 'supplier'
+            ? '/supplier'
+            : r.user.emailVerifiedAt
+              ? '/products'
+              : '/customer/profile?verify=1';
+      await router.push(destination);
     } catch (err) {
-      const message = (err as Error).message;
-      if (/verify your email/i.test(message)) {
-        let sent = false;
-        try {
-          await api('/auth/resend-otp', { method: 'POST', body: JSON.stringify({ email }) });
-          sent = true;
-          showToast('Verification code sent to your email.', 'success');
-        } catch (resendErr) {
-          const resendMessage = (resendErr as Error).message;
-          showToast(
-            /wait/i.test(resendMessage)
-              ? 'Check your inbox for the verification code we sent earlier.'
-              : resendMessage,
-            'error',
-          );
-        }
-        await router.push(
-          `/auth/verify-email?email=${encodeURIComponent(email)}&from=login${sent ? '&sent=1' : ''}`,
-        );
-        return;
-      }
-      showToast(message, 'error');
+      showToast((err as Error).message, 'error');
     } finally {
       setBusy(false);
     }
   }
-
-  const verifyHref = email
-    ? `/auth/verify-email?email=${encodeURIComponent(email)}&from=login`
-    : '/auth/verify-email?from=login';
 
   return (
     <AuthShell aside={<AuthAside variant="login" />}>
@@ -144,9 +125,6 @@ export default function Login() {
           <button type="submit" className="auth-submit" disabled={busy}>
             {busy ? <Loading label="Signing in…" inline size="sm" /> : 'Sign in'}
           </button>
-          <p className="auth-helper-text">
-            Pending verification? <Link href={verifyHref}>Enter your 6-digit code</Link>
-          </p>
         </form>
       </AuthCard>
     </AuthShell>

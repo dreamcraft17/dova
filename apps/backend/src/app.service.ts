@@ -110,7 +110,7 @@ export class AppService {
     if (process.env.NODE_ENV === 'production' && !qaSmoke && !isEmailProviderConfigured()) {
       throw new BadRequestException('Registration is temporarily unavailable. Please try again later.');
     }
-    const user = this.makeUser(normalizedEmail, fullName, 'customer', password, { active: false, emailVerified: false });
+    const user = this.makeUser(normalizedEmail, fullName, 'customer', password, { active: true, emailVerified: false });
     this.users.push(user);
     await this.database.insertUser(user);
     const { emailResult } = await this.issueOtpForUser(user);
@@ -332,7 +332,7 @@ export class AppService {
   async login(email: string, password: string, rememberMe = false) {
     const u = await this.findUser(email);
     if (!u || !bcrypt.compareSync(password, u.passwordHash)) throw new UnauthorizedException('Invalid credentials');
-    if (!u.isActive || !u.emailVerifiedAt) throw new UnauthorizedException('Please verify your email before signing in.');
+    if (!u.isActive) throw new UnauthorizedException('Account is deactivated. Contact support if you need help.');
     const result = this.tokensFor(u, rememberMe);
     const refreshMs = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
     await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));
@@ -382,6 +382,10 @@ export class AppService {
   async updateCart(userId: string, itemId: string, quantity?: number, deliverySlot?: 'morning' | 'evening') { const cart = await this.cart(userId); const item = cart.items.find(i => i.id === itemId); if (!item) throw new NotFoundException('Cart item not found'); if (quantity !== undefined) { if (quantity < 1 || quantity > item.product.stockQuantity) throw new BadRequestException('Invalid quantity'); item.quantity = quantity; } if (deliverySlot !== undefined) { item.deliverySlot = deliverySlot; } this.recalculate(cart); return this.saveCart(userId, cart); }
   async removeCart(userId: string, itemId: string) { const cart = await this.cart(userId); cart.items = cart.items.filter(i => i.id !== itemId); this.recalculate(cart); return this.saveCart(userId, cart); }
   async createOrder(userId: string, body: any) {
+    const customer = await this.findUser(userId, true);
+    if (customer && !customer.emailVerifiedAt) {
+      throw new BadRequestException('Verify your email in Profile before placing an order.');
+    }
     if (this.database.enabled) {
       try {
         const stored = await this.database.createOrderFromCart(userId, body);

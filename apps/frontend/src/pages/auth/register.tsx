@@ -7,7 +7,10 @@ import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
-import { api } from '../../lib/api';
+import { api, configureLoginPersistence } from '../../lib/api';
+import type { User } from 'dova-shared';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -19,6 +22,8 @@ export default function Register() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const router = useRouter();
+  const { establishSession } = useAuth();
+  const { showToast } = useToast();
 
   const passwordChecks = useMemo(
     () => ({
@@ -38,7 +43,14 @@ export default function Register() {
     setBusy(true);
     try {
       await api('/auth/register', { method: 'POST', body: JSON.stringify(form) });
-      await router.push(`/auth/verify-email?email=${encodeURIComponent(form.email)}`);
+      configureLoginPersistence(true);
+      const session = await api<{ user: User }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: form.email, password: form.password, rememberMe: true }),
+      });
+      establishSession(session.user);
+      showToast('Account created. Enter the 6-digit code we emailed you in Profile.', 'success');
+      await router.push('/customer/profile?verify=1');
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -50,13 +62,9 @@ export default function Register() {
       <AuthCard
         title="Buyer registration"
         subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
-        steps={[
-          { label: 'Account details', state: 'current' },
-          { label: 'Email verification', state: 'upcoming' },
-        ]}
         notice={
           <p>
-            After you submit, check your inbox for a <strong>6-digit code</strong>. You cannot sign in until it is entered.
+            After signup we email a <strong>6-digit code</strong>. Enter it in your Profile before your first order.
           </p>
         }
         footer={
@@ -123,7 +131,7 @@ export default function Register() {
           ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
           <button type="submit" className="auth-submit" disabled={busy}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account & verify email'}
+            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
           </button>
         </form>
       </AuthCard>

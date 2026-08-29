@@ -113,13 +113,13 @@ function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock
 
 describe('AppService', () => {
   describe('registration and authentication', () => {
-    it('registers a customer as pending until email verification', async () => {
+    it('registers a customer with email verification pending in profile', async () => {
       const { service, database, notifications } = makeService();
       const result = await service.register({ fullName: 'Jane Doe', email: 'JANE@example.com', password: 'password123', confirmPassword: 'password123' });
 
       expect(result).toEqual({ message: 'Verification code sent. Check your email.', email: 'jane@example.com' });
       const stored = service.users.find((entry) => entry.email === 'jane@example.com');
-      expect(stored).toMatchObject({ fullName: 'Jane Doe', role: 'customer', isActive: false });
+      expect(stored).toMatchObject({ fullName: 'Jane Doe', role: 'customer', isActive: true });
       expect(stored?.emailVerifiedAt).toBeUndefined();
       expect(database.insertUser).toHaveBeenCalledTimes(1);
       expect(database.saveUserOtp).toHaveBeenCalledTimes(1);
@@ -152,11 +152,29 @@ describe('AppService', () => {
       expect(database.saveSession).toHaveBeenCalled();
     });
 
-    it('blocks login until email is verified', async () => {
+    it('allows login before email is verified', async () => {
       const { service } = makeService();
       await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
-      await expect(service.login('jane@example.com', 'password123')).rejects.toEqual(
-        expect.objectContaining({ message: 'Please verify your email before signing in.' }),
+      const result = await service.login('jane@example.com', 'password123');
+      expect(result.user.email).toBe('jane@example.com');
+      expect(result.user.emailVerifiedAt).toBeUndefined();
+    });
+
+    it('blocks checkout until email is verified', async () => {
+      const { service } = makeService();
+      await service.register({ fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'password123' });
+      const login = await service.login('jane@example.com', 'password123');
+      const product = service.products[0];
+      await addToCart(service, login.user.id, product.id, 2);
+      await expect(
+        service.createOrder(login.user.id, {
+          deliveryName: 'Jane',
+          deliveryAddress: 'Lagos',
+          deliveryPhone: '0812345678',
+          fulfillmentType: 'delivery',
+        }),
+      ).rejects.toEqual(
+        expect.objectContaining({ message: 'Verify your email in Profile before placing an order.' }),
       );
     });
 

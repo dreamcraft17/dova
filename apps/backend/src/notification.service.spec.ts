@@ -44,24 +44,27 @@ describe('NotificationService', () => {
   });
 
   describe('verificationOtp', () => {
-    it('sends OTP email', async () => {
+    it('sends OTP email with html template', async () => {
       await service.verificationOtp('jane@example.com', '123456', 'Jane Doe');
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'jane@example.com',
-          subject: 'Verify your DOVA account',
+          subject: 'Verify your DOVA email',
           text: expect.stringContaining('123456'),
+          html: expect.stringContaining('https://dova.dntech.id/images/logo.jpg'),
         }),
       );
     });
 
-    it('sends password reset email', async () => {
+    it('sends password reset email with html template', async () => {
+      process.env.FRONTEND_URL = 'https://dova.dntech.id';
       await service.passwordResetOtp('jane@example.com', '654321', 'Jane Doe');
       expect(sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'jane@example.com',
           subject: 'Reset your DOVA password',
           text: expect.stringContaining('654321'),
+          html: expect.stringContaining('Password reset code'),
         }),
       );
     });

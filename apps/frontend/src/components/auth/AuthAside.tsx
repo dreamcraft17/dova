@@ -16,12 +16,12 @@ const panels = {
   },
   register: {
     kicker: 'New buyer',
-    headline: 'Register once, verify your email, then shop.',
+    headline: 'Register once, then verify in Profile.',
     detail:
-      'DOVA connects businesses to verified agricultural suppliers. After signup we send a 6-digit code—no payment required yet.',
+      'DOVA connects businesses to verified agricultural suppliers. After signup we email a 6-digit code—enter it from your Profile before checkout.',
     facts: [
-      { label: 'Step 1', value: 'Account details on this page' },
-      { label: 'Step 2', value: 'Enter the code from your inbox' },
+      { label: 'After signup', value: 'Sign in and open Profile → Email verification' },
+      { label: 'Before checkout', value: 'Orders require a verified email address' },
     ],
     mobile: 'We email a 6-digit code before your first sign-in.',
   },
