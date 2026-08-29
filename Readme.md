@@ -166,6 +166,7 @@ Payments use **Paystack** when `PAYSTACK_SECRET_KEY` is set; otherwise a **mock*
 |-----|----------|
 | [`tests/TEST-CASES.md`](./tests/TEST-CASES.md) | Automated + manual test catalog |
 | [`tests/GUIDE.md`](./tests/GUIDE.md) | Manual QA workflow |
+| [`tests/RUNBOOK.md`](./tests/RUNBOOK.md) | Production deploy, rollback, incident response |
 | [`tests/ENV-SETUP.md`](./tests/ENV-SETUP.md) | VPS/production env setup (ID) |
 | [`tests/DOVA-STATUS-LENGKAP.md`](./tests/DOVA-STATUS-LENGKAP.md) | Dokumen status teknis lengkap (ID) |
 | [`tests/UAT-BUG-FIXES.md`](./tests/UAT-BUG-FIXES.md) | UAT defect log + verification |
