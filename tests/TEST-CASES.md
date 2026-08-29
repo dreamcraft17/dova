@@ -2,7 +2,7 @@
 
 **Author:** Dozer (@dreamraft17) - Software Engineer  
 **Updated:** August 2026  
-**Automated:** `npm run test` — **151 tests** · `npm run smoke:production` (29 API steps + 10 negative) · `npm run smoke:week4`  
+**Automated:** `npm run test:unit` — **158 tests** · `npm run smoke:production` (29 API steps + 10 negative) · `npm run smoke:week4`  
 **QA workflow:** see [GUIDE.md](./GUIDE.md)  
 **Demo accounts:** admin `admin@dova.local` / `admin1234` · supplier `supplier@dova.local` / `supplier1234`  
 **Local URLs:** storefront http://localhost:3001 · API http://localhost:3000/api/v1 · feedback http://localhost:3001/feedback
@@ -26,8 +26,8 @@
 
 | ID | Scenario | Steps | Expected |
 |----|----------|-------|----------|
-| AUTH-01 | Customer register | `/auth/register` → valid data | Redirect to `/auth/verify-email`; pending until OTP |
-| AUTH-01b | Email verify | Enter 6-digit OTP from inbox | Account active; logged in as customer |
+| AUTH-01 | Customer register (inline OTP) | `/auth/register` → Send code → enter OTP → submit | Redirect to `/products`; email verified; session cookies set |
+| AUTH-01b | Legacy email verify | Profile → enter OTP (pre-inline account) | Account verified; checkout enabled |
 | AUTH-02 | Register validation | Invalid email / short password / mismatch confirm | Error shown; no account |
 | AUTH-03 | Duplicate email | Register same email twice | “Email already registered” |
 | AUTH-04 | Customer login | `/auth/login` with valid credentials | JWT cookies; redirect by role |

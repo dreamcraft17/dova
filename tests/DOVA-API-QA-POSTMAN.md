@@ -81,9 +81,10 @@ Status: **200**
 
 | # | Method | Path | Auth | QA priority |
 |---|--------|------|------|-------------|
-| 4 | POST | `/auth/register` | — | P0 |
-| 4b | POST | `/auth/verify-otp` | — | **P0** |
-| 4c | POST | `/auth/resend-otp` | — | P1 |
+| 4 | POST | `/auth/send-registration-code` | — | **P0** |
+| 4a | POST | `/auth/register` | — | **P0** |
+| 4b | POST | `/auth/verify-otp` | — | P1 (legacy accounts) |
+| 4c | POST | `/auth/resend-otp` | — | P1 (legacy accounts) |
 | 4d | POST | `/auth/forgot-password` | — | P1 |
 | 4e | POST | `/auth/reset-password` | — | P1 |
 | 5 | POST | `/auth/login` | — | **P0** |
@@ -93,7 +94,23 @@ Status: **200**
 | 8b | PATCH | `/auth/me` | Bearer | P1 |
 | 8c | POST | `/auth/change-password` | Bearer | P1 |
 
-> Email verification is **required** for new customers. After register, use `/auth/verify-otp` before login.
+> New customers: send code → register with `code` (verified session returned). Legacy accounts still use `/auth/verify-otp` from Profile.
+
+### Sample — POST `/auth/send-registration-code`
+
+```json
+{
+  "email": "qa.tester+001@example.com",
+  "fullName": "QA Tester"
+}
+```
+
+| Case | Expected |
+|------|----------|
+| Valid | **200** or **201** — `{ message, email }` |
+| Invalid email | **400** validation error |
+| Email already registered | **400** — Email already registered |
+| Cooldown | **400** — wait message |
 
 ### Sample — POST `/auth/register`
 
@@ -102,13 +119,16 @@ Status: **200**
   "fullName": "QA Tester",
   "email": "qa.tester+001@example.com",
   "password": "password123",
-  "confirmPassword": "password123"
+  "confirmPassword": "password123",
+  "code": "123456",
+  "rememberMe": true
 }
 ```
 
 | Case | Expected |
 |------|----------|
-| Valid | **201** — `{ message, email }` (no tokens until OTP verified) |
+| Valid code | **201** — `{ user, accessToken, refreshToken }` · `emailVerifiedAt` set |
+| Missing / wrong code | **400** — Request a verification code / Invalid verification code |
 | Duplicate email | **400** — Email already registered |
 | Password < 8 | **400** validation error |
 

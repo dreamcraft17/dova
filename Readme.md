@@ -16,7 +16,7 @@ Agricultural marketplace MVP — connects buyers with verified suppliers in Nige
 |------|------------|
 | Storefront | Browse, search, filter catalog; product detail with delivery slots |
 | Commerce | Cart, checkout (pickup / delivery), Paystack or mock payment |
-| Auth | Customer register/login + **email OTP verify**, supplier application, role guards |
+| Auth | Customer register/login + **inline email OTP on register**, supplier application, role guards |
 | Supplier | Product CRUD, image upload, stock, order fulfillment |
 | Admin | Users, suppliers, products, orders, contacts, feedback moderation |
 | Feedback | Native idea board at `/feedback` (replaces external FeedLog) |

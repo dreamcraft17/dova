@@ -6,7 +6,17 @@ All notable changes to the DOVA marketplace project.
 
 > **Author:** Dozer
 
-_No code changes since `v0.5.4`._
+### Added
+- **Inline registration OTP** — `POST /auth/send-registration-code` sends a 6-digit code before account creation; `POST /auth/register` requires `code` and returns a verified session (cookies set like login).
+- **Auth UI refresh** — split-layout login and register pages with DOVA brand tokens (`AuthShell`, shared auth components).
+
+### Changed
+- **Register flow** — OTP entered on `/auth/register` (Send code beside email); redirect to `/products` after signup. Profile email verification remains for **legacy** accounts registered before this change.
+- **Customer copy** — auth and marketing strings use **Customer** (not Buyer).
+- **Admin users** — admin can delete any user; order history cascades on delete.
+
+### Tests
+- **158** unit tests (`npm run test:unit`) · backend service specs updated for inline registration OTP.
 
 ---
 
