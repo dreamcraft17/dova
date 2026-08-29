@@ -25,7 +25,7 @@ npm run dev
 
 `USE_IN_MEMORY=true` in `.env.dev` — no PostgreSQL/Redis required for UI demo.
 
-> **CORS:** `apps/backend/.env.dev` sets `FRONTEND_URL=http://localhost:3001` for `npm run dev`. See [LOCAL-DEV-RUNBOOK.md](https://github.com/dreamcraft17/dova-com-wiki/blob/main/operations/LOCAL-DEV-RUNBOOK.md) in the wiki.
+> **CORS:** `apps/backend/.env.dev` sets `FRONTEND_URL=http://localhost:3001` for `npm run dev`. See [Dova RunBook for localhost.md](https://github.com/dreamcraft17/dova-com-wiki/blob/main/operations/Dova%20RunBook%20for%20localhost.md) in the wiki.
 
 ### Demo accounts
 
