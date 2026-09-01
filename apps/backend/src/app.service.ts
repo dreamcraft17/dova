@@ -227,7 +227,7 @@ export class AppService {
     await this.database.saveSession(user.id, result.accessToken, new Date(Date.now() + 15 * 60 * 1000));
     await this.database.saveSession(user.id, result.refreshToken, new Date(Date.now() + refreshMs));
     await this.cacheSession(user.id, result.accessToken, result.refreshToken, refreshMs / 1000);
-    return result;
+    return { message: 'Account created successfully.', ...result };
   }
   private syncUserRecord(user: UserRecord) {
     const index = this.users.findIndex((item) => item.id === user.id);

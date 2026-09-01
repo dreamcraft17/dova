@@ -2245,6 +2245,17 @@ form .button {
   font-size: 13px;
 }
 
+.auth-form-success {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .auth-field-control .password-toggle-btn {
   right: 10px;
 }
@@ -3401,6 +3412,32 @@ form .button {
 .modal-close:hover {
   background: var(--mint);
   color: var(--green);
+}
+
+.registration-success-modal {
+  text-align: center;
+  padding-top: 28px;
+}
+
+.registration-success-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  color: var(--green);
+}
+
+.registration-success-modal h1 {
+  margin-bottom: 8px;
+}
+
+.registration-success-modal p {
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+
+.registration-success-continue {
+  width: 100%;
+  margin-top: 4px;
 }
 
 /* ========== TOAST ========== */

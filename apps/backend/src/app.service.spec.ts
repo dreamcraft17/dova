@@ -5,6 +5,7 @@
 import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHmac } from 'crypto';
+import * as bcrypt from 'bcryptjs';
 import { AppService } from './app.service';
 import { hashOtp } from './otp.util';
 import { PaystackService } from './paystack.service';
@@ -127,12 +128,46 @@ describe('AppService', () => {
 
       expect(result.user.email).toBe('jane@example.com');
       expect(result.user.emailVerifiedAt).toBeDefined();
+      expect(result.message).toBe('Account created successfully.');
       const stored = service.users.find((entry) => entry.email === 'jane@example.com');
       expect(stored).toMatchObject({ fullName: 'Jane Doe', role: 'customer', isActive: true });
       expect(stored?.emailVerifiedAt).toBeDefined();
       expect(database.insertUser).toHaveBeenCalledTimes(1);
       expect(database.verifyUserEmail).toHaveBeenCalledTimes(1);
       expect(notifications.verificationOtp).toHaveBeenCalledWith('jane@example.com', '123456', 'Jane Doe');
+    });
+
+    it('stores registration password as bcrypt hash, not plaintext', async () => {
+      const { service, database } = makeService();
+      await service.sendRegistrationCode('secure@example.com', 'Secure User');
+      await service.register({
+        fullName: 'Secure User',
+        email: 'secure@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+        code: '123456',
+      });
+
+      expect(database.insertUser).toHaveBeenCalledTimes(1);
+      const stored = database.insertUser.mock.calls[0][0] as { passwordHash: string };
+      expect(stored.passwordHash).not.toBe('password123');
+      expect(stored.passwordHash).toMatch(/^\$2[aby]\$/);
+      expect(bcrypt.compareSync('password123', stored.passwordHash)).toBe(true);
+    });
+
+    it('does not expose password material in register API response', async () => {
+      const { service } = makeService();
+      const result = await registerAndVerify(service, {
+        fullName: 'Jane Doe',
+        email: 'jane@example.com',
+        password: 'password123',
+        confirmPassword: 'password123',
+      });
+
+      expect(result).not.toHaveProperty('password');
+      expect(result).not.toHaveProperty('passwordHash');
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(JSON.stringify(result)).not.toContain('password123');
     });
 
     it('requires a registration verification code before creating an account', async () => {

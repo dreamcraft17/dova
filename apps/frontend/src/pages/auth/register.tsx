@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
+import { RegistrationSuccessModal } from '../../components/RegistrationSuccessModal';
 import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
@@ -24,6 +25,8 @@ export default function Register() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [sendBusy, setSendBusy] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { establishSession } = useAuth();
@@ -64,6 +67,16 @@ export default function Register() {
     }
   }
 
+  const continueAfterRegistration = useCallback(() => {
+    void router.push('/products');
+  }, [router]);
+
+  useEffect(() => {
+    if (!showSuccessModal) return;
+    const timer = window.setTimeout(continueAfterRegistration, 4000);
+    return () => window.clearTimeout(timer);
+  }, [showSuccessModal, continueAfterRegistration]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -78,13 +91,14 @@ export default function Register() {
     setBusy(true);
     try {
       configureLoginPersistence(true);
-      const session = await api<{ user: User }>('/auth/register', {
+      const session = await api<{ user: User; message?: string }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ ...form, code, rememberMe: true }),
       });
       establishSession(session.user);
-      showToast('Account created successfully.', 'success');
-      await router.push('/products');
+      const message = session.message ?? 'Your account was created successfully.';
+      setSuccessMessage(message);
+      setShowSuccessModal(true);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -196,11 +210,16 @@ export default function Register() {
             </ul>
           ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
-          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6}>
+          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || showSuccessModal}>
             {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
           </button>
         </form>
       </AuthCard>
+      <RegistrationSuccessModal
+        open={showSuccessModal}
+        message={successMessage}
+        onContinue={continueAfterRegistration}
+      />
     </AuthShell>
   );
 };
