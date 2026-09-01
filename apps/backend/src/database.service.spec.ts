@@ -163,10 +163,11 @@ describe('DatabaseService', () => {
     (service as unknown as { pool: typeof pool }).pool = pool;
 
     await expect(service.deleteUser('user-1')).resolves.toBe('deleted');
-    expect(queries.some((q) => q.text === 'BEGIN')).toBe(true);
-    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM user_sessions'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(true);
+    expect(queries.map((q) => q.text)).toEqual(expect.arrayContaining(['BEGIN', 'COMMIT']));
+    expect(queries.map((q) => q.text)).toEqual(expect.arrayContaining([
+      expect.stringContaining('DELETE FROM user_sessions'),
+      expect.stringContaining('DELETE FROM users'),
+    ]));
   });
 
   it('deleteUser cascades order history before removing the user', async () => {
@@ -188,9 +189,13 @@ describe('DatabaseService', () => {
     (service as unknown as { pool: typeof pool }).pool = pool;
 
     await expect(service.deleteUser('user-2')).resolves.toBe('deleted');
-    expect(queries.some((q) => q.text.includes('DELETE FROM payment_logs'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM order_items'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM orders'))).toBe(true);
-    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
+    expect(queries.map((q) => q.text)).toEqual(
+      expect.arrayContaining([
+        'COMMIT',
+        expect.stringContaining('DELETE FROM payment_logs'),
+        expect.stringContaining('DELETE FROM order_items'),
+        expect.stringContaining('DELETE FROM orders'),
+      ]),
+    );
   });
 });
