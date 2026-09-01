@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Lock, Mail } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { AuthAside } from '../../components/auth/AuthAside';
@@ -95,6 +96,7 @@ export default function Login() {
             inputMode="email"
             required
             placeholder="you@company.com"
+            icon={<Mail size={16} />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -106,6 +108,7 @@ export default function Login() {
             required
             minLength={8}
             placeholder="Minimum 8 characters"
+            icon={<Lock size={16} />}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
