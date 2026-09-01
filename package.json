@@ -2,7 +2,11 @@
   "name": "dova-mvp",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["shared", "apps/backend", "apps/frontend"],
+  "workspaces": [
+    "shared",
+    "apps/backend",
+    "apps/frontend"
+  ],
   "scripts": {
     "predev": "npm run build -w shared",
     "prepare": "npm run build -w shared",
@@ -24,5 +28,15 @@
     "typecheck": "npm run build -w shared && npm run typecheck -w apps/backend && npm run typecheck -w apps/frontend",
     "lint": "npm run typecheck"
   },
-  "devDependencies": { "@types/jest": "^29.5.14", "concurrently": "^9.1.2", "jest": "^29.7.0", "ts-jest": "^29.2.5", "typescript": "^5.7.2" }
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "concurrently": "^9.1.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/throttler": "^6.4.0"
+  }
 }
