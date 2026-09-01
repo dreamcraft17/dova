@@ -2,13 +2,12 @@
  * AppService unit tests — auth, cart, orders, payments, admin, supplier, FeedLog SSO.
  * @author Dozer (@dreamraft17) - Software Engineer
  */
-import { JwtService } from '@nestjs/jwt';
 import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { AppService } from './app.service';
 import { hashOtp } from './otp.util';
-import { PaystackService } from './paystack.service';
+import { makeAppService } from './app.service.test-doubles';
 
 jest.mock('./otp.util', () => ({
   ...jest.requireActual('./otp.util'),
@@ -22,71 +21,7 @@ function addToCart(service: AppService, userId: string, productId: string, quant
 }
 
 function makeService() {
-  const database = {
-    enabled: false,
-    insertUser: jest.fn(),
-    updatePendingUser: jest.fn(),
-    saveUserOtp: jest.fn(),
-    updateOtpResend: jest.fn(),
-    verifyUserEmail: jest.fn(),
-    saveUserPasswordReset: jest.fn(),
-    updatePasswordResetResend: jest.fn(),
-    clearPasswordReset: jest.fn(),
-    revokeAllUserSessions: jest.fn(),
-    userOrderCount: jest.fn().mockResolvedValue(0),
-    userSupplierOrderCount: jest.fn().mockResolvedValue(0),
-    deleteUser: jest.fn().mockResolvedValue('deleted'),
-    saveSession: jest.fn(),
-    hasSession: jest.fn().mockResolvedValue(true),
-    revokeSession: jest.fn(),
-    categories: jest.fn().mockResolvedValue(undefined),
-    listProducts: jest.fn().mockResolvedValue(undefined),
-    findProduct: jest.fn().mockResolvedValue(undefined),
-    getCart: jest.fn().mockResolvedValue(undefined),
-    saveCart: jest.fn(),
-    createOrderFromCart: jest.fn().mockResolvedValue(undefined),
-    recordPurchaseStock: jest.fn(),
-    listOrders: jest.fn().mockResolvedValue(undefined),
-    findOrder: jest.fn().mockResolvedValue(undefined),
-    findOrderByPaymentReference: jest.fn().mockResolvedValue(undefined),
-    markOrderPaid: jest.fn(),
-    setOrderPaymentReference: jest.fn(),
-    logPayment: jest.fn(),
-    findSupplierByUser: jest.fn().mockResolvedValue(undefined),
-    findSupplierById: jest.fn().mockResolvedValue(undefined),
-    insertSupplierProfile: jest.fn(),
-    listSupplierProducts: jest.fn().mockResolvedValue(undefined),
-    createSupplierProduct: jest.fn().mockResolvedValue(undefined),
-    updateSupplierProduct: jest.fn().mockResolvedValue(undefined),
-    deleteSupplierProduct: jest.fn(),
-    adjustStock: jest.fn().mockResolvedValue(undefined),
-    stockHistory: jest.fn().mockResolvedValue(undefined),
-    supplierOrders: jest.fn().mockResolvedValue(undefined),
-    updateSupplierOrderStatus: jest.fn().mockResolvedValue(undefined),
-    adminDashboard: jest.fn().mockResolvedValue(undefined),
-    pendingSuppliers: jest.fn().mockResolvedValue(undefined),
-    setSupplierStatus: jest.fn(),
-    adminUsers: jest.fn().mockResolvedValue(undefined),
-    adminUserById: jest.fn().mockResolvedValue(undefined),
-    updateUserProfile: jest.fn(),
-    updateSelfProfile: jest.fn(),
-    updateUserPassword: jest.fn(),
-    setUserActive: jest.fn(),
-    adminProducts: jest.fn().mockResolvedValue(undefined),
-    setProductActive: jest.fn(),
-    adminOrders: jest.fn().mockResolvedValue(undefined),
-    insertContactSubmission: jest.fn().mockResolvedValue(undefined),
-    listContactSubmissions: jest.fn().mockResolvedValue(undefined),
-  };
-  const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
-  const notifications = {
-    verificationOtp: jest.fn().mockResolvedValue({ sent: true }),
-    passwordResetOtp: jest.fn().mockResolvedValue({ sent: true }),
-    supplierStatus: jest.fn().mockResolvedValue({ sent: true }),
-    contactMessage: jest.fn().mockResolvedValue({ sent: true }),
-  };
-  const service = new AppService(new JwtService({ secret: 'unit-test-secret' }), database as never, redis as never, new PaystackService(), notifications as never);
-  return { service, database, redis, notifications };
+  return makeAppService();
 }
 
 async function registerAndVerify(
@@ -98,19 +33,7 @@ async function registerAndVerify(
 }
 
 function makeServiceWithNotifications(notifications: { contactMessage: jest.Mock }) {
-  const database = {
-    enabled: false,
-    insertContactSubmission: jest.fn().mockResolvedValue(undefined),
-  };
-  const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
-  const service = new AppService(
-    new JwtService({ secret: 'unit-test-secret' }),
-    database as never,
-    redis as never,
-    new PaystackService(),
-    notifications as never,
-  );
-  return { service };
+  return makeAppService({ notifications });
 }
 
 describe('AppService', () => {
@@ -127,11 +50,11 @@ describe('AppService', () => {
       });
 
       expect(result.user.email).toBe('jane@example.com');
-      expect(result.user.emailVerifiedAt).toBeDefined();
+      expect(result.user.emailVerifiedAt).toEqual(expect.any(String));
       expect(result.message).toBe('Account created successfully.');
       const stored = service.users.find((entry) => entry.email === 'jane@example.com');
       expect(stored).toMatchObject({ fullName: 'Jane Doe', role: 'customer', isActive: true });
-      expect(stored?.emailVerifiedAt).toBeDefined();
+      expect(stored?.emailVerifiedAt).toEqual(expect.any(String));
       expect(database.insertUser).toHaveBeenCalledTimes(1);
       expect(database.verifyUserEmail).toHaveBeenCalledTimes(1);
       expect(notifications.verificationOtp).toHaveBeenCalledWith('jane@example.com', '123456', 'Jane Doe');
@@ -183,17 +106,26 @@ describe('AppService', () => {
       ).rejects.toThrow('Request a verification code');
     });
 
-    it.each([
-      { email: 'bad', password: 'password123', confirmPassword: 'password123' },
-      { fullName: 'Jane', email: 'jane@example.com', password: 'short', confirmPassword: 'short' },
-      { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'different' },
-    ])('rejects invalid registration data', async (body) => {
+    it('rejects invalid email without sending a registration code', async () => {
       const { service } = makeService();
-      const payload = { fullName: 'Jane', ...body, code: '123456' };
-      if (payload.email && /^\S+@\S+\.\S+$/.test(payload.email)) {
-        await service.sendRegistrationCode(payload.email, payload.fullName);
-      }
-      await expect(service.register(payload)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.register({
+          fullName: 'Jane',
+          email: 'bad',
+          password: 'password123',
+          confirmPassword: 'password123',
+          code: '123456',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it.each([
+      ['too-short password', { fullName: 'Jane', email: 'jane@example.com', password: 'short', confirmPassword: 'short' }],
+      ['mismatched confirmation', { fullName: 'Jane', email: 'jane@example.com', password: 'password123', confirmPassword: 'different' }],
+    ] as const)('rejects %s after a registration code', async (_label, body) => {
+      const { service } = makeService();
+      await service.sendRegistrationCode(body.email, body.fullName);
+      await expect(service.register({ ...body, code: '123456' })).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('rejects duplicate emails case-insensitively', async () => {

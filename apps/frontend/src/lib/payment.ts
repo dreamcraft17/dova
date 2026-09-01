@@ -32,6 +32,9 @@ export async function startOrderPayment(
     method: 'POST',
     body: JSON.stringify({ orderId, amount }),
   });
+  if (!payment.authorization_url) {
+    throw new Error('Payment initialize did not return authorization_url');
+  }
   if (typeof window !== 'undefined') {
     window.location.href = resolvePaymentRedirectUrl(payment.authorization_url);
   }

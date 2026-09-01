@@ -16,6 +16,9 @@ describe('PaystackService', () => {
     process.env.PAYSTACK_SECRET_KEY = 'sk_test_abc';
     expect(service.isTestMode()).toBe(true);
     expect(service.isLiveMode()).toBe(false);
+  });
+
+  it('detects Paystack live mode from sk_live secret key', () => {
     process.env.PAYSTACK_SECRET_KEY = 'sk_live_abc';
     expect(service.isTestMode()).toBe(false);
     expect(service.isLiveMode()).toBe(true);

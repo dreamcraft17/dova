@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
+import { bcryptCost } from './bcrypt-cost';
 import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, shouldRefreshCatalogImage } from 'dova-shared';
 
 export type StoredUser = User & {
@@ -454,8 +455,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   private async bootstrap() {
     if (!this.pool) return;
-    const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', 12);
-    const supplierPassword = bcrypt.hashSync(process.env.SUPPLIER_PASSWORD ?? 'supplier1234', 12);
+    const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', bcryptCost());
+    const supplierPassword = bcrypt.hashSync(process.env.SUPPLIER_PASSWORD ?? 'supplier1234', bcryptCost());
     await this.pool.query(
       `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
        VALUES ('admin@dova.local',$1,'DOVA Admin','admin',TRUE,NOW())

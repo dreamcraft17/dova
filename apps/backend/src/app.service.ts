@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException, ForbiddenException, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage } from 'dova-shared';
@@ -101,7 +102,7 @@ export class AppService {
       isActive,
       emailVerifiedAt: emailVerified ? new Date().toISOString() : undefined,
       createdAt: new Date().toISOString(),
-      passwordHash: bcrypt.hashSync(password, 12),
+      passwordHash: bcrypt.hashSync(password, bcryptCost()),
     };
   }
   publicUser(u: UserRecord): User {
@@ -384,7 +385,7 @@ export class AppService {
       await this.database.saveUserPasswordReset(u.id, u.resetHash!, new Date(u.resetExpiresAt), attempts, lockedUntil);
       throw new BadRequestException('Invalid reset code');
     }
-    u.passwordHash = bcrypt.hashSync(password, 12);
+    u.passwordHash = bcrypt.hashSync(password, bcryptCost());
     u.resetHash = undefined;
     u.resetExpiresAt = undefined;
     u.resetAttempts = 0;
@@ -430,7 +431,7 @@ export class AppService {
     if (bcrypt.compareSync(newPassword, user.passwordHash)) {
       throw new BadRequestException('New password must be different from your current password');
     }
-    user.passwordHash = bcrypt.hashSync(newPassword, 12);
+    user.passwordHash = bcrypt.hashSync(newPassword, bcryptCost());
     this.syncUserRecord(user);
     await this.database.updateUserPassword(userId, user.passwordHash);
     await this.database.revokeAllUserSessions(userId);
@@ -856,7 +857,7 @@ export class AppService {
     if (!password || password.length < 8) throw new BadRequestException('Password must be at least 8 characters');
     const user = await this.findUser(id, true);
     if (!user) throw new NotFoundException('User not found');
-    user.passwordHash = bcrypt.hashSync(password, 12);
+    user.passwordHash = bcrypt.hashSync(password, bcryptCost());
     await this.database.updateUserPassword(id, user.passwordHash);
     return { message: 'Password updated successfully' };
   }
