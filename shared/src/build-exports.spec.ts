@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const REQUIRED_EXPORTS = ['productImageUrl', 'stockLimitMessage', 'shouldRefreshCatalogImage'];
+const REQUIRED_EXPORTS = ['productImageUrl', 'publicCatalogImageUrl', 'SEED_PRODUCT_CATALOG', 'stockLimitMessage', 'shouldRefreshCatalogImage'];
 
 describe('dova-shared dist exports', () => {
   it('declares backend-required symbols in index.d.ts', () => {

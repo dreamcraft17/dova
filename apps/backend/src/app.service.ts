@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -61,34 +61,22 @@ export class AppService {
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
     const supplier = { id: randomUUID(), userId: supplierUser.id, businessName: 'Green Valley Farms', phone: '+62000000000', status: 'approved' as SupplierStatus }; this.suppliers.push(supplier);
-    const products: Array<[string, number, string]> = [
-      ['Fresh Tomatoes', 25000, 'Vegetables'],
-      ['Organic Bananas', 18000, 'Fruits'],
-      ['Farm Milk', 22000, 'Dairy'],
-      ['Premium Rice', 75000, 'Grains'],
-      ['Crisp Carrots', 16000, 'Vegetables'],
-      ['Avocado Hass', 30000, 'Fruits'],
-      ['Free Range Eggs', 28000, 'Dairy'],
-      ['Whole Wheat Flour', 42000, 'Grains'],
-      ['Chicken Breast', 68000, 'Meat'],
-      ['Atlantic Salmon', 125000, 'Seafood'],
-      ['Palm Sugar', 24000, 'Pantry'],
-      ['Coconut Water', 32000, 'Beverages'],
-      ['Red Onions', 19000, 'Vegetables'],
-      ['Sweet Potatoes', 23000, 'Vegetables'],
-      ['Greek Yogurt', 36000, 'Dairy'],
-      ['Arabica Coffee', 95000, 'Beverages'],
-      ['Fresh Spinach', 17000, 'Vegetables'],
-      ['Mango Harum Manis', 35000, 'Fruits'],
-      ['Black Pepper', 27000, 'Pantry'],
-      ['Cooking Oil', 58000, 'Pantry'],
-      ['UAT Sample Greens', 1500, 'Vegetables'],
-      ['UAT Sample Grain Pack', 2500, 'Grains'],
-    ];
-    products.forEach(([name, price, categoryName], index) => {
-      const category = this.categories.find((item) => item.name === categoryName);
-      if (!category) throw new Error(`Missing category: ${categoryName}`);
-      this.products.push({ id: randomUUID(), supplierId: supplier.id, supplierName: supplier.businessName, name, description: 'Freshly sourced quality produce for your business.', price, stockQuantity: 20 + (index % 5) * 10, categoryId: category.id, categoryName: category.name, imageUrl: productImageUrl(name, categoryName), isActive: true });
+    SEED_PRODUCT_CATALOG.forEach((item, index) => {
+      const category = this.categories.find((c) => c.name === item.categoryName);
+      if (!category) throw new Error(`Missing category: ${item.categoryName}`);
+      this.products.push({
+        id: randomUUID(),
+        supplierId: supplier.id,
+        supplierName: supplier.businessName,
+        name: item.name,
+        description: 'Freshly sourced quality produce for your business.',
+        price: item.price,
+        stockQuantity: 20 + (index % 5) * 10,
+        categoryId: category.id,
+        categoryName: category.name,
+        imageUrl: productImageUrl(item.name, item.categoryName),
+        isActive: true,
+      });
     });
   }
   private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean; emailVerified?: boolean }): UserRecord {
@@ -460,7 +448,7 @@ export class AppService {
   async listCategories() { return (await this.database.categories()) ?? this.categories; }
   async databaseOrders(userId: string) { return this.database.listOrders(userId); }
   async databaseOrder(userId: string, orderId: string) { return this.database.findOrder(userId, orderId); }
-  async listProducts(search = '', categoryId = '', page = 1, limit = 20) { const stored = await this.database.listProducts(search, categoryId, page, limit); if (stored) return stored; const all = this.products.filter(p => p.isActive && p.stockQuantity > 0 && (!search || p.name.toLowerCase().includes(search.toLowerCase())) && (!categoryId || p.categoryId === categoryId)); const start = (page - 1) * limit; return { data: all.slice(start, start + limit), pagination: { page, limit, total: all.length } }; }
+  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { const stored = await this.database.listProducts(search, categoryId, page, limit); if (stored) return stored; const all = this.products.filter(p => p.isActive && p.stockQuantity > 0 && (!search || p.name.toLowerCase().includes(search.toLowerCase())) && (!categoryId || p.categoryId === categoryId)); const start = (page - 1) * limit; return { data: all.slice(start, start + limit), pagination: { page, limit, total: all.length } }; }
   async product(id: string) {
     if (!isUuid(id)) throw new NotFoundException('Product not found');
     const stored = await this.database.findProduct(id);

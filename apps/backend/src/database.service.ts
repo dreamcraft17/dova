@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { bcryptCost } from './bcrypt-cost';
-import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, shouldRefreshCatalogImage } from 'dova-shared';
+import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, publicCatalogImageUrl, shouldRefreshCatalogImage, SEED_PRODUCT_CATALOG } from 'dova-shared';
 
 export type StoredUser = User & {
   passwordHash: string;
@@ -193,8 +193,54 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
   async revokeSession(refreshToken?: string) { if (this.pool && refreshToken) await this.pool.query('DELETE FROM user_sessions WHERE token_hash=$1', [digest(refreshToken)]); }
-  private mapProduct(row: any): Product { return { id: row.id, supplierId: row.supplier_id, supplierName: row.business_name, name: row.name, description: row.description || '', price: Number(row.price), stockQuantity: row.stock_quantity, categoryId: row.category_id, categoryName: row.category_name, imageUrl: row.image_url || undefined, isActive: row.is_active }; }
-  async listProducts(search = '', categoryId = '', page = 1, limit = 20) { if (!this.pool) return undefined; const values: unknown[] = []; const filters = ['p.is_active = TRUE', 'p.stock_quantity > 0']; if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(p.name) LIKE $${values.length}`); } if (categoryId) { values.push(categoryId); filters.push(`p.category_id = $${values.length}`); } const where = filters.join(' AND '); const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM products p WHERE ${where}`, values); values.push(limit, (page - 1) * limit); const result = await this.pool.query(`SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ${where} ORDER BY p.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values); return { data: result.rows.map(row => this.mapProduct(row)), pagination: { page, limit, total: totalResult.rows[0].total } }; }
+  private mapProduct(row: any): Product {
+    return {
+      id: row.id,
+      supplierId: row.supplier_id,
+      supplierName: row.business_name,
+      name: row.name,
+      description: row.description || '',
+      price: Number(row.price),
+      stockQuantity: row.stock_quantity,
+      categoryId: row.category_id,
+      categoryName: row.category_name,
+      imageUrl: publicCatalogImageUrl(row.name, row.category_name, row.image_url),
+      isActive: row.is_active,
+    };
+  }
+
+  async syncMissingCatalogProducts() {
+    if (!this.pool) return { inserted: [] as string[] };
+    const cats = await this.pool.query('SELECT id, name FROM categories');
+    const categoryByName = Object.fromEntries(cats.rows.map((row: { id: string; name: string }) => [row.name, row.id]));
+    const supplier = await this.pool.query(
+      `SELECT id FROM supplier_profiles WHERE verification_status = 'approved' ORDER BY created_at ASC LIMIT 1`,
+    );
+    if (!supplier.rows[0]) return { inserted: [] as string[] };
+    const inserted: string[] = [];
+    for (const item of SEED_PRODUCT_CATALOG) {
+      const categoryId = categoryByName[item.categoryName];
+      if (!categoryId) continue;
+      const found = await this.pool.query('SELECT id FROM products WHERE LOWER(name) = LOWER($1) LIMIT 1', [item.name]);
+      if (found.rows.length) continue;
+      await this.pool.query(
+        'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [
+          supplier.rows[0].id,
+          item.name,
+          'Freshly sourced quality produce for your business.',
+          item.price,
+          50,
+          categoryId,
+          productImageUrl(item.name, item.categoryName),
+        ],
+      );
+      inserted.push(item.name);
+    }
+    if (inserted.length) console.info('[Catalog] inserted missing seed products:', inserted.join(', '));
+    return { inserted };
+  }
+  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { if (!this.pool) return undefined; const values: unknown[] = []; const filters = ['p.is_active = TRUE', 'p.stock_quantity > 0']; if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(p.name) LIKE $${values.length}`); } if (categoryId) { values.push(categoryId); filters.push(`p.category_id = $${values.length}`); } const where = filters.join(' AND '); const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM products p WHERE ${where}`, values); values.push(limit, (page - 1) * limit); const result = await this.pool.query(`SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ${where} ORDER BY p.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values); return { data: result.rows.map(row => this.mapProduct(row)), pagination: { page, limit, total: totalResult.rows[0].total } }; }
   async findProduct(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.is_active=TRUE AND p.stock_quantity>0', [id]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async findSupplierProduct(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.supplier_id=$2', [productId, supplierId]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async categories() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,name FROM categories ORDER BY name'); return result.rows as Category[]; }
@@ -484,6 +530,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
        ON CONFLICT (user_id) DO UPDATE SET verification_status='approved', updated_at=NOW()`,
       [supplierUser.rows[0].id],
     );
+    try {
+      await this.syncMissingCatalogProducts();
+    } catch (error) {
+      console.warn('[Database] catalog sync skipped:', (error as Error).message);
+    }
     await this.pool.query(
       `UPDATE products p SET category_id = c.id, updated_at = NOW()
        FROM categories c

@@ -2,37 +2,12 @@ require('./load-env').loadDovaEnv();
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { randomUUID } = require('crypto');
-const { productImageUrl, shouldRefreshCatalogImage } = require('dova-shared');
+const { productImageUrl, shouldRefreshCatalogImage, SEED_PRODUCT_CATALOG } = require('dova-shared');
 
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required');
   process.exit(1);
 }
-
-const PRODUCT_CATALOG = [
-  ['Fresh Tomatoes', 25000, 'Vegetables'],
-  ['Organic Bananas', 18000, 'Fruits'],
-  ['Farm Milk', 22000, 'Dairy'],
-  ['Premium Rice', 75000, 'Grains'],
-  ['Crisp Carrots', 16000, 'Vegetables'],
-  ['Avocado Hass', 30000, 'Fruits'],
-  ['Free Range Eggs', 28000, 'Dairy'],
-  ['Whole Wheat Flour', 42000, 'Grains'],
-  ['Chicken Breast', 68000, 'Meat'],
-  ['Atlantic Salmon', 125000, 'Seafood'],
-  ['Palm Sugar', 24000, 'Pantry'],
-  ['Coconut Water', 32000, 'Beverages'],
-  ['Red Onions', 19000, 'Vegetables'],
-  ['Sweet Potatoes', 23000, 'Vegetables'],
-  ['Greek Yogurt', 36000, 'Dairy'],
-  ['Arabica Coffee', 95000, 'Beverages'],
-  ['Fresh Spinach', 17000, 'Vegetables'],
-  ['Mango Harum Manis', 35000, 'Fruits'],
-  ['Black Pepper', 27000, 'Pantry'],
-  ['Cooking Oil', 58000, 'Pantry'],
-  ['UAT Sample Greens', 1500, 'Vegetables'],
-  ['UAT Sample Grain Pack', 2500, 'Grains'],
-];
 
 (async () => {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -76,21 +51,21 @@ const PRODUCT_CATALOG = [
     const cats = await pool.query('SELECT id,name FROM categories');
     const categoryByName = Object.fromEntries(cats.rows.map((row) => [row.name, row.id]));
 
-    for (const [name, price, categoryName] of PRODUCT_CATALOG) {
-      const categoryId = categoryByName[categoryName];
-      if (!categoryId) throw new Error(`Missing category: ${categoryName}`);
-      const found = await pool.query('SELECT id FROM products WHERE name=$1 LIMIT 1', [name]);
+    for (const item of SEED_PRODUCT_CATALOG) {
+      const categoryId = categoryByName[item.categoryName];
+      if (!categoryId) throw new Error(`Missing category: ${item.categoryName}`);
+      const found = await pool.query('SELECT id FROM products WHERE LOWER(name)=LOWER($1) LIMIT 1', [item.name]);
       if (found.rows.length) continue;
       await pool.query(
         'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
         [
           supplier.rows[0].id,
-          name,
+          item.name,
           'Freshly sourced quality produce for your business.',
-          price,
+          item.price,
           50,
           categoryId,
-          productImageUrl(name, categoryName),
+          productImageUrl(item.name, item.categoryName),
         ],
       );
     }
@@ -113,7 +88,7 @@ const PRODUCT_CATALOG = [
          AND p.category_id <> c.id`,
     );
 
-    console.log(`Database seed completed with ${PRODUCT_CATALOG.length} catalog products`);
+    console.log(`Database seed completed with ${SEED_PRODUCT_CATALOG.length} catalog products`);
     console.log('Demo logins (from ADMIN_PASSWORD / SUPPLIER_PASSWORD env):');
     console.log(`  admin@dova.local     → ${process.env.ADMIN_PASSWORD || 'admin1234'}`);
     console.log(`  supplier@dova.local  → ${process.env.SUPPLIER_PASSWORD || 'supplier1234'}`);

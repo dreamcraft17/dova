@@ -104,7 +104,8 @@ export const FEEDBACK_STATUSES: FeedbackStatus[] = ['open', 'planned', 'in_progr
 export const feedbackStatusLabel = (status: FeedbackStatus) =>
   ({ open: 'Open', planned: 'Planned', in_progress: 'In progress', done: 'Done' })[status];
 
-export { productImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES, isBrokenProductImageUrl, shouldRefreshCatalogImage } from './product-images';
+export { productImageUrl, publicCatalogImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES, isBrokenProductImageUrl, shouldRefreshCatalogImage } from './product-images';
+export { SEED_PRODUCT_CATALOG, SEED_CATALOG_SIZE, type SeedCatalogItem } from './seed-catalog';
 export { getProductTab, LOW_STOCK_THRESHOLD } from './product-status';
 export type { ProductStatusTab } from './product-status';
 export {
