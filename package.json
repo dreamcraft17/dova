@@ -17,6 +17,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:migrate:all": "npm run db:migrate",
     "db:seed": "node scripts/seed.js",
+    "db:sync-catalog": "node scripts/sync-missing-catalog.js",
     "db:reset-logins": "node scripts/reset-demo-logins.js",
     "db:seed:week3": "node scripts/seed-week3.js",
     "smoke:week4": "node scripts/smoke-week4.js",

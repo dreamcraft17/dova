@@ -166,7 +166,7 @@ export class AppController {
   @Get('categories') categories() { return this.service.listCategories(); }
 
   @Public()
-  @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '20') {
+  @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '50') {
     return this.service.listProducts(search, categoryId, Number(page), Number(limit));
   }
 
