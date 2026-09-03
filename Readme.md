@@ -8,6 +8,12 @@ Agricultural marketplace MVP — NestJS API · Next.js storefront · shared Type
 
 ---
 
+## Prerequisites
+
+- Node.js 20 (pinned in CI — `.github/workflows/ci.yml`)
+- npm (workspaces: `shared`, `apps/backend`, `apps/frontend`)
+- PostgreSQL + Redis only if running with `USE_IN_MEMORY=false` — see [Quick start](#quick-start-local-in-memory) below
+
 ## Quick start (local, in-memory)
 
 ```bash
@@ -41,7 +47,9 @@ npm run dev
 ```bash
 npm run dev              # API + frontend
 npm run build            # shared → backend → frontend
-npm run test:unit        # unit tests
+npm run test             # unit tests (test:unit + test:backend)
+npm run test:coverage    # unit tests with coverage report
+npm run typecheck        # tsc --noEmit across shared + both apps
 npm run db:migrate       # PostgreSQL migrations
 npm run db:seed          # demo catalog + accounts
 npm run smoke:production # production API smoke (see wiki RUNBOOK)

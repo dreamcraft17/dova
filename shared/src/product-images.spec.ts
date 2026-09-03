@@ -1,4 +1,4 @@
-import { isBrokenProductImageUrl, productImageUrl, shouldRefreshCatalogImage } from './product-images';
+import { isBrokenProductImageUrl, productImageUrl, publicCatalogImageUrl, shouldRefreshCatalogImage } from './product-images';
 
 describe('productImageUrl', () => {
   it('returns product-specific images', () => {
@@ -32,5 +32,15 @@ describe('shouldRefreshCatalogImage', () => {
   it('ignores non-catalog products', () => {
     expect(isBrokenProductImageUrl('https://example.com/custom.jpg')).toBe(false);
     expect(shouldRefreshCatalogImage('Custom Supplier Item', null)).toBe(false);
+  });
+});
+
+describe('publicCatalogImageUrl', () => {
+  it('does not send inline data URLs to catalog clients', () => {
+    const data = 'data:image/jpeg;base64,/9j/xxxx';
+    expect(publicCatalogImageUrl('Wheat Flour', 'Grains', data)).not.toMatch(/^data:/);
+    expect(publicCatalogImageUrl('Farm Milk', 'Dairy', 'https://api.dova.dntech.id/uploads/milk.jpg')).toBe(
+      'https://api.dova.dntech.id/uploads/milk.jpg',
+    );
   });
 });

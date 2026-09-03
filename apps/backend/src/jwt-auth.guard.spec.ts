@@ -51,4 +51,28 @@ describe('JwtAuthGuard', () => {
     const ctx = mockContext({ headers: {}, cookies: {} });
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('allows public routes without a token', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockImplementation((key: string) => key === IS_PUBLIC_KEY);
+    const ctx = mockContext({ headers: {}, cookies: {} });
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(appService.userFromToken).not.toHaveBeenCalled();
+  });
+
+  it('allows optional auth when no token is present', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockImplementation((key: string) => key === OPTIONAL_AUTH_KEY);
+    const ctx = mockContext({ headers: {}, cookies: {} });
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(appService.userFromToken).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid tokens on optional-auth routes', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockImplementation((key: string) => key === OPTIONAL_AUTH_KEY);
+    (appService.userFromToken as jest.Mock).mockRejectedValueOnce(new Error('expired'));
+    const ctx = mockContext({
+      headers: { authorization: 'Bearer stale' },
+      cookies: {},
+    });
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
 });

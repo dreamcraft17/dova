@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import { isRegistrationSuccessBackdropClick, isRegistrationSuccessContinueKey } from '../lib/registration-success';
 
 type RegistrationSuccessModalProps = {
   open: boolean;
@@ -23,7 +24,7 @@ export function RegistrationSuccessModal({ open, message, onContinue }: Registra
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Enter') onContinue();
+      if (isRegistrationSuccessContinueKey(e.key)) onContinue();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -35,7 +36,7 @@ export function RegistrationSuccessModal({ open, message, onContinue }: Registra
     <div
       className="modal-backdrop registration-success-backdrop"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onContinue();
+        if (isRegistrationSuccessBackdropClick(e.target, e.currentTarget)) onContinue();
       }}
       role="dialog"
       aria-modal="true"

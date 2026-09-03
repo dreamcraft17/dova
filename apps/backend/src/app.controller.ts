@@ -10,6 +10,7 @@ import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
 import { UploadStorageService } from './upload-storage.service';
+import { DOVA_OPENAPI } from './openapi-spec';
 
 const imageUpload = FileInterceptor('image', {
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -53,7 +54,24 @@ export class AppController {
   }
 
   @Public()
+  @Get()
+  apiIndex() {
+    return {
+      service: 'dova-api',
+      version: 'v1',
+      health: '/api/v1/health',
+      openapi: '/api/v1/openapi.json',
+    };
+  }
+
+  @Public()
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
+
+  @Public()
+  @Get('openapi.json')
+  openapi() {
+    return DOVA_OPENAPI;
+  }
 
   @Public()
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
@@ -148,7 +166,7 @@ export class AppController {
   @Get('categories') categories() { return this.service.listCategories(); }
 
   @Public()
-  @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '20') {
+  @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '50') {
     return this.service.listProducts(search, categoryId, Number(page), Number(limit));
   }
 
