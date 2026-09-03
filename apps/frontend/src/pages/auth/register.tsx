@@ -1,11 +1,12 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Lock, Mail, User as UserIcon } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
 import { Loading } from '../../components/Loading';
 import { RegistrationSuccessModal } from '../../components/RegistrationSuccessModal';
 import { AuthAside } from '../../components/auth/AuthAside';
-import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthCard, type AuthStep } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
 import { ApiError, api, configureLoginPersistence } from '../../lib/api';
@@ -105,11 +106,17 @@ export default function Register() {
     }
   }
 
+  const steps: AuthStep[] = [
+    { label: 'Send verification code', state: codeSent ? 'done' : 'current' },
+    { label: 'Enter code & create account', state: codeSent ? 'current' : 'upcoming' },
+  ];
+
   return (
     <AuthShell aside={<AuthAside variant="register" />}>
       <AuthCard
         title="Customer registration"
         subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
+        steps={steps}
         notice={
           <p>
             Enter your work email, tap <strong>Send code</strong>, then type the 6-digit OTP below before you create your account.
@@ -131,6 +138,7 @@ export default function Register() {
             required
             minLength={2}
             placeholder="Ada Okonkwo"
+            icon={<UserIcon size={16} />}
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
@@ -143,6 +151,7 @@ export default function Register() {
             inputMode="email"
             required
             placeholder="you@company.com"
+            icon={<Mail size={16} />}
             value={form.email}
             onChange={(e) => {
               setForm({ ...form, email: e.target.value });
@@ -186,6 +195,7 @@ export default function Register() {
             required
             minLength={8}
             placeholder="At least 8 characters"
+            icon={<Lock size={16} />}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
@@ -197,6 +207,7 @@ export default function Register() {
             required
             minLength={8}
             placeholder="Repeat password"
+            icon={<Lock size={16} />}
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             error={

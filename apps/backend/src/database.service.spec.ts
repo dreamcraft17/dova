@@ -163,10 +163,11 @@ describe('DatabaseService', () => {
     (service as unknown as { pool: typeof pool }).pool = pool;
 
     await expect(service.deleteUser('user-1')).resolves.toBe('deleted');
-    expect(queries.some((q) => q.text === 'BEGIN')).toBe(true);
-    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM user_sessions'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM users'))).toBe(true);
+    expect(queries.map((q) => q.text)).toEqual(expect.arrayContaining(['BEGIN', 'COMMIT']));
+    expect(queries.map((q) => q.text)).toEqual(expect.arrayContaining([
+      expect.stringContaining('DELETE FROM user_sessions'),
+      expect.stringContaining('DELETE FROM users'),
+    ]));
   });
 
   it('deleteUser cascades order history before removing the user', async () => {
@@ -188,9 +189,42 @@ describe('DatabaseService', () => {
     (service as unknown as { pool: typeof pool }).pool = pool;
 
     await expect(service.deleteUser('user-2')).resolves.toBe('deleted');
-    expect(queries.some((q) => q.text.includes('DELETE FROM payment_logs'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM order_items'))).toBe(true);
-    expect(queries.some((q) => q.text.includes('DELETE FROM orders'))).toBe(true);
-    expect(queries.some((q) => q.text === 'COMMIT')).toBe(true);
+    expect(queries.map((q) => q.text)).toEqual(
+      expect.arrayContaining([
+        'COMMIT',
+        expect.stringContaining('DELETE FROM payment_logs'),
+        expect.stringContaining('DELETE FROM order_items'),
+        expect.stringContaining('DELETE FROM orders'),
+      ]),
+    );
+  });
+
+  it('inserts only missing seed products and never updates existing price or stock', async () => {
+    const queries: Array<{ text: string; values?: unknown[] }> = [];
+    const pool = {
+      query: jest.fn(async (text: string, values?: unknown[]) => {
+        queries.push({ text, values });
+        if (text.includes('FROM categories')) {
+          return { rows: [{ id: 'cat-grains', name: 'Grains' }, { id: 'cat-dairy', name: 'Dairy' }, { id: 'cat-veg', name: 'Vegetables' }, { id: 'cat-fruits', name: 'Fruits' }, { id: 'cat-meat', name: 'Meat' }, { id: 'cat-seafood', name: 'Seafood' }, { id: 'cat-pantry', name: 'Pantry' }, { id: 'cat-bev', name: 'Beverages' }] };
+        }
+        if (text.includes('FROM supplier_profiles')) return { rows: [{ id: 'sup-1' }] };
+        if (text.includes('FROM products') && text.includes('LOWER(name)')) {
+          if (values?.[0] === 'UAT Sample Grain Pack') return { rows: [] };
+          return { rows: [{ id: 'existing' }] };
+        }
+        if (text.startsWith('INSERT INTO products')) return { rows: [], rowCount: 1 };
+        return { rows: [] };
+      }),
+    };
+    const service = new DatabaseService();
+    (service as unknown as { pool: typeof pool }).pool = pool;
+
+    const result = await service.syncMissingCatalogProducts();
+    expect(result.inserted).toEqual(['UAT Sample Grain Pack']);
+    expect(queries.some((q) => q.text.startsWith('UPDATE products SET price'))).toBe(false);
+    expect(queries.filter((q) => q.text.startsWith('INSERT INTO products'))).toHaveLength(1);
+    expect(queries.find((q) => q.text.startsWith('INSERT INTO products'))?.values).toEqual(
+      expect.arrayContaining(['UAT Sample Grain Pack', 2500, 50]),
+    );
   });
 });

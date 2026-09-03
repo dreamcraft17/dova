@@ -10,12 +10,29 @@ function makeService() {
   return new FeedbackService(makeDatabase());
 }
 
+const customer = {
+  id: 'u1',
+  email: 'buyer@dova.local',
+  fullName: 'Buyer',
+  role: 'customer' as const,
+  isActive: true,
+  createdAt: '',
+  passwordHash: '',
+};
+
 describe('FeedbackService', () => {
-  it('lists posts sorted by votes and supports search', async () => {
+  it('lists posts sorted by votes', async () => {
     const service = makeService();
     const posts = await service.list('votes');
     expect(posts[0].votes).toBeGreaterThanOrEqual(0);
-    expect((await service.list('votes', 'mobile')).some((post) => post.title.toLowerCase().includes('mobile'))).toBe(true);
+  });
+
+  it('filters listed posts by search term', async () => {
+    const service = makeService();
+    const matches = await service.list('votes', 'mobile');
+    expect(matches.map((post) => post.title.toLowerCase())).toEqual(
+      expect.arrayContaining([expect.stringContaining('mobile')]),
+    );
   });
 
   it('creates posts with unique slugs', async () => {
@@ -25,22 +42,25 @@ describe('FeedbackService', () => {
     expect(first.slug).not.toBe(second.slug);
   });
 
-  it('supports voting and duplicate vote guard', async () => {
+  it('rejects a second vote from the same user', async () => {
     const service = makeService();
-    const user = { id: 'u1', email: 'user@test.com', fullName: 'User', role: 'customer' as const, isActive: true, createdAt: '', passwordHash: '' };
-    const post = await service.create({ title: 'Wallet', description: 'Support bank transfer alongside Paystack.' }, user);
-    await expect(service.vote(post.id, user)).rejects.toThrow(BadRequestException);
+    const post = await service.create({ title: 'Wallet', description: 'Support bank transfer alongside Paystack.' }, customer);
+    await expect(service.vote(post.id, customer)).rejects.toThrow(BadRequestException);
   });
 
-  it('stores comments and official admin replies', async () => {
+  it('stores guest comments', async () => {
     const service = makeService();
     const post = service.posts[0];
     await service.addComment(post.id, { body: 'Great idea!', authorName: 'Guest' });
+    expect(await service.listComments(post.id)).toHaveLength(1);
+    expect(post.commentCount).toBe(1);
+  });
+
+  it('allows official replies from admin only', async () => {
+    const service = makeService();
+    const post = service.posts[0];
     const admin = { id: 'a1', email: 'admin@dova.local', fullName: 'Admin', role: 'admin' as const, isActive: true, createdAt: '', passwordHash: '' };
-    const customer = { id: 'u2', email: 'user@test.com', fullName: 'User', role: 'customer' as const, isActive: true, createdAt: '', passwordHash: '' };
     await service.addComment(post.id, { body: 'We are reviewing this.' }, admin, true);
-    expect(await service.listComments(post.id)).toHaveLength(2);
-    expect(post.commentCount).toBe(2);
     await expect(service.addComment(post.id, { body: 'Nope' }, customer, true)).rejects.toThrow(ForbiddenException);
   });
 

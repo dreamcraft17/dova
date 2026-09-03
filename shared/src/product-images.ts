@@ -53,6 +53,11 @@ export function productImageUrl(name: string, categoryName?: string) {
   return PRODUCT_IMAGES[name] || (categoryName && CATEGORY_IMAGES[categoryName]) || DEFAULT_IMAGE;
 }
 
+export function publicCatalogImageUrl(name: string, categoryName?: string, stored?: string | null) {
+  if (stored && !stored.startsWith('data:')) return stored;
+  return productImageUrl(name, categoryName);
+}
+
 export function isBrokenProductImageUrl(url?: string | null) {
   if (!url) return true;
   return BROKEN_IMAGE_IDS.some((id) => url.includes(id));
