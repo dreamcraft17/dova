@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { Lock, Mail, User as UserIcon } from 'lucide-react';
@@ -33,13 +33,7 @@ export default function Register() {
   const { establishSession } = useAuth();
   const { showToast } = useToast();
 
-  const passwordChecks = useMemo(
-    () => ({
-      length: form.password.length >= 8,
-      match: form.password.length > 0 && form.password === form.confirmPassword,
-    }),
-    [form.password, form.confirmPassword],
-  );
+  const passwordMatch = form.password.length > 0 && form.password === form.confirmPassword;
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -211,15 +205,9 @@ export default function Register() {
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             error={
-              form.confirmPassword && !passwordChecks.match ? 'Passwords do not match.' : undefined
+              form.confirmPassword && !passwordMatch ? 'Passwords do not match.' : undefined
             }
           />
-          {form.password ? (
-            <ul className="auth-checklist" aria-live="polite">
-              <li className={passwordChecks.length ? 'is-met' : ''}>At least 8 characters</li>
-              <li className={passwordChecks.match ? 'is-met' : ''}>Passwords match</li>
-            </ul>
-          ) : null}
           {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
           <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || showSuccessModal}>
             {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}

@@ -1977,6 +1977,11 @@ form .button {
   }
 }
 
+.auth-aside {
+  display: flex;
+  flex-direction: column;
+}
+
 .auth-panel {
   display: none;
   flex-direction: column;
@@ -2162,6 +2167,8 @@ form .button {
 
 .auth-form {
   width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .auth-field {
@@ -2262,6 +2269,7 @@ form .button {
 
 .auth-otp-row {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -2452,6 +2460,89 @@ form .button {
 .auth-checklist li.is-met::before {
   content: '✓';
   color: var(--green);
+}
+
+/* Tighten the tall register/login flow on short/narrow screens so it
+   scrolls less and doesn't feel endless (steps + notice + 5 fields + submit). */
+@media (max-width: 640px) {
+  .auth-shell {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .auth-card,
+  .login-card,
+  .register-card,
+  .supplier-card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .auth-steps {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .auth-step {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .auth-card-header h1,
+  .login-card h1,
+  .register-card h1,
+  .supplier-card h1 {
+    margin-bottom: 6px;
+  }
+
+  .auth-card-header p,
+  .login-card > p,
+  .register-card > p,
+  .supplier-card > p {
+    margin-bottom: 14px;
+  }
+
+  .auth-notice {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+  }
+
+  .auth-field,
+  .login-card label,
+  .register-card label,
+  .supplier-card label {
+    margin-top: 10px;
+  }
+
+  .auth-checklist {
+    margin-top: 8px;
+  }
+
+  .auth-submit,
+  .login-card button:not(.password-toggle-btn):not(.password-toggle),
+  .register-card button:not(.password-toggle-btn):not(.password-toggle),
+  .supplier-card button:not(.password-toggle-btn):not(.password-toggle) {
+    margin-top: 16px;
+  }
+
+  .auth-card-footer {
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .auth-steps {
+    flex-direction: column;
+  }
+
+  .auth-otp-controls {
+    flex-direction: column;
+  }
+
+  .auth-otp-controls .auth-inline-button {
+    width: 100%;
+  }
 }
 
 .login-card form,

@@ -30,7 +30,7 @@ const panels = {
 export function AuthAside({ variant }: AuthAsideProps) {
   const panel = panels[variant];
   return (
-    <>
+    <div className="auth-aside">
       <p className="auth-context-mobile">{panel.mobile}</p>
       <aside className="auth-panel" aria-label="DOVA customer information">
         <p className="auth-panel-kicker">{panel.kicker}</p>
@@ -45,6 +45,6 @@ export function AuthAside({ variant }: AuthAsideProps) {
           ))}
         </dl>
       </aside>
-    </>
+    </div>
   );
 }
