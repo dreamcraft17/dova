@@ -4063,3 +4063,221 @@ form .button {
   border-radius: 4px;
   margin-left: 6px;
 }
+
+/* ========== AI CHAT ========== */
+.chat-page {
+  display: flex;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 32px);
+  background: var(--cream);
+  min-height: calc(100dvh - var(--header-h));
+}
+
+.chat-card {
+  width: min(100%, 720px);
+  height: calc(100dvh - var(--header-h) - clamp(32px, 6vw, 64px));
+  min-height: 480px;
+  max-height: 860px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px clamp(16px, 3vw, 24px);
+  border-bottom: 1px solid var(--line);
+  background: var(--mint);
+  flex-shrink: 0;
+}
+
+.chat-header-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.chat-header h1 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.chat-header p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: clamp(16px, 3vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-bubble-row {
+  display: flex;
+}
+
+.chat-bubble-row--user {
+  justify-content: flex-end;
+}
+
+.chat-bubble-row--assistant {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.chat-bubble p {
+  margin: 0;
+}
+
+.chat-bubble p + p {
+  margin-top: 6px;
+}
+
+.chat-bubble--user {
+  background: var(--green);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble--assistant {
+  background: var(--mint);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble--typing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px;
+}
+
+.chat-bubble--typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.5;
+  animation: chat-typing 1.2s infinite ease-in-out;
+}
+
+.chat-bubble--typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-bubble--typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes chat-typing {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+.chat-composer {
+  display: flex;
+  gap: 10px;
+  padding: 14px clamp(16px, 3vw, 24px);
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.chat-composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 10px 14px;
+  border: 1px solid #d9e3dc;
+  border-radius: 999px;
+  font: inherit;
+  outline: none;
+}
+
+.chat-composer input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(15, 107, 67, 0.12);
+}
+
+.chat-composer button {
+  flex-shrink: 0;
+  width: var(--touch);
+  height: var(--touch);
+  border-radius: 999px;
+  border: none;
+  background: var(--green);
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.chat-composer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-launcher {
+  position: fixed;
+  right: clamp(16px, 4vw, 28px);
+  bottom: clamp(16px, 4vw, 28px);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: var(--shadow-lg);
+  text-decoration: none;
+}
+
+.chat-launcher:hover {
+  background: var(--green-dark, #0b5535);
+}
+
+@media (max-width: 480px) {
+  .chat-card {
+    border-radius: 14px;
+    height: calc(100dvh - var(--header-h) - 16px);
+  }
+
+  .chat-bubble {
+    max-width: 88%;
+  }
+
+  .chat-launcher span {
+    display: none;
+  }
+
+  .chat-launcher {
+    padding: 14px;
+  }
+}
