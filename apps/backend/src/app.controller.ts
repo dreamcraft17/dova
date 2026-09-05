@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
+import { SendChatMessageDto } from './chat.dto';
+import { ChatService } from './chat.service';
 import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
@@ -25,6 +27,7 @@ export class AppController {
   constructor(
     private readonly service: AppService,
     private readonly feedback: FeedbackService,
+    private readonly chat: ChatService,
     private readonly uploads: UploadStorageService,
   ) {}
 
@@ -400,5 +403,13 @@ export class AppController {
   @Public()
   @Get('feedback/config') feedbackConfig() {
     return { enabled: true, native: true, features: ['board', 'votes', 'comments', 'roadmap', 'changelog', 'admin'] };
+  }
+
+  @Get('chat/history') chatHistory(@CurrentUser() user: StoredUser) {
+    return this.chat.history(user);
+  }
+
+  @Post('chat/messages') sendChatMessage(@CurrentUser() user: StoredUser, @Body() body: SendChatMessageDto) {
+    return this.chat.sendMessage(user, body.text);
   }
 }
