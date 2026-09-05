@@ -8,6 +8,7 @@ import { DatabaseService } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { FeedbackService } from './feedback.service';
+import { ChatService } from './chat.service';
 import { PaystackService } from './paystack.service';
 import { UploadStorageService } from './upload-storage.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -28,6 +29,7 @@ import { RolesGuard } from './roles.guard';
     RedisService,
     NotificationService,
     FeedbackService,
+    ChatService,
     PaystackService,
     UploadStorageService,
     JwtAuthGuard,

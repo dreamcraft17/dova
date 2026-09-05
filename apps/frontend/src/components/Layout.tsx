@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MessageCircle } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
@@ -203,6 +204,13 @@ export function Layout({
       </nav>
 
       <main>{children}</main>
+
+      {user && router.pathname !== '/chat' ? (
+        <Link href="/chat" className="chat-launcher" aria-label="Chat with the DOVA AI assistant">
+          <MessageCircle size={18} aria-hidden="true" />
+          <span>Ask DOVA AI</span>
+        </Link>
+      ) : null}
 
       <footer className="site-footer">
         <div className="footer-container">
