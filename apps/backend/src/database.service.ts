@@ -20,6 +20,13 @@ export type StoredUser = User & {
   resetResendCount?: number;
   resetResendWindowStart?: string;
 };
+export type ChatIdentity = {
+  userId: string;
+  botpressUserId: string;
+  botpressUserKey: string;
+  botpressConversationId?: string;
+};
+
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
 @Injectable()
@@ -568,5 +575,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       console.warn('[Database] feedback seed skipped:', (error as Error).message);
     }
+  }
+
+  private mapChatIdentity(row: any): ChatIdentity {
+    return {
+      userId: row.user_id,
+      botpressUserId: row.botpress_user_id,
+      botpressUserKey: row.botpress_user_key,
+      botpressConversationId: row.botpress_conversation_id || undefined,
+    };
+  }
+
+  async chatGetIdentity(userId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT * FROM chat_identities WHERE user_id=$1 LIMIT 1', [userId]);
+    return result.rows[0] ? this.mapChatIdentity(result.rows[0]) : undefined;
+  }
+
+  async chatCreateIdentity(identity: { userId: string; botpressUserId: string; botpressUserKey: string }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO chat_identities (user_id,botpress_user_id,botpress_user_key) VALUES ($1,$2,$3) ON CONFLICT (user_id) DO NOTHING',
+      [identity.userId, identity.botpressUserId, identity.botpressUserKey],
+    );
+  }
+
+  async chatSetConversation(userId: string, conversationId: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'UPDATE chat_identities SET botpress_conversation_id=$1, updated_at=NOW() WHERE user_id=$2',
+      [conversationId, userId],
+    );
   }
 }
