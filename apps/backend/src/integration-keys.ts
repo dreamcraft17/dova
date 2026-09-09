@@ -29,3 +29,23 @@ export function firstHeaderValue(value: string | string[] | undefined): string |
   if (Array.isArray(value)) return value[0];
   return value;
 }
+
+export function frontendOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
+  const raw = env.CORS_ORIGINS ?? env.FRONTEND_URL ?? '';
+  return raw.split(',').map((value) => value.trim().replace(/\/$/, '')).filter(Boolean);
+}
+
+export function isInternalFrontendRequest(headers: { origin?: string | string[]; referer?: string | string[] }, env: NodeJS.ProcessEnv = process.env): boolean {
+  const allowed = new Set(frontendOrigins(env));
+  if (!allowed.size) return false;
+  const origin = firstHeaderValue(headers.origin)?.replace(/\/$/, '');
+  if (origin && allowed.has(origin)) return true;
+  const referer = firstHeaderValue(headers.referer);
+  if (!referer) return false;
+  try {
+    const url = new URL(referer);
+    return allowed.has(`${url.protocol}//${url.host}`);
+  } catch {
+    return false;
+  }
+}
