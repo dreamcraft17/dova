@@ -34,7 +34,7 @@ async function bootstrap() {
     origin: corsOrigins(),
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-paystack-signature'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-paystack-signature', 'X-Api-Key'],
   });
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

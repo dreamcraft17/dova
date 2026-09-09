@@ -8,7 +8,7 @@ import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } 
 import { FeedbackService } from './feedback.service';
 import { SendChatMessageDto } from './chat.dto';
 import { ChatService } from './chat.service';
-import { CurrentUser, OptionalAuth, Public, Roles, SkipIntegration } from './auth.decorators';
+import { CurrentUser, OptionalAuth, Public, RequireIntegration, Roles, SkipIntegration } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
 import { UploadStorageService } from './upload-storage.service';
@@ -71,6 +71,7 @@ export class AppController {
   @Public()
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
 
+  @RequireIntegration()
   @Public()
   @Get('openapi.json')
   openapi() {
@@ -166,14 +167,17 @@ export class AppController {
     return this.service.changePassword(user.id, body.currentPassword, body.newPassword, body.confirmPassword);
   }
 
+  @RequireIntegration()
   @Public()
   @Get('categories') categories() { return this.service.listCategories(); }
 
+  @RequireIntegration()
   @Public()
   @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '50') {
     return this.service.listProducts(search, categoryId, Number(page), Number(limit));
   }
 
+  @RequireIntegration()
   @Public()
   @Get('products/:id') product(@Param('id') id: string) { return this.service.product(id); }
 
