@@ -12,6 +12,7 @@ import { ChatService } from './chat.service';
 import { PaystackService } from './paystack.service';
 import { UploadStorageService } from './upload-storage.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { IntegrationKeyGuard } from './integration-key.guard';
 import { RolesGuard } from './roles.guard';
 
 @Module({
@@ -34,7 +35,9 @@ import { RolesGuard } from './roles.guard';
     UploadStorageService,
     JwtAuthGuard,
     RolesGuard,
+    IntegrationKeyGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: IntegrationKeyGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

@@ -4,8 +4,15 @@ export function assertProductionSecrets(env: NodeJS.ProcessEnv = process.env) {
   if (env.NODE_ENV !== 'production') return;
   const secret = env.JWT_SECRET ?? '';
   const weak = WEAK_JWT_SECRETS.has(secret) || secret.length < 32;
-  if (!weak) return;
-  const message = 'JWT_SECRET must be a strong secret (≥32 chars) in production';
-  if (env.STRICT_PRODUCTION_SECRETS === 'true') throw new Error(message);
-  console.warn(`[DOVA] ${message}. Set a strong JWT_SECRET in apps/backend/.env on the VPS.`);
+  if (weak) {
+    const message = 'JWT_SECRET must be a strong secret (≥32 chars) in production';
+    if (env.STRICT_PRODUCTION_SECRETS === 'true') throw new Error(message);
+    console.warn(`[DOVA] ${message}. Set a strong JWT_SECRET in apps/backend/.env on the VPS.`);
+  }
+  const keys = env.DOVA_INTEGRATION_KEYS?.trim() ?? '';
+  if (!keys) {
+    const message = 'DOVA_INTEGRATION_KEYS must list at least one official client secret in production';
+    if (env.STRICT_PRODUCTION_SECRETS === 'true') throw new Error(message);
+    console.warn(`[DOVA] ${message}.`);
+  }
 }
