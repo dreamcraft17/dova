@@ -5,7 +5,7 @@ export const DOVA_OPENAPI = {
     title: 'DOVA Marketplace API',
     version: '1.1.0',
     description:
-      'REST API for the DOVA food-supply marketplace (Nigeria, NGN, Paystack). All JSON routes are under /api/v1. Official clients must send X-Api-Key on every route except GET /health and POST /payments/webhook. Customer cart/order/payment also require Authorization: Bearer.',
+      'REST API for the DOVA food-supply marketplace (Nigeria, NGN, Paystack). All JSON routes are under /api/v1. External catalog readers (partners/bots) send X-Api-Key on GET /categories, GET /products, GET /products/{id}, and GET /openapi.json. The storefront Origin does not need that header. Login, cart, and orders use JWT only.',
     contact: { name: 'DOVA', url: 'https://dova.dntech.id' },
   },
   servers: [
@@ -20,7 +20,7 @@ export const DOVA_OPENAPI = {
     { name: 'Orders' },
     { name: 'Payments' },
   ],
-  security: [{ integrationKey: [] }],
+  security: [],
   paths: {
     '/': {
       get: {
@@ -41,6 +41,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Discovery'],
         summary: 'This OpenAPI document',
+        security: [{ integrationKey: [] }],
         responses: { '200': { description: 'OpenAPI 3.0 JSON' } },
       },
     },
@@ -48,6 +49,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Catalog'],
         summary: 'List product categories',
+        security: [{ integrationKey: [] }],
         responses: { '200': { description: 'Array of { id, name }' } },
       },
     },
@@ -55,6 +57,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Catalog'],
         summary: 'List in-stock products',
+        security: [{ integrationKey: [] }],
         parameters: [
           { name: 'search', in: 'query', schema: { type: 'string' } },
           { name: 'categoryId', in: 'query', schema: { type: 'string' } },
@@ -68,6 +71,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Catalog'],
         summary: 'Product detail',
+        security: [{ integrationKey: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Product' }, '404': { description: 'Not found' } },
       },
@@ -104,7 +108,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Auth'],
         summary: 'Current user',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'User' }, '401': { description: 'Unauthorized' } },
       },
     },
@@ -112,7 +116,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Cart'],
         summary: 'Current cart',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: '{ items, total }' } },
       },
     },
@@ -120,7 +124,7 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Cart'],
         summary: 'Add line item',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Updated cart' }, '400': { description: 'Validation' } },
       },
     },
@@ -128,13 +132,13 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Orders'],
         summary: 'List my orders',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Order array' } },
       },
       post: {
         tags: ['Orders'],
         summary: 'Create order from cart',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Order' }, '400': { description: 'Min order or empty cart' } },
       },
     },
@@ -142,7 +146,7 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Payments'],
         summary: 'Start Paystack (or mock) checkout',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         responses: { '200': { description: '{ authorization_url, reference, mode }' } },
       },
     },
@@ -150,7 +154,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Payments'],
         summary: 'Confirm payment by reference',
-        security: [{ integrationKey: [], bearerAuth: [] }],
+        security: [{ bearerAuth: [] }],
         parameters: [{ name: 'reference', in: 'query', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Paid or pending' }, '400': { description: 'Failed' } },
       },
@@ -170,7 +174,7 @@ export const DOVA_OPENAPI = {
         type: 'apiKey',
         in: 'header',
         name: 'X-Api-Key',
-        description: 'Issued per official client (storefront BFF, partner bot). Not for browsers.',
+        description: 'Partner/bot catalog access. Not required for the DOVA storefront or customer login.',
       },
       bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
     },
