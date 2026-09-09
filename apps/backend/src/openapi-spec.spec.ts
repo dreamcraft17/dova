@@ -8,6 +8,8 @@ describe('DOVA_OPENAPI', () => {
       'https://api.dova.dntech.id/api/v1',
       'http://localhost:3000/api/v1',
     ]);
+    expect(DOVA_OPENAPI.components.securitySchemes).toHaveProperty('integrationKey');
+    expect(DOVA_OPENAPI.security).toEqual([{ integrationKey: [] }]);
   });
 
   it('documents discovery, catalog, auth, cart, orders, and payments paths', () => {
@@ -21,7 +23,10 @@ describe('DOVA_OPENAPI', () => {
         '/cart',
         '/orders',
         '/payments/initialize',
+        '/payments/webhook',
       ]),
     );
+    expect(DOVA_OPENAPI.paths['/payments/webhook'].post.security).toEqual([]);
+    expect(DOVA_OPENAPI.paths['/health'].get.security).toEqual([]);
   });
 });

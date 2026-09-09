@@ -8,7 +8,8 @@ const SMOKE_PNG = Buffer.from(
   'base64',
 );
 
-const BASE = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.dova.dntech.id/api/v1';
+const BASE = process.env.API_URL || 'https://api.dova.dntech.id/api/v1';
+const INTEGRATION_KEY = process.env.DOVA_INTEGRATION_KEY || '';
 const lines = [];
 const log = (msg) => {
   const line = `[${new Date().toISOString()}] ${msg}`;
@@ -18,6 +19,7 @@ const log = (msg) => {
 
 async function req(method, urlPath, { token, body, expectStatus } = {}) {
   const headers = { 'Content-Type': 'application/json' };
+  if (INTEGRATION_KEY) headers['X-Api-Key'] = INTEGRATION_KEY;
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${urlPath}`, {
     method,
@@ -54,6 +56,7 @@ async function reqMultipart(method, urlPath, { token, fields, file, expectStatus
     form.append(file.field, new Blob([file.buffer], { type: file.mime }), file.name);
   }
   const headers = {};
+  if (INTEGRATION_KEY) headers['X-Api-Key'] = INTEGRATION_KEY;
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${urlPath}`, { method, headers, body: form });
   let data;

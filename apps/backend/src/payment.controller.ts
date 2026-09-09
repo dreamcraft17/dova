@@ -2,7 +2,7 @@ import { Body, Controller, Get, Headers, Post, Query, Req } from '@nestjs/common
 import { SkipThrottle } from '@nestjs/throttler';
 import { AppService } from './app.service';
 import { PaymentInitializeDto } from './auth.dto';
-import { CurrentUser, Public, Roles } from './auth.decorators';
+import { CurrentUser, Public, Roles, SkipIntegration } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
 
@@ -28,6 +28,7 @@ export class PaymentController {
     return this.service.verifyPayment(user.id, reference);
   }
 
+  @SkipIntegration()
   @Public()
   @SkipThrottle()
   @Post('payments/webhook') webhook(@Req() req: AuthenticatedRequest, @Headers('x-paystack-signature') signature: string | undefined, @Body() body: unknown) {

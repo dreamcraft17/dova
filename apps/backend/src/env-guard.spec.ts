@@ -17,6 +17,10 @@ describe('assertProductionSecrets', () => {
   });
 
   it('accepts strong JWT secret in production', () => {
-    expect(() => assertProductionSecrets({ NODE_ENV: 'production', JWT_SECRET: 'a'.repeat(32) })).not.toThrow();
+    expect(() => assertProductionSecrets({ NODE_ENV: 'production', JWT_SECRET: 'a'.repeat(32), DOVA_INTEGRATION_KEYS: 'storefront:secret' })).not.toThrow();
+  });
+
+  it('rejects missing integration keys in production when strict mode is enabled', () => {
+    expect(() => assertProductionSecrets({ NODE_ENV: 'production', JWT_SECRET: 'a'.repeat(32), STRICT_PRODUCTION_SECRETS: 'true' })).toThrow(/DOVA_INTEGRATION_KEYS/);
   });
 });

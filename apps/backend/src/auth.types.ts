@@ -12,5 +12,6 @@ export interface AuthenticatedRequest extends Request {
 export const ROLES_KEY = 'roles';
 export const IS_PUBLIC_KEY = 'isPublic';
 export const OPTIONAL_AUTH_KEY = 'optionalAuth';
+export const SKIP_INTEGRATION_KEY = 'skipIntegration';
 
 export type RoleList = Role[];

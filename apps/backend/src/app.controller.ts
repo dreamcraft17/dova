@@ -8,7 +8,7 @@ import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } 
 import { FeedbackService } from './feedback.service';
 import { SendChatMessageDto } from './chat.dto';
 import { ChatService } from './chat.service';
-import { CurrentUser, OptionalAuth, Public, Roles } from './auth.decorators';
+import { CurrentUser, OptionalAuth, Public, Roles, SkipIntegration } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
 import { UploadStorageService } from './upload-storage.service';
@@ -67,6 +67,7 @@ export class AppController {
     };
   }
 
+  @SkipIntegration()
   @Public()
   @Get('health') health() { return { status: 'ok', service: 'dova-api' }; }
 
@@ -229,6 +230,7 @@ export class AppController {
     return this.service.verifyPayment(user.id, reference);
   }
 
+  @SkipIntegration()
   @Public()
   @SkipThrottle()
   @Post('payments/webhook') webhook(@Req() req: AuthenticatedRequest, @Headers('x-paystack-signature') signature: string | undefined, @Body() body: unknown) {

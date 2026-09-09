@@ -3,9 +3,9 @@ export const DOVA_OPENAPI = {
   openapi: '3.0.3',
   info: {
     title: 'DOVA Marketplace API',
-    version: '1.0.0',
+    version: '1.1.0',
     description:
-      'REST API for the DOVA food-supply marketplace (Nigeria, NGN, Paystack). All JSON routes are under /api/v1.',
+      'REST API for the DOVA food-supply marketplace (Nigeria, NGN, Paystack). All JSON routes are under /api/v1. Official clients must send X-Api-Key on every route except GET /health and POST /payments/webhook. Customer cart/order/payment also require Authorization: Bearer.',
     contact: { name: 'DOVA', url: 'https://dova.dntech.id' },
   },
   servers: [
@@ -20,6 +20,7 @@ export const DOVA_OPENAPI = {
     { name: 'Orders' },
     { name: 'Payments' },
   ],
+  security: [{ integrationKey: [] }],
   paths: {
     '/': {
       get: {
@@ -31,7 +32,8 @@ export const DOVA_OPENAPI = {
     '/health': {
       get: {
         tags: ['Discovery'],
-        summary: 'Liveness',
+        summary: 'Liveness (no integration key; for process checks only)',
+        security: [],
         responses: { '200': { description: '{ status, service }' } },
       },
     },
@@ -102,7 +104,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Auth'],
         summary: 'Current user',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: 'User' }, '401': { description: 'Unauthorized' } },
       },
     },
@@ -110,7 +112,7 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Cart'],
         summary: 'Current cart',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: '{ items, total }' } },
       },
     },
@@ -118,7 +120,7 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Cart'],
         summary: 'Add line item',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: 'Updated cart' }, '400': { description: 'Validation' } },
       },
     },
@@ -126,13 +128,13 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Orders'],
         summary: 'List my orders',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: 'Order array' } },
       },
       post: {
         tags: ['Orders'],
         summary: 'Create order from cart',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: 'Order' }, '400': { description: 'Min order or empty cart' } },
       },
     },
@@ -140,7 +142,7 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Payments'],
         summary: 'Start Paystack (or mock) checkout',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         responses: { '200': { description: '{ authorization_url, reference, mode }' } },
       },
     },
@@ -148,14 +150,28 @@ export const DOVA_OPENAPI = {
       get: {
         tags: ['Payments'],
         summary: 'Confirm payment by reference',
-        security: [{ bearerAuth: [] }],
+        security: [{ integrationKey: [], bearerAuth: [] }],
         parameters: [{ name: 'reference', in: 'query', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Paid or pending' }, '400': { description: 'Failed' } },
+      },
+    },
+    '/payments/webhook': {
+      post: {
+        tags: ['Payments'],
+        summary: 'Paystack callback (HMAC signature; no X-Api-Key)',
+        security: [],
+        responses: { '200': { description: 'Accepted' }, '401': { description: 'Bad signature' } },
       },
     },
   },
   components: {
     securitySchemes: {
+      integrationKey: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-Api-Key',
+        description: 'Issued per official client (storefront BFF, partner bot). Not for browsers.',
+      },
       bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
     },
   },

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Week 4 smoke: health + contact persist (in-memory or DB). */
-const API = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3000/api/v1';
+const API = process.env.API_URL || 'http://localhost:3000/api/v1';
+const INTEGRATION_KEY = process.env.DOVA_INTEGRATION_KEY || '';
 
 async function main() {
   const health = await fetch(`${API}/health`).then((r) => r.json());
@@ -9,7 +10,10 @@ async function main() {
 
   const contact = await fetch(`${API}/contact`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(INTEGRATION_KEY ? { 'X-Api-Key': INTEGRATION_KEY } : {}),
+    },
     body: JSON.stringify({
       name: 'Smoke Test',
       email: 'smoke@dova.local',
