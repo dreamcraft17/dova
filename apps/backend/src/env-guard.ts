@@ -11,7 +11,7 @@ export function assertProductionSecrets(env: NodeJS.ProcessEnv = process.env) {
   }
   const keys = env.DOVA_INTEGRATION_KEYS?.trim() ?? '';
   if (!keys) {
-    const message = 'DOVA_INTEGRATION_KEYS must list at least one official client secret in production';
+    const message = 'DOVA_INTEGRATION_KEYS must list at least one partner catalog secret in production';
     if (env.STRICT_PRODUCTION_SECRETS === 'true') throw new Error(message);
     console.warn(`[DOVA] ${message}.`);
   }
