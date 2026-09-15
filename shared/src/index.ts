@@ -7,9 +7,34 @@ export interface User { id: string; email: string; fullName: string; phoneNumber
 export interface Category { id: string; name: string; }
 export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; isActive: boolean; }
 export type DeliverySlot = 'morning' | 'evening';
-export interface CartItem { id: string; product: Product; quantity: number; subtotal: number; deliverySlot: DeliverySlot; }
+/** bundleId/bundleContents are set only for a bundle cart line — `product` is still always populated
+ * (a synthesized bundle-as-product view: id/name/price/stock of the bundle itself) so existing code
+ * that reads `item.product.*` keeps working unchanged for both products and bundles. */
+export interface BundleCartContent { productId: string; productName: string; quantity: number; }
+export interface CartItem {
+  id: string;
+  product: Product;
+  quantity: number;
+  subtotal: number;
+  deliverySlot: DeliverySlot;
+  bundleId?: string;
+  bundleContents?: BundleCartContent[];
+}
 export interface Cart { items: CartItem[]; total: number; }
-export interface OrderItem { id: string; product: Product; quantity: number; unitPrice: number; subtotal: number; supplierOrderStatus: string; }
+/** bundleId/bundleName/bundleQuantity are set only when this order item is one component of a
+ * bundle purchase — `product`/`supplierOrderStatus` stay real per-product fields so supplier
+ * fulfillment (adjustStock, order status transitions) is unaffected by bundle purchases. */
+export interface OrderItem {
+  id: string;
+  product: Product;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  supplierOrderStatus: string;
+  bundleId?: string;
+  bundleName?: string;
+  bundleQuantity?: number;
+}
 export interface Order {
   id: string;
   orderNumber: string;
@@ -112,6 +137,91 @@ export interface ChatMessage {
   role: ChatMessageRole;
   text: string;
   createdAt: string;
+}
+
+/** Admin-curated product bundles (Bundle Feature, see DOVA_Bundle_*.md). */
+export type BundleStatus = 'active' | 'inactive';
+
+export interface Bundle {
+  id: string;
+  name: string;
+  description: string;
+  categoryId?: string;
+  categoryName?: string;
+  imageUrl?: string;
+  bundlePrice: number;
+  isFeatured: boolean;
+  status: BundleStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BundleContent { id: string; bundleId: string; productId: string; quantity: number; position: number; }
+export interface BundleContentWithProduct extends BundleContent { product: Product; }
+
+export interface BundleComputed {
+  individualTotal: number;
+  savingsAmount: number;
+  savingsPercentage: number;
+  availableQuantity: number;
+  isOutOfStock: boolean;
+}
+
+export type BundleSummary = Bundle & { computed: BundleComputed };
+export type BundleDetail = Bundle & { contents: BundleContentWithProduct[]; computed: BundleComputed };
+export interface BundleListResponse { data: BundleSummary[]; pagination: { page: number; limit: number; total: number }; }
+
+/** floor(stock / quantity-per-bundle), min across components. Inactive or out-of-stock
+ * components make the whole bundle unavailable (FR-005). */
+export function computeBundleAvailability(
+  contents: Array<{ quantity: number; product: Pick<Product, 'stockQuantity' | 'isActive'> }>,
+): { availableQuantity: number; isOutOfStock: boolean } {
+  if (!contents.length) return { availableQuantity: 0, isOutOfStock: true };
+  let min = Infinity;
+  for (const content of contents) {
+    if (!content.product.isActive || content.product.stockQuantity <= 0) {
+      return { availableQuantity: 0, isOutOfStock: true };
+    }
+    const units = Math.floor(content.product.stockQuantity / content.quantity);
+    if (units < min) min = units;
+  }
+  const availableQuantity = Number.isFinite(min) ? min : 0;
+  return { availableQuantity, isOutOfStock: availableQuantity <= 0 };
+}
+
+export function computeBundlePricing(
+  bundlePrice: number,
+  contents: Array<{ quantity: number; product: Pick<Product, 'price'> }>,
+): { individualTotal: number; savingsAmount: number; savingsPercentage: number } {
+  const individualTotal = contents.reduce((sum, content) => sum + content.product.price * content.quantity, 0);
+  const savingsAmount = Math.max(0, Number((individualTotal - bundlePrice).toFixed(2)));
+  const savingsPercentage = individualTotal > 0 ? Number(((savingsAmount / individualTotal) * 100).toFixed(2)) : 0;
+  return { individualTotal: Number(individualTotal.toFixed(2)), savingsAmount, savingsPercentage };
+}
+
+/** Allocates the bundle's selling price across its component products, proportional to each
+ * component's share of the individual (non-bundle) price — so per-product order_items subtotals
+ * sum exactly to bundlePrice*bundleQuantity while still crediting each supplier fairly. The last
+ * component absorbs the rounding remainder so the sum reconciles exactly. */
+export function allocateBundlePrice(
+  bundlePrice: number,
+  bundleQuantity: number,
+  contents: Array<{ productId: string; quantity: number; product: Pick<Product, 'price'> }>,
+): Array<{ productId: string; totalQuantity: number; unitPrice: number; subtotal: number }> {
+  const perUnitIndividualTotal = contents.reduce((sum, content) => sum + content.product.price * content.quantity, 0);
+  const totalCharge = Number((bundlePrice * bundleQuantity).toFixed(2));
+  let allocated = 0;
+  return contents.map((content, index) => {
+    const totalQuantity = Number((content.quantity * bundleQuantity).toFixed(2));
+    const share =
+      perUnitIndividualTotal > 0 ? (content.product.price * content.quantity) / perUnitIndividualTotal : 1 / contents.length;
+    let subtotal = Number((totalCharge * share).toFixed(2));
+    if (index === contents.length - 1) subtotal = Number((totalCharge - allocated).toFixed(2));
+    allocated = Number((allocated + subtotal).toFixed(2));
+    const unitPrice = totalQuantity > 0 ? Number((subtotal / totalQuantity).toFixed(2)) : 0;
+    return { productId: content.productId, totalQuantity, unitPrice, subtotal };
+  });
 }
 
 export { productImageUrl, publicCatalogImageUrl, PRODUCT_IMAGES, CATEGORY_IMAGES, isBrokenProductImageUrl, shouldRefreshCatalogImage } from './product-images';

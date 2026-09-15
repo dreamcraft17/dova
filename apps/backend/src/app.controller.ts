@@ -4,6 +4,8 @@ import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
 import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
+import { BundleService } from './bundle.service';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { SendChatMessageDto } from './chat.dto';
@@ -29,6 +31,7 @@ export class AppController {
     private readonly feedback: FeedbackService,
     private readonly chat: ChatService,
     private readonly uploads: UploadStorageService,
+    private readonly bundles: BundleService,
   ) {}
 
   private async applyProductImage(b: ProductDto, file?: { mimetype: string; buffer: Buffer }) {
@@ -181,12 +184,25 @@ export class AppController {
   @Public()
   @Get('products/:id') product(@Param('id') id: string) { return this.service.product(id); }
 
+  @Public()
+  @Get('bundles') listBundles(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '24') {
+    return this.bundles.listCustomerBundles(search, categoryId, Number(page), Number(limit));
+  }
+
+  @Public()
+  @Get('bundles/:id') bundle(@Param('id') id: string) { return this.bundles.getCustomerBundle(id); }
+
   @Roles('customer')
   @Get('cart') cart(@CurrentUser() user: StoredUser) { return this.service.cart(user.id); }
 
   @Roles('customer')
   @Post('cart/add') add(@CurrentUser() user: StoredUser, @Body() b: CartAddDto) {
     return this.service.addCart(user.id, b.productId, Number(b.quantity), b.deliverySlot);
+  }
+
+  @Roles('customer')
+  @Post('cart/add-bundle') addBundle(@CurrentUser() user: StoredUser, @Body() b: AddBundleToCartDto) {
+    return this.bundles.addBundleToCart(user.id, b);
   }
 
   @Roles('customer')
@@ -342,6 +358,32 @@ export class AppController {
   @Put('admin/products/:id/active') productActive(@Param('id') id: string, @Body('active') active: boolean) {
     return this.service.setProductActive(id, Boolean(active));
   }
+
+  @Roles('admin')
+  @Get('admin/bundles') adminBundles(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('status') status = '', @Query('page') page = '1', @Query('limit') limit = '24') {
+    return this.bundles.listAdminBundles(search, categoryId, status, Number(page), Number(limit));
+  }
+
+  @Roles('admin')
+  @Get('admin/bundles/:id') adminBundle(@Param('id') id: string) { return this.bundles.getAdminBundle(id); }
+
+  @Roles('admin')
+  @Post('admin/bundles') createBundle(@CurrentUser() user: StoredUser, @Body() body: CreateBundleDto) {
+    return this.bundles.createBundle(user.id, body);
+  }
+
+  @Roles('admin')
+  @Put('admin/bundles/:id') updateBundle(@Param('id') id: string, @Body() body: UpdateBundleDto) {
+    return this.bundles.updateBundle(id, body);
+  }
+
+  @Roles('admin')
+  @Put('admin/bundles/:id/active') bundleActive(@Param('id') id: string, @Body() body: BundleActiveDto) {
+    return this.bundles.setBundleActive(id, body.active);
+  }
+
+  @Roles('admin')
+  @Delete('admin/bundles/:id') deleteBundle(@Param('id') id: string) { return this.bundles.deleteBundle(id); }
 
   @Roles('admin')
   @Get('admin/orders') adminOrders(@Query('status') status = '', @Query('search') search = '') {

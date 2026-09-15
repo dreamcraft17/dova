@@ -458,7 +458,8 @@ export class AppService {
   }
   private cartKey(userId: string) { return `dova:cart:${userId}`; }
   async cart(userId: string): Promise<Cart> { const stored = await this.database.getCart(userId); if (stored) { this.carts.set(userId, stored); return stored; } const existing = this.carts.get(userId); if (existing) return existing; if (this.redis.enabled) { const cached = await this.redis.get(this.cartKey(userId)); if (cached) { const cart = JSON.parse(cached) as Cart; this.carts.set(userId, cart); return cart; } } return { items: [], total: 0 }; }
-  private async saveCart(userId: string, cart: Cart) { this.carts.set(userId, cart); await this.database.saveCart(userId, cart); if (this.redis.enabled) await this.redis.set(this.cartKey(userId), JSON.stringify(cart), 604800); return cart; }
+  /** Public so BundleService can persist a cart after adding/merging a bundle line. */
+  async saveCart(userId: string, cart: Cart) { this.carts.set(userId, cart); await this.database.saveCart(userId, cart); if (this.redis.enabled) await this.redis.set(this.cartKey(userId), JSON.stringify(cart), 604800); return cart; }
   async addCart(userId: string, productId: string, quantity: number, deliverySlot: 'morning' | 'evening') {
     if (!deliverySlot) throw new BadRequestException('Please select a delivery slot');
     const p = await this.product(productId);

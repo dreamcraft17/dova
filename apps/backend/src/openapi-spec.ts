@@ -15,6 +15,7 @@ export const DOVA_OPENAPI = {
   tags: [
     { name: 'Discovery' },
     { name: 'Catalog' },
+    { name: 'Bundles' },
     { name: 'Auth' },
     { name: 'Cart' },
     { name: 'Orders' },
@@ -74,6 +75,90 @@ export const DOVA_OPENAPI = {
         security: [{ integrationKey: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Product' }, '404': { description: 'Not found' } },
+      },
+    },
+    '/bundles': {
+      get: {
+        tags: ['Bundles'],
+        summary: 'List active bundles',
+        security: [],
+        parameters: [
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'categoryId', in: 'query', schema: { type: 'string' } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24 } },
+        ],
+        responses: { '200': { description: '{ data, pagination }' } },
+      },
+    },
+    '/bundles/{id}': {
+      get: {
+        tags: ['Bundles'],
+        summary: 'Bundle detail with contents, pricing, and availability',
+        security: [],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'BundleDetail' }, '404': { description: 'Not found' } },
+      },
+    },
+    '/cart/add-bundle': {
+      post: {
+        tags: ['Bundles'],
+        summary: 'Add a bundle as one cart line',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Updated cart' }, '400': { description: 'Validation, inactive, or out of stock' }, '404': { description: 'Bundle not found' } },
+      },
+    },
+    '/admin/bundles': {
+      get: {
+        tags: ['Bundles'],
+        summary: 'List bundles (any status)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'categoryId', in: 'query', schema: { type: 'string' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['active', 'inactive'] } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24 } },
+        ],
+        responses: { '200': { description: '{ data, pagination }' } },
+      },
+      post: {
+        tags: ['Bundles'],
+        summary: 'Create a bundle',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'BundleDetail (Nest may return 200)' }, '400': { description: 'Validation' } },
+      },
+    },
+    '/admin/bundles/{id}': {
+      get: {
+        tags: ['Bundles'],
+        summary: 'Bundle detail (any status)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'BundleDetail' }, '404': { description: 'Not found' } },
+      },
+      put: {
+        tags: ['Bundles'],
+        summary: 'Update bundle metadata and contents',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'BundleDetail' }, '400': { description: 'Validation' }, '404': { description: 'Not found' } },
+      },
+      delete: {
+        tags: ['Bundles'],
+        summary: 'Deactivate a bundle (soft delete)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: '{ id, status: "inactive" }' } },
+      },
+    },
+    '/admin/bundles/{id}/active': {
+      put: {
+        tags: ['Bundles'],
+        summary: 'Activate or deactivate a bundle',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: '{ id, status }' } },
       },
     },
     '/auth/send-registration-code': {

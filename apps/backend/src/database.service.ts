@@ -1,9 +1,28 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { bcryptCost } from './bcrypt-cost';
-import { Cart, Category, Order, Product, Role, User, minOrderMessage, productImageUrl, publicCatalogImageUrl, shouldRefreshCatalogImage, SEED_PRODUCT_CATALOG } from 'dova-shared';
+import {
+  allocateBundlePrice,
+  Bundle,
+  BundleContentWithProduct,
+  BundleDetail,
+  BundleListResponse,
+  Cart,
+  Category,
+  computeBundleAvailability,
+  computeBundlePricing,
+  Order,
+  Product,
+  Role,
+  User,
+  minOrderMessage,
+  productImageUrl,
+  publicCatalogImageUrl,
+  shouldRefreshCatalogImage,
+  SEED_PRODUCT_CATALOG,
+} from 'dova-shared';
 
 export type StoredUser = User & {
   passwordHash: string;
@@ -251,9 +270,430 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async findProduct(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.is_active=TRUE AND p.stock_quantity>0', [id]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async findSupplierProduct(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.supplier_id=$2', [productId, supplierId]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async categories() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,name FROM categories ORDER BY name'); return result.rows as Category[]; }
-  async getCart(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT ci.id,ci.quantity,ci.delivery_slot,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE', [userId]); const items = result.rows.map(row => ({ id: row.id, product: this.mapProduct(row), quantity: Number(row.quantity), subtotal: Number(row.price) * Number(row.quantity), deliverySlot: (row.delivery_slot || 'morning') as 'morning' | 'evening' })); return { items, total: items.reduce((sum, item) => sum + item.subtotal, 0) } as Cart; }
-  async saveCart(userId: string, cart: Cart) { if (!this.pool) return; const client = await this.pool.connect(); try { await client.query('BEGIN'); const cartResult = await client.query('INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at=NOW() RETURNING id', [userId]); const cartId = cartResult.rows[0].id; await client.query('DELETE FROM cart_items WHERE cart_id=$1', [cartId]); for (const item of cart.items) await client.query('INSERT INTO cart_items (id,cart_id,product_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,$5)', [item.id, cartId, item.product.id, item.quantity, item.deliverySlot || 'morning']); await client.query('COMMIT'); } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
-  async createOrderFromCart(userId: string, body: any) { if (!this.pool) return undefined; const client = await this.pool.connect(); try { await client.query('BEGIN'); const result = await client.query('SELECT ci.id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 FOR UPDATE', [userId]); if (!result.rows.length) throw new Error('Cart is empty'); const fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery'; if (!body.deliveryName || !body.deliveryPhone) throw new Error('Delivery details are required'); if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) throw new Error('Delivery address is required'); const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress; const items = result.rows.map(row => ({ id: row.id, product: this.mapProduct(row), quantity: Number(row.quantity), subtotal: Number(row.price) * Number(row.quantity) })); if (items.some(item => item.quantity > item.product.stockQuantity)) throw new Error('Quantity exceeds available stock'); const total = items.reduce((sum, item) => sum + item.subtotal, 0); const shortfallMsg = minOrderMessage(total, fulfillmentType); if (shortfallMsg) throw new Error(shortfallMsg); const orderResult = await client.query('INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *', [userId, `DOVA-${Date.now().toString(36).toUpperCase()}`, 'pending', total, body.deliveryName, deliveryAddress, body.deliveryPhone, fulfillmentType]); const row = orderResult.rows[0]; const orderItems: Order['items'] = []; for (const item of items) { await client.query('UPDATE products SET stock_quantity=stock_quantity-$1,updated_at=NOW() WHERE id=$2', [item.quantity, item.product.id]); const oi = await client.query('INSERT INTO order_items (order_id,product_id,supplier_id,quantity,unit_price,subtotal) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [row.id, item.product.id, item.product.supplierId, item.quantity, item.product.price, item.subtotal]); orderItems.push({ id: oi.rows[0].id, product: item.product, quantity: Number(item.quantity), unitPrice: item.product.price, subtotal: item.subtotal, supplierOrderStatus: 'pending' }); } await client.query('DELETE FROM cart_items WHERE cart_id=(SELECT id FROM carts WHERE user_id=$1)', [userId]); await client.query('COMMIT'); return { id: row.id, orderNumber: row.order_number, customerId: row.customer_id, status: row.status, totalAmount: Number(row.total_amount), deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, deliveryPhone: row.delivery_phone, fulfillmentType: row.fulfillment_type || fulfillmentType, items: orderItems, createdAt: new Date(row.created_at).toISOString() } as Order; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
+
+  // ---- Bundles (Bundle Feature, see DOVA_Bundle_*.md) ----
+
+  private mapBundleRow(row: any): Bundle {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description || '',
+      categoryId: row.category_id || undefined,
+      categoryName: row.category_name || undefined,
+      imageUrl: row.image_url || undefined,
+      bundlePrice: Number(row.bundle_price),
+      isFeatured: row.is_featured,
+      status: row.status,
+      createdBy: row.created_by,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+    };
+  }
+
+  private async getBundleContents(
+    executor: Pool | PoolClient,
+    bundleId: string,
+    forUpdate = false,
+  ): Promise<BundleContentWithProduct[]> {
+    const result = await executor.query(
+      `SELECT bc.id AS content_id, bc.bundle_id, bc.product_id, bc.quantity, bc.position, p.*, s.business_name, c.name AS category_name
+       FROM bundle_contents bc
+       JOIN products p ON p.id = bc.product_id
+       JOIN supplier_profiles s ON s.id = p.supplier_id
+       JOIN categories c ON c.id = p.category_id
+       WHERE bc.bundle_id = $1
+       ORDER BY bc.position${forUpdate ? ' FOR UPDATE OF p' : ''}`,
+      [bundleId],
+    );
+    return result.rows.map((row: any) => ({
+      id: row.content_id,
+      bundleId: row.bundle_id,
+      productId: row.product_id,
+      quantity: Number(row.quantity),
+      position: row.position,
+      product: this.mapProduct(row),
+    }));
+  }
+
+  private toBundleSummary(row: any, contents: BundleContentWithProduct[]) {
+    const bundle = this.mapBundleRow(row);
+    return {
+      ...bundle,
+      computed: { ...computeBundlePricing(bundle.bundlePrice, contents), ...computeBundleAvailability(contents) },
+    };
+  }
+
+  async listCustomerBundles(search = '', categoryId = '', page = 1, limit = 24): Promise<BundleListResponse | undefined> {
+    if (!this.pool) return undefined;
+    const values: unknown[] = [];
+    const filters = ["b.status = 'active'"];
+    if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(b.name) LIKE $${values.length}`); }
+    if (categoryId) { values.push(categoryId); filters.push(`b.category_id = $${values.length}`); }
+    const where = filters.join(' AND ');
+    const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM bundles b WHERE ${where}`, values);
+    values.push(limit, (page - 1) * limit);
+    const result = await this.pool.query(
+      `SELECT b.*, c.name AS category_name FROM bundles b LEFT JOIN categories c ON c.id = b.category_id
+       WHERE ${where} ORDER BY b.is_featured DESC, b.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      values,
+    );
+    const data = [];
+    for (const row of result.rows) {
+      data.push(this.toBundleSummary(row, await this.getBundleContents(this.pool, row.id)));
+    }
+    return { data, pagination: { page, limit, total: totalResult.rows[0].total } };
+  }
+
+  async getCustomerBundle(id: string): Promise<BundleDetail | undefined> {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT b.*, c.name AS category_name FROM bundles b LEFT JOIN categories c ON c.id = b.category_id WHERE b.id=$1 AND b.status='active'`,
+      [id],
+    );
+    if (!result.rows[0]) return undefined;
+    const contents = await this.getBundleContents(this.pool, id);
+    return { ...this.mapBundleRow(result.rows[0]), contents, computed: { ...computeBundlePricing(Number(result.rows[0].bundle_price), contents), ...computeBundleAvailability(contents) } };
+  }
+
+  async listAdminBundles(search = '', categoryId = '', status = '', page = 1, limit = 24): Promise<BundleListResponse | undefined> {
+    if (!this.pool) return undefined;
+    const values: unknown[] = [];
+    const filters: string[] = [];
+    if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(b.name) LIKE $${values.length}`); }
+    if (categoryId) { values.push(categoryId); filters.push(`b.category_id = $${values.length}`); }
+    if (status) { values.push(status); filters.push(`b.status = $${values.length}`); }
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM bundles b ${where}`, values);
+    values.push(limit, (page - 1) * limit);
+    const result = await this.pool.query(
+      `SELECT b.*, c.name AS category_name FROM bundles b LEFT JOIN categories c ON c.id = b.category_id
+       ${where} ORDER BY b.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+      values,
+    );
+    const data = [];
+    for (const row of result.rows) {
+      data.push(this.toBundleSummary(row, await this.getBundleContents(this.pool, row.id)));
+    }
+    return { data, pagination: { page, limit, total: totalResult.rows[0].total } };
+  }
+
+  async getAdminBundle(id: string): Promise<BundleDetail | undefined> {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT b.*, c.name AS category_name FROM bundles b LEFT JOIN categories c ON c.id = b.category_id WHERE b.id=$1`,
+      [id],
+    );
+    if (!result.rows[0]) return undefined;
+    const contents = await this.getBundleContents(this.pool, id);
+    return { ...this.mapBundleRow(result.rows[0]), contents, computed: { ...computeBundlePricing(Number(result.rows[0].bundle_price), contents), ...computeBundleAvailability(contents) } };
+  }
+
+  async createBundle(actorId: string, body: any): Promise<string | undefined> {
+    if (!this.pool) return undefined;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const bundleResult = await client.query(
+        'INSERT INTO bundles (name,description,category_id,image_url,bundle_price,is_featured,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+        [body.name, body.description, body.categoryId || null, body.imageUrl || null, body.bundlePrice, Boolean(body.isFeatured), actorId],
+      );
+      const bundleId = bundleResult.rows[0].id;
+      let position = 0;
+      for (const content of body.contents) {
+        await client.query(
+          'INSERT INTO bundle_contents (bundle_id,product_id,quantity,position) VALUES ($1,$2,$3,$4)',
+          [bundleId, content.productId, content.quantity, content.position ?? position],
+        );
+        position += 1;
+      }
+      await client.query('COMMIT');
+      return bundleId as string;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateBundle(id: string, body: any): Promise<string | undefined> {
+    if (!this.pool) return undefined;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'UPDATE bundles SET name=$1,description=$2,category_id=$3,image_url=$4,bundle_price=$5,is_featured=$6,updated_at=NOW() WHERE id=$7 RETURNING id',
+        [body.name, body.description, body.categoryId || null, body.imageUrl || null, body.bundlePrice, Boolean(body.isFeatured), id],
+      );
+      if (!result.rowCount) { await client.query('ROLLBACK'); return undefined; }
+      await client.query('DELETE FROM bundle_contents WHERE bundle_id=$1', [id]);
+      let position = 0;
+      for (const content of body.contents) {
+        await client.query(
+          'INSERT INTO bundle_contents (bundle_id,product_id,quantity,position) VALUES ($1,$2,$3,$4)',
+          [id, content.productId, content.quantity, content.position ?? position],
+        );
+        position += 1;
+      }
+      await client.query('COMMIT');
+      return id;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async setBundleActive(id: string, active: boolean) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      'UPDATE bundles SET status=$1,updated_at=NOW() WHERE id=$2 RETURNING id',
+      [active ? 'active' : 'inactive', id],
+    );
+    return result.rowCount ? { id, status: (active ? 'active' : 'inactive') as Bundle['status'] } : undefined;
+  }
+
+  async bundleSeedIfEmpty() {
+    if (!this.pool) return;
+    const count = await this.pool.query('SELECT COUNT(*)::int AS count FROM bundles');
+    if (count.rows[0].count > 0) return;
+    const admin = await this.pool.query("SELECT id FROM users WHERE role='admin' ORDER BY created_at ASC LIMIT 1");
+    const adminId = admin.rows[0]?.id;
+    if (!adminId) return;
+    const products = await this.pool.query(
+      'SELECT id, price FROM products WHERE is_active=TRUE AND stock_quantity > 5 ORDER BY created_at ASC LIMIT 2',
+    );
+    if (products.rows.length < 2) return;
+    const individualTotal = products.rows.reduce((sum: number, p: any) => sum + Number(p.price), 0);
+    const bundlePrice = Number((individualTotal * 0.85).toFixed(2));
+    try {
+      await this.createBundle(adminId, {
+        name: 'Starter Kitchen Bundle',
+        description: 'A curated starter pack of everyday staples at a bundled price.',
+        bundlePrice,
+        isFeatured: true,
+        contents: products.rows.map((p: any, index: number) => ({ productId: p.id, quantity: 1, position: index })),
+      });
+    } catch (error) {
+      console.warn('[Database] bundle seed skipped:', (error as Error).message);
+    }
+  }
+
+  async getCart(userId: string): Promise<Cart | undefined> {
+    if (!this.pool) return undefined;
+    const productResult = await this.pool.query(
+      'SELECT ci.id,ci.quantity,ci.delivery_slot,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE',
+      [userId],
+    );
+    const items: Cart['items'] = productResult.rows.map((row) => ({
+      id: row.id,
+      product: this.mapProduct(row),
+      quantity: Number(row.quantity),
+      subtotal: Number(row.price) * Number(row.quantity),
+      deliverySlot: (row.delivery_slot || 'morning') as 'morning' | 'evening',
+    }));
+
+    const bundleResult = await this.pool.query(
+      `SELECT ci.id AS cart_item_id, ci.quantity, ci.delivery_slot, b.id AS bundle_id, b.name, b.description, b.bundle_price, b.image_url, b.status
+       FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN bundles b ON b.id=ci.bundle_id
+       WHERE ca.user_id=$1 AND b.status='active'`,
+      [userId],
+    );
+    for (const row of bundleResult.rows) {
+      const contents = await this.getBundleContents(this.pool, row.bundle_id);
+      const availability = computeBundleAvailability(contents);
+      const quantity = Number(row.quantity);
+      items.push({
+        id: row.cart_item_id,
+        product: {
+          id: row.bundle_id,
+          supplierId: '',
+          supplierName: 'DOVA Bundle',
+          name: row.name,
+          description: row.description || '',
+          price: Number(row.bundle_price),
+          stockQuantity: availability.availableQuantity,
+          categoryId: '',
+          categoryName: 'Bundle',
+          imageUrl: row.image_url || undefined,
+          isActive: true,
+        },
+        quantity,
+        subtotal: Number(row.bundle_price) * quantity,
+        deliverySlot: (row.delivery_slot || 'morning') as 'morning' | 'evening',
+        bundleId: row.bundle_id,
+        bundleContents: contents.map((content) => ({ productId: content.productId, productName: content.product.name, quantity: content.quantity })),
+      });
+    }
+
+    return { items, total: items.reduce((sum, item) => sum + item.subtotal, 0) };
+  }
+
+  async saveCart(userId: string, cart: Cart) {
+    if (!this.pool) return;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const cartResult = await client.query('INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at=NOW() RETURNING id', [userId]);
+      const cartId = cartResult.rows[0].id;
+      await client.query('DELETE FROM cart_items WHERE cart_id=$1', [cartId]);
+      for (const item of cart.items) {
+        if (item.bundleId) {
+          await client.query(
+            'INSERT INTO cart_items (id,cart_id,bundle_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,$5)',
+            [item.id, cartId, item.bundleId, item.quantity, item.deliverySlot || 'morning'],
+          );
+        } else {
+          await client.query(
+            'INSERT INTO cart_items (id,cart_id,product_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,$5)',
+            [item.id, cartId, item.product.id, item.quantity, item.deliverySlot || 'morning'],
+          );
+        }
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createOrderFromCart(userId: string, body: any): Promise<Order | undefined> {
+    if (!this.pool) return undefined;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const productRows = await client.query(
+        'SELECT ci.id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 FOR UPDATE',
+        [userId],
+      );
+      const bundleCartRows = await client.query(
+        `SELECT ci.id AS cart_item_id, ci.quantity, ci.bundle_id, b.name AS bundle_name, b.bundle_price, b.status AS bundle_status
+         FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN bundles b ON b.id=ci.bundle_id
+         WHERE ca.user_id=$1`,
+        [userId],
+      );
+      if (!productRows.rows.length && !bundleCartRows.rows.length) throw new Error('Cart is empty');
+
+      const fulfillmentType = body.fulfillmentType === 'pickup' ? 'pickup' : 'delivery';
+      if (!body.deliveryName || !body.deliveryPhone) throw new Error('Delivery details are required');
+      if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
+        throw new Error('Delivery address is required');
+      }
+      const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress;
+
+      const productItems = productRows.rows.map((row) => ({
+        id: row.id,
+        product: this.mapProduct(row),
+        quantity: Number(row.quantity),
+        subtotal: Number(row.price) * Number(row.quantity),
+      }));
+      if (productItems.some((item) => item.quantity > item.product.stockQuantity)) {
+        throw new Error('Quantity exceeds available stock');
+      }
+
+      const bundleGroups: Array<{
+        bundleId: string;
+        bundleName: string;
+        bundlePrice: number;
+        bundleQuantity: number;
+        allocations: Array<{ productId: string; totalQuantity: number; unitPrice: number; subtotal: number }>;
+        subtotal: number;
+      }> = [];
+      for (const row of bundleCartRows.rows) {
+        if (row.bundle_status !== 'active') throw new Error(`Bundle "${row.bundle_name}" is no longer available`);
+        const contents = await this.getBundleContents(client, row.bundle_id, true);
+        const availability = computeBundleAvailability(contents);
+        const bundleQuantity = Number(row.quantity);
+        if (bundleQuantity > availability.availableQuantity) {
+          throw new Error(`Bundle "${row.bundle_name}" does not have enough stock`);
+        }
+        const allocations = allocateBundlePrice(
+          Number(row.bundle_price),
+          bundleQuantity,
+          contents.map((c) => ({ productId: c.productId, quantity: c.quantity, product: c.product })),
+        );
+        bundleGroups.push({
+          bundleId: row.bundle_id,
+          bundleName: row.bundle_name,
+          bundlePrice: Number(row.bundle_price),
+          bundleQuantity,
+          allocations,
+          subtotal: allocations.reduce((sum, a) => sum + a.subtotal, 0),
+        });
+      }
+
+      const total =
+        productItems.reduce((sum, item) => sum + item.subtotal, 0) +
+        bundleGroups.reduce((sum, group) => sum + group.subtotal, 0);
+      const shortfallMsg = minOrderMessage(total, fulfillmentType);
+      if (shortfallMsg) throw new Error(shortfallMsg);
+
+      const orderResult = await client.query(
+        'INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+        [userId, `DOVA-${Date.now().toString(36).toUpperCase()}`, 'pending', total, body.deliveryName, deliveryAddress, body.deliveryPhone, fulfillmentType],
+      );
+      const row = orderResult.rows[0];
+      const orderItems: Order['items'] = [];
+
+      for (const item of productItems) {
+        await client.query('UPDATE products SET stock_quantity=stock_quantity-$1,updated_at=NOW() WHERE id=$2', [item.quantity, item.product.id]);
+        const oi = await client.query(
+          'INSERT INTO order_items (order_id,product_id,supplier_id,quantity,unit_price,subtotal) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+          [row.id, item.product.id, item.product.supplierId, item.quantity, item.product.price, item.subtotal],
+        );
+        orderItems.push({ id: oi.rows[0].id, product: item.product, quantity: Number(item.quantity), unitPrice: item.product.price, subtotal: item.subtotal, supplierOrderStatus: 'pending' });
+      }
+
+      for (const group of bundleGroups) {
+        const contents = await this.getBundleContents(client, group.bundleId);
+        const byProductId = new Map(contents.map((c) => [c.productId, c]));
+        for (const allocation of group.allocations) {
+          const content = byProductId.get(allocation.productId)!;
+          await client.query('UPDATE products SET stock_quantity=stock_quantity-$1,updated_at=NOW() WHERE id=$2', [allocation.totalQuantity, allocation.productId]);
+          const oi = await client.query(
+            'INSERT INTO order_items (order_id,product_id,supplier_id,quantity,unit_price,subtotal,bundle_id,bundle_quantity,bundle_name_snapshot,bundle_unit_price_snapshot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
+            [row.id, allocation.productId, content.product.supplierId, allocation.totalQuantity, allocation.unitPrice, allocation.subtotal, group.bundleId, group.bundleQuantity, group.bundleName, group.bundlePrice],
+          );
+          orderItems.push({
+            id: oi.rows[0].id,
+            product: content.product,
+            quantity: allocation.totalQuantity,
+            unitPrice: allocation.unitPrice,
+            subtotal: allocation.subtotal,
+            supplierOrderStatus: 'pending',
+            bundleId: group.bundleId,
+            bundleName: group.bundleName,
+            bundleQuantity: group.bundleQuantity,
+          });
+        }
+      }
+
+      await client.query('DELETE FROM cart_items WHERE cart_id=(SELECT id FROM carts WHERE user_id=$1)', [userId]);
+      await client.query('COMMIT');
+      return {
+        id: row.id,
+        orderNumber: row.order_number,
+        customerId: row.customer_id,
+        status: row.status,
+        totalAmount: Number(row.total_amount),
+        deliveryName: row.delivery_name,
+        deliveryAddress: row.delivery_address,
+        deliveryPhone: row.delivery_phone,
+        fulfillmentType: row.fulfillment_type || fulfillmentType,
+        items: orderItems,
+        createdAt: new Date(row.created_at).toISOString(),
+      } as Order;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
   async recordPurchaseStock(orderId: string) { if (this.pool) await this.pool.query("INSERT INTO stock_adjustments (order_id,product_id,supplier_id,quantity,reason,stock_after) SELECT $1,oi.product_id,oi.supplier_id,-oi.quantity,'purchase',p.stock_quantity FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=$1 AND NOT EXISTS (SELECT 1 FROM stock_adjustments sa WHERE sa.order_id=$1 AND sa.product_id=oi.product_id AND sa.reason='purchase')", [orderId]); }
   async listOrders(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC', [userId]); const orders: Order[] = []; for (const row of result.rows) { const itemResult = await this.pool.query('SELECT oi.*,p.*,s.business_name,c.name AS category_name FROM order_items oi JOIN products p ON p.id=oi.product_id JOIN supplier_profiles s ON s.id=oi.supplier_id JOIN categories c ON c.id=p.category_id WHERE oi.order_id=$1 ORDER BY oi.created_at', [row.id]); orders.push({ id: row.id, orderNumber: row.order_number, customerId: row.customer_id, status: row.status, totalAmount: Number(row.total_amount), deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, deliveryPhone: row.delivery_phone, fulfillmentType: row.fulfillment_type || 'delivery', paymentReference: row.payment_reference || undefined, paymentVerifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined, items: itemResult.rows.map(item => ({ id: item.id, product: this.mapProduct(item), quantity: Number(item.quantity), unitPrice: Number(item.unit_price), subtotal: Number(item.subtotal), supplierOrderStatus: item.supplier_order_status })), createdAt: new Date(row.created_at).toISOString() }); } return orders; }
   async findOrder(userId: string, orderId: string) { const orders = await this.listOrders(userId); return orders?.find(order => order.id === orderId); }
@@ -574,6 +1014,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       );
     } catch (error) {
       console.warn('[Database] feedback seed skipped:', (error as Error).message);
+    }
+    try {
+      await this.bundleSeedIfEmpty();
+    } catch (error) {
+      console.warn('[Database] bundle seed skipped:', (error as Error).message);
     }
   }
 
