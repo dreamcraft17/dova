@@ -58,6 +58,13 @@ export function makeDatabaseDoubles(overrides: Record<string, unknown> = {}) {
     adminOrders: jest.fn().mockResolvedValue(undefined),
     insertContactSubmission: jest.fn().mockResolvedValue(undefined),
     listContactSubmissions: jest.fn().mockResolvedValue(undefined),
+    listCustomerBundles: jest.fn().mockResolvedValue(undefined),
+    getCustomerBundle: jest.fn().mockResolvedValue(undefined),
+    listAdminBundles: jest.fn().mockResolvedValue(undefined),
+    getAdminBundle: jest.fn().mockResolvedValue(undefined),
+    createBundle: jest.fn().mockResolvedValue(undefined),
+    updateBundle: jest.fn().mockResolvedValue(undefined),
+    setBundleActive: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }

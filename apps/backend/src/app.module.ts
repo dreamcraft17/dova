@@ -11,6 +11,7 @@ import { FeedbackService } from './feedback.service';
 import { ChatService } from './chat.service';
 import { PaystackService } from './paystack.service';
 import { UploadStorageService } from './upload-storage.service';
+import { BundleService } from './bundle.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IntegrationKeyGuard } from './integration-key.guard';
 import { RolesGuard } from './roles.guard';
@@ -33,6 +34,7 @@ import { RolesGuard } from './roles.guard';
     ChatService,
     PaystackService,
     UploadStorageService,
+    BundleService,
     JwtAuthGuard,
     RolesGuard,
     IntegrationKeyGuard,
