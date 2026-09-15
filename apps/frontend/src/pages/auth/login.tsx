@@ -68,7 +68,7 @@ export default function Login() {
   return (
     <AuthShell aside={<AuthAside variant="login" />}>
       <AuthCard
-        title="Sign in to your customer account"
+        title="Sign in to your account"
         subtitle="Use the email and password you registered with."
         notice={
           passwordChanged ? (
