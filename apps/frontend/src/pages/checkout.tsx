@@ -172,7 +172,30 @@ export default function Checkout() {
               {cart.items.map((i) => (
                 <div className="summary-item" key={i.id}>
                   <span>
-                    {i.product.name} × {formatQuantityWithUnit(i.quantity, i.product.name, i.product.categoryName)}
+                    {i.bundleId ? (
+                      <>
+                        Bundle: {i.product.name}
+                        <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                          × {i.quantity} bundle{i.quantity > 1 ? 's' : ''}
+                        </span>
+                        {i.bundleContents?.length ? (
+                          <details className="cart-bundle-contents">
+                            <summary>Includes {i.bundleContents.length} items</summary>
+                            <ul>
+                              {i.bundleContents.map((c) => (
+                                <li key={c.productId}>
+                                  {c.productName} × {c.quantity}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
+                        {i.product.name} × {formatQuantityWithUnit(i.quantity, i.product.name, i.product.categoryName)}
+                      </>
+                    )}
                   </span>
                   <span>₦ {i.subtotal.toLocaleString('en-NG')}</span>
                 </div>

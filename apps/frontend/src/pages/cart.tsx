@@ -150,10 +150,22 @@ export default function CartPage() {
                     />
                     <div className="cart-info">
                       <h3>{i.product.name}</h3>
-                      <p>Supplier: {i.product.supplierName || 'DOVA Supplier'}</p>
+                      <p>Supplier: {i.bundleId ? 'DOVA Curated Bundle' : (i.product.supplierName || 'DOVA Supplier')}</p>
                       <h4>
-                        ₦ {i.product.price.toLocaleString('en-NG')} {formatPricePerUnit(unit)}
+                        ₦ {i.product.price.toLocaleString('en-NG')} {i.bundleId ? '/ bundle' : formatPricePerUnit(unit)}
                       </h4>
+                      {i.bundleId && i.bundleContents?.length ? (
+                        <details className="cart-bundle-contents">
+                          <summary>Includes {i.bundleContents.length} items</summary>
+                          <ul>
+                            {i.bundleContents.map((c) => (
+                              <li key={c.productId}>
+                                {c.productName} × {c.quantity}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
                       <div className="cart-slot">
                         <span className="cart-slot-label">🚚 Delivery slot:</span>
                         <button
@@ -179,15 +191,16 @@ export default function CartPage() {
                         type="number"
                         min={1}
                         max={i.product.stockQuantity}
-                        step={0.01}
+                        step={i.bundleId ? 1 : 0.01}
                         value={qtyInputs[i.id] ?? i.quantity.toString()}
                         disabled={busy}
                         onChange={(e) => {
                           setQtyInputs((prev) => ({ ...prev, [i.id]: e.target.value }));
                         }}
                         onBlur={(e) => {
-                          const val = parseFloat(e.target.value);
-                          const clamped = isNaN(val) ? 1 : Math.max(1, Math.min(i.product.stockQuantity, Math.round(val * 100) / 100));
+                          const val = i.bundleId ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
+                          const rounded = i.bundleId ? (isNaN(val) ? 1 : Math.round(val)) : Math.round(val * 100) / 100;
+                          const clamped = isNaN(rounded) ? 1 : Math.max(1, Math.min(i.product.stockQuantity, rounded));
                           setQtyInputs((prev) => ({ ...prev, [i.id]: clamped.toString() }));
                           if (clamped !== i.quantity) {
                             void update(i.id, clamped);
@@ -195,7 +208,9 @@ export default function CartPage() {
                         }}
                         style={{ textAlign: 'center' }}
                       />
-                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>{unit}</span>
+                      <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+                        {i.bundleId ? (i.quantity > 1 ? 'bundles' : 'bundle') : unit}
+                      </span>
                     </div>
                     <div className="cart-total">₦ {i.subtotal.toLocaleString('en-NG')}</div>
                     <button className="remove-btn" disabled={busy} onClick={() => void remove(i.id)}>

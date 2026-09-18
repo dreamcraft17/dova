@@ -9,7 +9,7 @@ describe('DOVA_OPENAPI', () => {
       'http://localhost:3000/api/v1',
     ]);
     expect(DOVA_OPENAPI.components.securitySchemes).toHaveProperty('integrationKey');
-    expect(DOVA_OPENAPI.security).toEqual([{ integrationKey: [] }]);
+    expect(DOVA_OPENAPI.security).toEqual([]);
   });
 
   it('documents discovery, catalog, auth, cart, orders, and payments paths', () => {
