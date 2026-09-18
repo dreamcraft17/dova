@@ -6,6 +6,7 @@ import { Loading } from '../../../components/Loading';
 import { RequireAuth } from '../../../components/RequireAuth';
 import { api } from '../../../lib/api';
 import { startOrderPayment } from '../../../lib/payment';
+import { groupOrderItems } from '../../../lib/order-items';
 import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
 import { useToast } from '../../../context/ToastContext';
@@ -60,16 +61,29 @@ export default function OrderDetail() {
     if (!order) return;
     setReordering(true);
     try {
-      // Add all items from this order back to cart one by one
-      for (const item of order.items) {
-        await api('/cart/add', {
-          method: 'POST',
-          body: JSON.stringify({
-            productId: item.product.id,
-            quantity: item.quantity,
-            deliverySlot: 'morning',
-          }),
-        });
+      // Add all items from this order back to cart one by one — bundle purchases are
+      // grouped first so re-order adds the bundle once (at its bundle price), not each
+      // component as a separate loose product.
+      for (const g of groupOrderItems(order.items)) {
+        if (g.kind === 'bundle') {
+          await api('/cart/add-bundle', {
+            method: 'POST',
+            body: JSON.stringify({
+              bundleId: g.bundleId,
+              quantity: g.bundleQuantity,
+              deliverySlot: 'morning',
+            }),
+          });
+        } else {
+          await api('/cart/add', {
+            method: 'POST',
+            body: JSON.stringify({
+              productId: g.item.product.id,
+              quantity: g.item.quantity,
+              deliverySlot: 'morning',
+            }),
+          });
+        }
       }
       await refreshCart();
       showToast('Items added to cart! Redirecting…', 'success');
@@ -213,31 +227,62 @@ export default function OrderDetail() {
               {/* Order summary */}
               <div className="order-summary">
                 <h3>Order Items</h3>
-                {order.items.map((item) => (
-                  <div className="summary-item" key={item.id}>
-                    <span>
-                      {item.product.name}
-                      <span
-                        style={{
-                          display: 'block',
-                          fontSize: 12,
-                          color: 'var(--muted)',
-                          marginTop: 2,
-                        }}
-                      >
-                        {formatQuantityWithUnit(
-                          item.quantity,
-                          item.product.name,
-                          item.product.categoryName,
-                        )}{' '}
-                        × ₦ {item.unitPrice.toLocaleString('en-NG')}
+                {groupOrderItems(order.items).map((g) =>
+                  g.kind === 'bundle' ? (
+                    <div className="summary-item" key={g.bundleId}>
+                      <span>
+                        Bundle: {g.bundleName}
+                        <span
+                          style={{
+                            display: 'block',
+                            fontSize: 12,
+                            color: 'var(--muted)',
+                            marginTop: 2,
+                          }}
+                        >
+                          × {g.bundleQuantity}
+                        </span>
+                        <details className="cart-bundle-contents">
+                          <summary>Includes {g.components.length} items</summary>
+                          <ul>
+                            {g.components.map((c) => (
+                              <li key={c.id}>
+                                {c.product.name} × {c.quantity}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       </span>
-                    </span>
-                    <span style={{ fontWeight: 600 }}>
-                      ₦ {item.subtotal.toLocaleString('en-NG')}
-                    </span>
-                  </div>
-                ))}
+                      <span style={{ fontWeight: 600 }}>
+                        ₦ {g.subtotal.toLocaleString('en-NG')}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="summary-item" key={g.item.id}>
+                      <span>
+                        {g.item.product.name}
+                        <span
+                          style={{
+                            display: 'block',
+                            fontSize: 12,
+                            color: 'var(--muted)',
+                            marginTop: 2,
+                          }}
+                        >
+                          {formatQuantityWithUnit(
+                            g.item.quantity,
+                            g.item.product.name,
+                            g.item.product.categoryName,
+                          )}{' '}
+                          × ₦ {g.item.unitPrice.toLocaleString('en-NG')}
+                        </span>
+                      </span>
+                      <span style={{ fontWeight: 600 }}>
+                        ₦ {g.item.subtotal.toLocaleString('en-NG')}
+                      </span>
+                    </div>
+                  ),
+                )}
                 <hr />
                 <div className="summary-item">
                   <strong>Total</strong>

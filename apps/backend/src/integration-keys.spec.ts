@@ -17,7 +17,7 @@ describe('integration-keys', () => {
   });
 
   it('treats the storefront Origin as internal', () => {
-    const env = { FRONTEND_URL: 'https://dova.dntech.id,http://localhost:3001' };
+    const env = { FRONTEND_URL: 'https://dova.dntech.id,http://localhost:3001' } as unknown as NodeJS.ProcessEnv;
     expect(frontendOrigins(env)).toEqual(['https://dova.dntech.id', 'http://localhost:3001']);
     expect(isInternalFrontendRequest({ origin: 'https://dova.dntech.id' }, env)).toBe(true);
     expect(isInternalFrontendRequest({ referer: 'https://dova.dntech.id/auth/login' }, env)).toBe(true);

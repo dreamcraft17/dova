@@ -1069,14 +1069,16 @@
   background: rgba(255,255,255,0.25);
 }
 
-.supplier-dash-form-panel {
+.supplier-dash-form-panel,
+.admin-dash-form-panel {
   background: #fff;
   border-radius: 20px;
   padding: 32px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.supplier-dash-form-panel label {
+.supplier-dash-form-panel label,
+.admin-dash-form-panel label {
   display: block;
   margin-top: 14px;
   font-weight: 500;
@@ -1085,7 +1087,10 @@
 
 .supplier-dash-form-panel input,
 .supplier-dash-form-panel textarea,
-.supplier-dash-form-panel select {
+.supplier-dash-form-panel select,
+.admin-dash-form-panel input,
+.admin-dash-form-panel textarea,
+.admin-dash-form-panel select {
   width: 100%;
   margin-top: 6px;
   padding: 12px 14px;
@@ -1094,7 +1099,13 @@
   font-family: inherit;
 }
 
-.supplier-dash-form-panel button[type='submit'] {
+.admin-dash-form-panel input[type='checkbox'] {
+  width: auto;
+  margin-top: 0;
+}
+
+.supplier-dash-form-panel button[type='submit'],
+.admin-dash-form-panel button[type='submit'] {
   margin-top: 20px;
   background: #176b4b;
   color: #fff;
@@ -1106,8 +1117,72 @@
   font-family: inherit;
 }
 
-.supplier-dash-form-panel button[type='submit']:hover:not(:disabled) {
+.supplier-dash-form-panel button[type='submit']:hover:not(:disabled),
+.admin-dash-form-panel button[type='submit']:hover:not(:disabled) {
   background: #14543a;
+}
+
+.bundle-contents-picker {
+  margin-top: 16px;
+}
+
+.bundle-contents-search-results {
+  display: flex;
+  flex-direction: column;
+  margin-top: 6px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bundle-contents-search-results button {
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-family: inherit;
+}
+
+.bundle-contents-search-results button:last-child {
+  border-bottom: none;
+}
+
+.bundle-contents-search-results button:hover {
+  background: var(--mint);
+}
+
+.bundle-contents-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.bundle-contents-row input[type='number'] {
+  width: 80px;
+  margin-top: 0;
+}
+
+.bundle-contents-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.bundle-preview {
+  background: var(--mint);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.bundle-preview.invalid {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .supplier-dash-subtitle {

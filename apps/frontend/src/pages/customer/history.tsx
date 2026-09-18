@@ -5,6 +5,7 @@ import { Loading } from '../../components/Loading';
 import { RequireAuth } from '../../components/RequireAuth';
 import { api } from '../../lib/api';
 import { startOrderPayment } from '../../lib/payment';
+import { groupOrderItems } from '../../lib/order-items';
 import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
 
@@ -250,33 +251,59 @@ export default function PurchaseHistory() {
                       gap: 8,
                     }}
                   >
-                    {order.items.map((item) => (
-                      <div
-                        key={item.id}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                          gap: 4,
-                        }}
-                      >
-                        <span style={{ fontSize: 14, color: '#333' }}>
-                          {item.product.name}
-                          <span style={{ color: 'var(--muted)', marginLeft: 8, fontSize: 13 }}>
-                            ×{' '}
-                            {formatQuantityWithUnit(
-                              item.quantity,
-                              item.product.name,
-                              item.product.categoryName,
-                            )}
+                    {groupOrderItems(order.items).map((g) =>
+                      g.kind === 'bundle' ? (
+                        <div
+                          key={g.bundleId}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 14, color: '#333' }}>
+                            Bundle: {g.bundleName}
+                            <span style={{ color: 'var(--muted)', marginLeft: 8, fontSize: 13 }}>
+                              × {g.bundleQuantity}
+                            </span>
+                            <span style={{ display: 'block', color: 'var(--muted)', fontSize: 12 }}>
+                              {g.components.map((c) => c.product.name).join(', ')}
+                            </span>
                           </span>
-                        </span>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>
-                          ₦ {item.subtotal.toLocaleString('en-NG')}
-                        </span>
-                      </div>
-                    ))}
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>
+                            ₦ {g.subtotal.toLocaleString('en-NG')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div
+                          key={g.item.id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: 4,
+                          }}
+                        >
+                          <span style={{ fontSize: 14, color: '#333' }}>
+                            {g.item.product.name}
+                            <span style={{ color: 'var(--muted)', marginLeft: 8, fontSize: 13 }}>
+                              ×{' '}
+                              {formatQuantityWithUnit(
+                                g.item.quantity,
+                                g.item.product.name,
+                                g.item.product.categoryName,
+                              )}
+                            </span>
+                          </span>
+                          <span style={{ fontSize: 14, fontWeight: 600 }}>
+                            ₦ {g.item.subtotal.toLocaleString('en-NG')}
+                          </span>
+                        </div>
+                      ),
+                    )}
                   </div>
 
                   {/* Order footer */}
