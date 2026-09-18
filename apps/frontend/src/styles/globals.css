@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --ink: #2f2f2f;
@@ -245,6 +245,13 @@ textarea {
 .nav-drawer a:focus-visible {
   background: var(--mint);
   color: var(--green);
+}
+
+.nav-drawer a.is-active {
+  background: var(--mint);
+  color: var(--green);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--green);
 }
 
 .nav-drawer .button {
@@ -1326,6 +1333,31 @@ form .button {
 
   .nav-desktop a:not(.button):hover {
     color: var(--gold);
+  }
+
+  .nav-desktop a.is-active:not(.button) {
+    position: relative;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .nav-desktop a.is-active:not(.button)::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -7px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--green);
+  }
+
+  .nav-desktop a.is-active:not(.button):hover {
+    color: var(--gold);
+  }
+
+  .nav-desktop a.is-active:not(.button):hover::after {
+    background: var(--gold);
   }
 
   .nav-desktop .button {
