@@ -43,9 +43,10 @@ export class ChatService {
   }
 
   private async botpressFetch<T>(path: string, options: { method: string; userKey?: string; body?: unknown }): Promise<T> {
+    const url = `${this.baseUrl()}${path}`;
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl()}${path}`, {
+      response = await fetch(url, {
         method: options.method,
         headers: {
           'Content-Type': 'application/json',

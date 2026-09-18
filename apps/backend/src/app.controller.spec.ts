@@ -2,7 +2,7 @@ import { AppController } from './app.controller';
 import { DOVA_OPENAPI } from './openapi-spec';
 
 describe('AppController discovery', () => {
-  const controller = new AppController({} as never, {} as never, {} as never);
+  const controller = new AppController({} as never, {} as never, {} as never, {} as never, {} as never);
 
   it('returns API index with health and OpenAPI URLs', () => {
     expect(controller.apiIndex()).toEqual({

@@ -8,6 +8,7 @@ import {
   IconBox,
   IconCart,
   IconChart,
+  IconClipboard,
   IconClock,
   IconMail,
   IconStore,
@@ -16,8 +17,8 @@ import {
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { AdminUserModal } from '../components/AdminUserModal';
-import type { FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
-import { FEEDBACK_STATUSES, feedbackStatusLabel, getProductTab } from 'dova-shared';
+import type { BundleDetail, BundleListResponse, BundleSummary, Category, FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
+import { FEEDBACK_STATUSES, computeBundlePricing, feedbackStatusLabel, getProductTab } from 'dova-shared';
 
 type Stats = {
   users: number;
@@ -54,6 +55,7 @@ const NAV = [
   { id: 'overview', label: 'Dashboard', icon: <IconChart /> },
   { id: 'suppliers', label: 'Suppliers', icon: <IconStore /> },
   { id: 'products', label: 'Products', icon: <IconBox /> },
+  { id: 'bundles', label: 'Bundles', icon: <IconClipboard /> },
   { id: 'orders', label: 'Orders', icon: <IconCart /> },
   { id: 'users', label: 'Users', icon: <IconUsers /> },
   { id: 'contacts', label: 'Contacts', icon: <IconMail /> },
@@ -70,6 +72,16 @@ function userStatusLabel(u: AdminUser) {
   if (!u.isActive) return 'Inactive';
   return 'Active';
 }
+
+type BundleContentRow = { productId: string; quantity: number; product: Product };
+const emptyBundleForm = {
+  name: '',
+  description: '',
+  categoryId: '',
+  imageUrl: '',
+  bundlePrice: 1000,
+  isFeatured: false,
+};
 
 export default function Admin() {
   const { user: currentUser } = useAuth();
@@ -88,9 +100,20 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [bundles, setBundles] = useState<BundleSummary[]>([]);
+  const [bundleView, setBundleView] = useState<'list' | 'form'>('list');
+  const [bundleSearch, setBundleSearch] = useState('');
+  const [bundleCategoryFilter, setBundleCategoryFilter] = useState('');
+  const [bundleStatusFilter, setBundleStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [bundleForm, setBundleForm] = useState(emptyBundleForm);
+  const [bundleEditingId, setBundleEditingId] = useState<string>();
+  const [bundleContents, setBundleContents] = useState<BundleContentRow[]>([]);
+  const [bundleProductSearch, setBundleProductSearch] = useState('');
+  const [bundleSubmitBusy, setBundleSubmitBusy] = useState(false);
 
   const load = async () => {
-    const [s, p, u, pr, o, c, fb] = await Promise.all([
+    const [s, p, u, pr, o, c, fb, cats, bl] = await Promise.all([
       api<Stats>('/admin/dashboard'),
       api<Supplier[]>('/admin/suppliers/pending'),
       api<AdminUser[]>('/admin/users'),
@@ -98,6 +121,8 @@ export default function Admin() {
       api<AdminOrder[]>('/admin/orders'),
       api<AdminContact[]>('/admin/contacts'),
       api<FeedbackPost[]>('/feedback/posts?sort=new'),
+      api<Category[]>('/categories'),
+      api<BundleListResponse>('/admin/bundles?limit=100'),
     ]);
     setStats(s);
     setPending(p);
@@ -106,6 +131,8 @@ export default function Admin() {
     setOrders(o);
     setContacts(c);
     setFeedbackPosts(fb);
+    setCategories(cats);
+    setBundles(bl.data);
   };
 
   useEffect(() => {
@@ -154,6 +181,130 @@ export default function Admin() {
         body: JSON.stringify({ active: !product.isActive }),
       });
       await load();
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  function startNewBundle() {
+    setBundleEditingId(undefined);
+    setBundleForm(emptyBundleForm);
+    setBundleContents([]);
+    setBundleProductSearch('');
+    setMessage('');
+    setBundleView('form');
+  }
+
+  async function startEditBundle(id: string) {
+    setMessage('');
+    try {
+      const detail = await api<BundleDetail>(`/admin/bundles/${id}`);
+      setBundleEditingId(detail.id);
+      setBundleForm({
+        name: detail.name,
+        description: detail.description,
+        categoryId: detail.categoryId ?? '',
+        imageUrl: detail.imageUrl ?? '',
+        bundlePrice: detail.bundlePrice,
+        isFeatured: detail.isFeatured,
+      });
+      setBundleContents(
+        detail.contents.map((c) => ({ productId: c.productId, quantity: c.quantity, product: c.product })),
+      );
+      setBundleProductSearch('');
+      setBundleView('form');
+    } catch (err) {
+      setMessage((err as Error).message);
+    }
+  }
+
+  function addBundleContent(product: Product) {
+    setBundleContents((prev) => [...prev, { productId: product.id, quantity: 1, product }]);
+    setBundleProductSearch('');
+  }
+
+  function removeBundleContent(productId: string) {
+    setBundleContents((prev) => prev.filter((c) => c.productId !== productId));
+  }
+
+  function updateBundleContentQuantity(productId: string, quantity: number) {
+    setBundleContents((prev) => prev.map((c) => (c.productId === productId ? { ...c, quantity } : c)));
+  }
+
+  async function submitBundle(e: FormEvent) {
+    e.preventDefault();
+    if (!bundleForm.name.trim()) {
+      setMessage('Bundle name is required.');
+      return;
+    }
+    if (bundleContents.length < 2) {
+      setMessage('Add at least 2 products to this bundle.');
+      return;
+    }
+    const price = Number(bundleForm.bundlePrice);
+    if (!price || price <= 0 || isNaN(price)) {
+      setMessage('Bundle price must be greater than zero.');
+      return;
+    }
+    for (const c of bundleContents) {
+      if (!c.quantity || c.quantity <= 0 || isNaN(c.quantity)) {
+        setMessage('All product quantities must be greater than zero.');
+        return;
+      }
+    }
+    const preview = computeBundlePricing(
+      price,
+      bundleContents.map((c) => ({ quantity: c.quantity, product: { price: c.product.price } })),
+    );
+    if (preview.savingsAmount <= 0) {
+      setMessage('Bundle price must be less than the individual total of its contents.');
+      return;
+    }
+
+    setMessage('');
+    setBundleSubmitBusy(true);
+    try {
+      const path = bundleEditingId ? `/admin/bundles/${bundleEditingId}` : '/admin/bundles';
+      const body = {
+        name: bundleForm.name.trim(),
+        description: bundleForm.description.trim(),
+        categoryId: bundleForm.categoryId || undefined,
+        imageUrl: bundleForm.imageUrl.trim() || undefined,
+        bundlePrice: price,
+        isFeatured: Boolean(bundleForm.isFeatured),
+        contents: bundleContents.map((c, i) => ({ productId: c.productId, quantity: c.quantity, position: i })),
+      };
+      await api(path, { method: bundleEditingId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+      await load();
+      setMessage('Bundle saved.');
+      setBundleView('list');
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setBundleSubmitBusy(false);
+    }
+  }
+
+  async function deactivateBundle(bundle: BundleSummary) {
+    if (!window.confirm('Deactivate this bundle? It will be hidden from customers, but stays in this list where you can reactivate it anytime.')) return;
+    setActionBusy(true);
+    try {
+      await api(`/admin/bundles/${bundle.id}`, { method: 'DELETE' });
+      await load();
+    } catch (err) {
+      setMessage((err as Error).message);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function activateBundle(bundle: BundleSummary) {
+    setActionBusy(true);
+    try {
+      await api(`/admin/bundles/${bundle.id}/active`, { method: 'PUT', body: JSON.stringify({ active: true }) });
+      await load();
+    } catch (err) {
+      setMessage((err as Error).message);
     } finally {
       setActionBusy(false);
     }
@@ -682,6 +833,269 @@ export default function Admin() {
                       </button>
                     </form>
                   </section>
+                </>
+              )}
+
+              {tab === 'bundles' && bundleView === 'list' && (
+                <>
+                  <div className="admin-dash-page-title">
+                    <h1>Bundles</h1>
+                    <p>Curate multi-product packages sold at a bundle price.</p>
+                  </div>
+
+                  {message && <p className="error">{message}</p>}
+
+                  <div className="filter-stack">
+                    <input
+                      className="search"
+                      placeholder="Search bundles..."
+                      value={bundleSearch}
+                      onChange={(e) => setBundleSearch(e.target.value)}
+                    />
+                    <select value={bundleCategoryFilter} onChange={(e) => setBundleCategoryFilter(e.target.value)}>
+                      <option value="">All categories</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={bundleStatusFilter}
+                      onChange={(e) => setBundleStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                    >
+                      <option value="all">All statuses</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                    <button type="button" className="admin-dash-btn admin-dash-btn-primary" onClick={startNewBundle}>
+                      + New Bundle
+                    </button>
+                  </div>
+
+                  <section className={`admin-dash-table-section${actionBusy ? ' admin-dash-busy' : ''}`}>
+                    {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Bundle</th>
+                          <th>Category</th>
+                          <th>Price</th>
+                          <th>Savings</th>
+                          <th>Availability</th>
+                          <th>Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const filtered = bundles
+                            .filter((b) => !bundleCategoryFilter || b.categoryId === bundleCategoryFilter)
+                            .filter((b) => bundleStatusFilter === 'all' || b.status === bundleStatusFilter)
+                            .filter((b) => b.name.toLowerCase().includes(bundleSearch.toLowerCase()));
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: 'var(--muted)' }}>
+                                  No bundles found.
+                                </td>
+                              </tr>
+                            );
+                          }
+                          return filtered.map((b) => (
+                            <tr key={b.id}>
+                              <td data-label="Bundle">{b.name}</td>
+                              <td data-label="Category">{b.categoryName || '—'}</td>
+                              <td data-label="Price">₦ {b.bundlePrice.toLocaleString('en-NG')}</td>
+                              <td data-label="Savings">{Math.round(b.computed.savingsPercentage)}%</td>
+                              <td data-label="Availability">
+                                {b.computed.isOutOfStock ? 'Out of stock' : b.computed.availableQuantity}
+                              </td>
+                              <td data-label="Status">
+                                <span className={`admin-dash-status ${b.status}`}>{b.status}</span>
+                              </td>
+                              <td data-label="">
+                                <button
+                                  type="button"
+                                  className="admin-dash-btn admin-dash-btn-secondary"
+                                  disabled={actionBusy}
+                                  onClick={() => void startEditBundle(b.id)}
+                                >
+                                  Edit
+                                </button>
+                                {b.status === 'active' ? (
+                                  <button
+                                    type="button"
+                                    className="admin-dash-btn admin-dash-btn-danger"
+                                    disabled={actionBusy}
+                                    onClick={() => void deactivateBundle(b)}
+                                  >
+                                    Deactivate
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="admin-dash-btn admin-dash-btn-primary"
+                                    disabled={actionBusy}
+                                    onClick={() => void activateBundle(b)}
+                                  >
+                                    Activate
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </section>
+                </>
+              )}
+
+              {tab === 'bundles' && bundleView === 'form' && (
+                <>
+                  <div className="admin-dash-page-title">
+                    <h1>{bundleEditingId ? 'Edit Bundle' : 'New Bundle'}</h1>
+                    <p>
+                      <button type="button" className="admin-dash-btn admin-dash-btn-secondary" onClick={() => setBundleView('list')}>
+                        ← Back to bundles
+                      </button>
+                    </p>
+                  </div>
+
+                  {message && <p className="error">{message}</p>}
+
+                  <div className="admin-dash-form-panel">
+                    <form onSubmit={(e) => void submitBundle(e)}>
+                      <label>Name</label>
+                      <input
+                        required
+                        minLength={2}
+                        value={bundleForm.name}
+                        onChange={(e) => setBundleForm({ ...bundleForm, name: e.target.value })}
+                      />
+                      <label>Description</label>
+                      <textarea
+                        required
+                        minLength={2}
+                        value={bundleForm.description}
+                        onChange={(e) => setBundleForm({ ...bundleForm, description: e.target.value })}
+                      />
+                      <label>Category</label>
+                      <select
+                        value={bundleForm.categoryId}
+                        onChange={(e) => setBundleForm({ ...bundleForm, categoryId: e.target.value })}
+                      >
+                        <option value="">No category</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <label>Bundle price (₦)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        required
+                        value={bundleForm.bundlePrice}
+                        onChange={(e) => setBundleForm({ ...bundleForm, bundlePrice: Number(e.target.value) })}
+                      />
+                      <label>Image URL (optional)</label>
+                      <input
+                        value={bundleForm.imageUrl}
+                        onChange={(e) => setBundleForm({ ...bundleForm, imageUrl: e.target.value })}
+                        placeholder="https://..."
+                      />
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={bundleForm.isFeatured}
+                          onChange={(e) => setBundleForm({ ...bundleForm, isFeatured: e.target.checked })}
+                        />{' '}
+                        Featured
+                      </label>
+
+                      <div className="bundle-contents-picker">
+                        <label>Products in this bundle</label>
+                        <input
+                          placeholder="Search products to add…"
+                          value={bundleProductSearch}
+                          onChange={(e) => setBundleProductSearch(e.target.value)}
+                        />
+                        {bundleProductSearch.trim() && (
+                          <div className="bundle-contents-search-results">
+                            {products
+                              .filter(
+                                (p) =>
+                                  p.isActive &&
+                                  p.name.toLowerCase().includes(bundleProductSearch.toLowerCase()) &&
+                                  !bundleContents.some((c) => c.productId === p.id),
+                              )
+                              .slice(0, 8)
+                              .map((p) => (
+                                <button type="button" key={p.id} onClick={() => addBundleContent(p)}>
+                                  + {p.name} — ₦ {p.price.toLocaleString('en-NG')}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+
+                        {bundleContents.map((c) => (
+                          <div className="bundle-contents-row" key={c.productId}>
+                            <span>{c.product.name}</span>
+                            <input
+                              type="number"
+                              min={0.01}
+                              step={0.01}
+                              value={c.quantity}
+                              onChange={(e) => updateBundleContentQuantity(c.productId, Number(e.target.value))}
+                            />
+                            <span className="muted">₦ {c.product.price.toLocaleString('en-NG')} each</span>
+                            <span>₦ {(c.product.price * c.quantity).toLocaleString('en-NG')}</span>
+                            <button type="button" onClick={() => removeBundleContent(c.productId)}>
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+
+                        {bundleContents.length < 2 && (
+                          <p className="bundle-contents-empty">Add at least 2 products to this bundle.</p>
+                        )}
+                      </div>
+
+                      {bundleContents.length >= 2 &&
+                        (() => {
+                          const preview = computeBundlePricing(
+                            Number(bundleForm.bundlePrice) || 0,
+                            bundleContents.map((c) => ({ quantity: c.quantity, product: { price: c.product.price } })),
+                          );
+                          const invalid = preview.savingsAmount <= 0;
+                          return (
+                            <div className={`bundle-preview${invalid ? ' invalid' : ''}`}>
+                              {invalid ? (
+                                <p>Bundle price must be less than the individual total of its contents.</p>
+                              ) : (
+                                <p>
+                                  Individual total: ₦ {preview.individualTotal.toLocaleString('en-NG')} · Savings: ₦{' '}
+                                  {preview.savingsAmount.toLocaleString('en-NG')} ({Math.round(preview.savingsPercentage)}%)
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                      <button type="submit" disabled={bundleSubmitBusy}>
+                        {bundleSubmitBusy ? (
+                          <Loading label={bundleEditingId ? 'Saving changes…' : 'Creating bundle…'} inline size="sm" />
+                        ) : bundleEditingId ? (
+                          'Save changes'
+                        ) : (
+                          'Create bundle'
+                        )}
+                      </button>
+                    </form>
+                  </div>
                 </>
               )}
             </>
