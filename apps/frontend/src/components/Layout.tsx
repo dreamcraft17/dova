@@ -282,9 +282,23 @@ export function Layout({
               </li>
             </ul>
           </div>
+          <div>
+            <h4>Legal</h4>
+            <ul>
+              <li>
+                <Link href="/privacy-policy">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link href="/terms-of-service">Terms of Service</Link>
+              </li>
+            </ul>
+          </div>
         </div>
         <hr className="footer-divider" />
-        <div className="copyright">© 2026 DOVA. All Rights Reserved.</div>
+        <div className="copyright">
+          © 2026 DOVA. All Rights Reserved. · <Link href="/privacy-policy">Privacy Policy</Link> ·{' '}
+          <Link href="/terms-of-service">Terms of Service</Link>
+        </div>
       </footer>
     </>
   );
