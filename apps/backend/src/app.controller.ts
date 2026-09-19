@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
@@ -353,6 +353,11 @@ export class AppController {
 
   @Roles('admin')
   @Get('admin/products') adminProducts() { return this.service.adminProducts(); }
+
+  @Roles('admin')
+  @Put('admin/products/active') bulkProductActive(@Body() body: BulkProductActiveDto) {
+    return this.service.bulkSetProductsActive(body.ids, body.active);
+  }
 
   @Roles('admin')
   @Put('admin/products/:id/active') productActive(@Param('id') id: string, @Body('active') active: boolean) {
