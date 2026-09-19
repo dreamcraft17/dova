@@ -201,12 +201,10 @@ export default function Admin() {
     if (!ids.length) return;
     setActionBusy(true);
     try {
-      for (const id of ids) {
-        await api(`/admin/products/${id}/active`, {
-          method: 'PUT',
-          body: JSON.stringify({ active }),
-        });
-      }
+      await api('/admin/products/active', {
+        method: 'PUT',
+        body: JSON.stringify({ ids, active }),
+      });
       setSelectedProductIds(new Set());
       await load();
     } finally {
