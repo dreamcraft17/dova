@@ -201,12 +201,12 @@ export default function Admin() {
     if (!ids.length) return;
     setActionBusy(true);
     try {
-      await Promise.all(
-        ids.map((id) => api(`/admin/products/${id}/active`, {
+      for (const id of ids) {
+        await api(`/admin/products/${id}/active`, {
           method: 'PUT',
           body: JSON.stringify({ active }),
-        })),
-      );
+        });
+      }
       setSelectedProductIds(new Set());
       await load();
     } finally {
