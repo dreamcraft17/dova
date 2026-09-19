@@ -324,6 +324,24 @@
   animation: dashFadeUp 0.6s ease;
 }
 
+.admin-dash-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  background: #eaf6ef;
+  border: 1px solid #bfe3cd;
+  color: #0d6a43;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-dash-bulk-bar .admin-dash-btn {
+  padding: 8px 16px;
+}
+
 .admin-dash-table-header {
   display: flex;
   flex-wrap: wrap;

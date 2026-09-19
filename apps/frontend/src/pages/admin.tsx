@@ -91,6 +91,7 @@ export default function Admin() {
   const [pending, setPending] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [contacts, setContacts] = useState<AdminContact[]>([]);
   const [feedbackPosts, setFeedbackPosts] = useState<FeedbackPost[]>([]);
@@ -180,6 +181,33 @@ export default function Admin() {
         method: 'PUT',
         body: JSON.stringify({ active: !product.isActive }),
       });
+      await load();
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  function toggleProductSelected(id: string) {
+    setSelectedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkSetProductsActive(active: boolean) {
+    const ids = Array.from(selectedProductIds);
+    if (!ids.length) return;
+    setActionBusy(true);
+    try {
+      await Promise.all(
+        ids.map((id) => api(`/admin/products/${id}/active`, {
+          method: 'PUT',
+          body: JSON.stringify({ active }),
+        })),
+      );
+      setSelectedProductIds(new Set());
       await load();
     } finally {
       setActionBusy(false);
@@ -541,7 +569,7 @@ export default function Admin() {
                         key={key}
                         type="button"
                         className={`supplier-product-tab${productTab === key ? ' active' : ''}`}
-                        onClick={() => setProductTab(key)}
+                        onClick={() => { setProductTab(key); setSelectedProductIds(new Set()); }}
                       >
                         {label}
                         <span className="supplier-product-tab-count">{count}</span>
@@ -549,44 +577,97 @@ export default function Admin() {
                     ))}
                   </div>
 
-                  <section className={`admin-dash-table-section${actionBusy ? ' admin-dash-busy' : ''}`}>
-                    {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Supplier</th>
-                          <th>Stock</th>
-                          <th>Status</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {products.filter((p) => getProductTab(p) === productTab).map((p) => (
-                          <tr key={p.id}>
-                            <td data-label="Product">{p.name}</td>
-                            <td data-label="Supplier">{p.supplierName}</td>
-                            <td data-label="Stock">{p.stockQuantity}</td>
-                            <td data-label="Status">
-                              <span className={`admin-dash-status ${p.isActive ? 'active' : 'inactive'}`}>
-                                {p.isActive ? 'Active' : 'Hidden'}
-                              </span>
-                            </td>
-                            <td data-label="">
-                              <button
-                                type="button"
-                                className="admin-dash-btn admin-dash-btn-primary"
-                                disabled={actionBusy}
-                                onClick={() => void toggleProduct(p)}
-                              >
-                                {p.isActive ? 'Deactivate' : 'Set to Active'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </section>
+                  {(() => {
+                    const visibleProducts = products.filter((p) => getProductTab(p) === productTab);
+                    const visibleIds = visibleProducts.map((p) => p.id);
+                    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedProductIds.has(id));
+                    const someVisibleSelected = visibleIds.some((id) => selectedProductIds.has(id));
+                    return (
+                      <>
+                        {someVisibleSelected && (
+                          <div className="admin-dash-bulk-bar">
+                            <span>{visibleIds.filter((id) => selectedProductIds.has(id)).length} selected</span>
+                            <button
+                              type="button"
+                              className="admin-dash-btn admin-dash-btn-primary"
+                              disabled={actionBusy}
+                              onClick={() => void bulkSetProductsActive(true)}
+                            >
+                              Activate selected
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-dash-btn"
+                              disabled={actionBusy}
+                              onClick={() => void bulkSetProductsActive(false)}
+                            >
+                              Deactivate selected
+                            </button>
+                          </div>
+                        )}
+                        <section className={`admin-dash-table-section${actionBusy ? ' admin-dash-busy' : ''}`}>
+                          {actionBusy ? <LoadingOverlay label="Saving changes…" /> : null}
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>
+                                  <input
+                                    type="checkbox"
+                                    checked={allVisibleSelected}
+                                    ref={(el) => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                                    onChange={() => {
+                                      setSelectedProductIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+                                        else visibleIds.forEach((id) => next.add(id));
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                </th>
+                                <th>Product</th>
+                                <th>Supplier</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {visibleProducts.map((p) => (
+                                <tr key={p.id}>
+                                  <td data-label="">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedProductIds.has(p.id)}
+                                      onChange={() => toggleProductSelected(p.id)}
+                                    />
+                                  </td>
+                                  <td data-label="Product">{p.name}</td>
+                                  <td data-label="Supplier">{p.supplierName}</td>
+                                  <td data-label="Stock">{p.stockQuantity}</td>
+                                  <td data-label="Status">
+                                    <span className={`admin-dash-status ${p.isActive ? 'active' : 'inactive'}`}>
+                                      {p.isActive ? 'Active' : 'Hidden'}
+                                    </span>
+                                  </td>
+                                  <td data-label="">
+                                    <button
+                                      type="button"
+                                      className="admin-dash-btn admin-dash-btn-primary"
+                                      disabled={actionBusy}
+                                      onClick={() => void toggleProduct(p)}
+                                    >
+                                      {p.isActive ? 'Deactivate' : 'Set to Active'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </section>
+                      </>
+                    );
+                  })()}
                 </>
               )}
 
