@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { FeedlogLink } from './FeedlogLink';
-import { isFeedlogEnabled } from '../lib/feedlog';
+import { FEEDBACK_PATH, isFeedlogEnabled } from '../lib/feedlog';
 
 export function Layout({
   children,
@@ -25,6 +25,27 @@ export function Layout({
   // Admin and supplier accounts don't shop — showing Cart to them leads to a confusing
   // "please log in" message at checkout (the /cart API 403s for non-customer roles).
   const canShop = !user || user.role === 'customer';
+
+  // A nav item stays lit on its own sub-routes too, so /products/[id] keeps
+  // "Products" marked as current. "/" is exact-match only, or it would match
+  // every page.
+  const isActive = (href: string) =>
+    href === '/'
+      ? router.pathname === '/'
+      : router.pathname === href || router.pathname.startsWith(`${href}/`);
+
+  // A plain helper rather than a component: a component declared inside the
+  // render would be a new type every render and remount the links.
+  const navLink = (href: string, label: string) => (
+    <Link
+      href={href}
+      className={isActive(href) ? 'is-active' : undefined}
+      aria-current={isActive(href) ? 'page' : undefined}
+      onClick={() => setMenuOpen(false)}
+    >
+      {label}
+    </Link>
+  );
 
   useEffect(() => {
     const close = () => setMenuOpen(false);
@@ -52,6 +73,7 @@ export function Layout({
 
   const navLinks = (
     <>
+
       <Link href="/" onClick={() => setMenuOpen(false)}>
         Home
       </Link>
@@ -67,8 +89,13 @@ export function Layout({
       <Link href="/contact" onClick={() => setMenuOpen(false)}>
         Contact Us
       </Link>
+
       {feedlogEnabled ? (
-        <FeedlogLink isLoggedIn={Boolean(user)} onClick={() => setMenuOpen(false)} />
+        <FeedlogLink
+          isLoggedIn={Boolean(user)}
+          className={isActive(FEEDBACK_PATH) ? 'is-active' : undefined}
+          onClick={() => setMenuOpen(false)}
+        />
       ) : null}
       {user?.role === 'customer' ? (
         <span className="nav-user-group">
