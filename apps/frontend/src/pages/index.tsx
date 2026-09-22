@@ -55,7 +55,7 @@ const FALLBACK_FEATURED = [
     description: 'Premium-quality rice harvested from trusted farmers.',
     imageUrl: '/images/product1.jpg',
     price: 0,
-    href: '/products',
+    href: '/marketplace',
   },
   {
     id: 'f2',
@@ -63,7 +63,7 @@ const FALLBACK_FEATURED = [
     description: 'High-quality palm oil produced by verified farmers.',
     imageUrl: '/images/product2.jpg',
     price: 0,
-    href: '/products',
+    href: '/marketplace',
   },
   {
     id: 'f3',
@@ -71,7 +71,7 @@ const FALLBACK_FEATURED = [
     description: 'Fresh and naturally grown corn harvested with care.',
     imageUrl: '/images/product3.jpg',
     price: 0,
-    href: '/products',
+    href: '/marketplace',
   },
 ];
 
@@ -109,7 +109,7 @@ export default function Home() {
             through DOVA&apos;s secure marketplace.
           </p>
           <div className="hero-actions">
-            <Link href="/products" className="button">
+            <Link href="/marketplace" className="button">
               Shop Now
             </Link>
             <Link href="/auth/supplier-register" className="button secondary">

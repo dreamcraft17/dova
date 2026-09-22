@@ -55,7 +55,7 @@ export function Layout({
       <Link href="/" onClick={() => setMenuOpen(false)}>
         Home
       </Link>
-      <Link href="/products" onClick={() => setMenuOpen(false)}>
+      <Link href="/marketplace" onClick={() => setMenuOpen(false)}>
         Products
       </Link>
       <Link href="/bundles" onClick={() => setMenuOpen(false)}>
@@ -230,7 +230,7 @@ export function Layout({
                 <Link href="/">Home</Link>
               </li>
               <li>
-                <Link href="/products">Products</Link>
+                <Link href="/marketplace">Products</Link>
               </li>
               <li>
                 <Link href="/bundles">Bundles</Link>
