@@ -216,40 +216,28 @@ const VALUE_LAYERS = [
 const GLANCE = [
   { label: 'Market', value: 'Nigeria', text: 'Starting locally, with a long-term African network in view.' },
   {
-    label: 'Launch category',
-    value: 'Food Flour',
-    text: 'Plantain Flour is the first commercial product focus.',
+    id: 'f1',
+    name: 'Premium Rice',
+    description: 'Premium-quality rice harvested from trusted farmers.',
+    imageUrl: '/images/product1.jpg',
+    price: 0,
+    href: '/marketplace',
   },
   {
-    label: 'Platform',
-    value: 'Food + Supply Chain',
-    text: 'Marketplace, sourcing, processing, packaging and fulfillment.',
+    id: 'f2',
+    name: 'Premium Palm Oil',
+    description: 'High-quality palm oil produced by verified farmers.',
+    imageUrl: '/images/product2.jpg',
+    price: 0,
+    href: '/marketplace',
   },
   {
-    label: 'Long-term direction',
-    value: 'Food Infrastructure',
-    text: 'Expand from products into a broader connected food network.',
-  },
-];
-
-const ROADMAP = [
-  {
-    label: 'Now',
-    title: 'Flour launch',
-    text: 'Plantain flour, farmer sourcing, processing, packaging, marketplace and available fulfillment.',
-    modifier: undefined,
-  },
-  {
-    label: 'Next',
-    title: 'Supply expansion',
-    text: 'More flour categories, more farmers, more food products, aggregation and stronger business supply.',
-    modifier: styles.roadNext,
-  },
-  {
-    label: 'Future',
-    title: 'Food infrastructure',
-    text: 'Regional distribution, deeper supply-chain technology, farmer financial partnerships, DOVA AI expansion and a broader African food network.',
-    modifier: styles.roadFuture,
+    id: 'f3',
+    name: 'Organic Corn',
+    description: 'Fresh and naturally grown corn harvested with care.',
+    imageUrl: '/images/product3.jpg',
+    price: 0,
+    href: '/marketplace',
   },
 ];
 
@@ -294,39 +282,20 @@ export default function Home() {
   const closeMenu = () => setMenuOpen(false);
 
   return (
-    <div className={styles.page}>
-      <Head>
-        <title>DOVA Chain — Food Supply Chain &amp; Agricultural Marketplace</title>
-        <meta
-          name="description"
-          content="DOVA Chain connects trusted farmers, food products and customers through a technology-enabled food supply chain, starting with flour."
-        />
-        <meta name="theme-color" content="#031F17" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&family=Inter:wght@400;500;700;800;900&display=swap"
-        />
-      </Head>
 
-      <header className={styles.siteHeader}>
-        <div className={cx(styles.container, styles.nav)}>
-          <Link href="/" className={styles.brand} aria-label="DOVA Chain home">
-            <span className={styles.brandName}>DOVA</span>
-            <span className={styles.brandSuffix}>CHAIN</span>
-          </Link>
-          <nav className={styles.navLinks} aria-label="Primary navigation">
-            <a href="#how">How It Works</a>
-            <Link href="/products">Products</Link>
-            <Link href="/bundles">Bundles</Link>
-            <a href="#farmers">Farmers</a>
-            <a href="#ai">DOVA AI</a>
-            <a href="#about">About</a>
-          </nav>
-          <div className={styles.navActions}>
-            <Link href="/products" className={styles.iconLink} aria-label="Search products">
-              ⌕
+    <Layout>
+      <section className="hero">
+        <div className="hero-text">
+          <h1>Grow Agriculture</h1>
+          <p className="hero-sub">Directly From Verified Suppliers</p>
+          <p className="lead">
+            Buy fresh agricultural products directly from trusted farmers and verified suppliers
+            through DOVA&apos;s secure marketplace.
+          </p>
+          <div className="hero-actions">
+            <Link href="/marketplace" className="button">
+              Shop Now
+
             </Link>
             {canShop && (
               <Link href="/cart" className={styles.iconLink} aria-label="Open cart">

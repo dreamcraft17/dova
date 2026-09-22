@@ -235,7 +235,7 @@ export default function CartPage() {
             </>
           ) : (
             <p style={{ textAlign: 'center' }}>
-              Your cart is empty. <Link href="/products">Explore products</Link>
+              Your cart is empty. <Link href="/marketplace">Explore products</Link>
             </p>
           )}
         </section>

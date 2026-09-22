@@ -180,7 +180,7 @@ export default function PurchaseHistory() {
               {orders.length === 0 ? (
                 <>
                   <p style={{ fontSize: 16 }}>You haven&apos;t placed any orders yet.</p>
-                  <Link className="button" href="/products" style={{ marginTop: 12, display: 'inline-block' }}>
+                  <Link className="button" href="/marketplace" style={{ marginTop: 12, display: 'inline-block' }}>
                     Browse Products
                   </Link>
                 </>

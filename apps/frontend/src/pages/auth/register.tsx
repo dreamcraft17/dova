@@ -63,7 +63,7 @@ export default function Register() {
   }
 
   const continueAfterRegistration = useCallback(() => {
-    void router.push('/products');
+    void router.push('/marketplace');
   }, [router]);
 
   useEffect(() => {

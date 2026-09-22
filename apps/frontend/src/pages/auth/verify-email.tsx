@@ -51,7 +51,7 @@ export default function VerifyEmail() {
       });
       await refresh();
       router.push(
-        result.user.role === 'admin' ? '/admin' : result.user.role === 'supplier' ? '/supplier' : '/products',
+        result.user.role === 'admin' ? '/admin' : result.user.role === 'supplier' ? '/supplier' : '/marketplace',
       );
     } catch (err) {
       setError((err as Error).message);
