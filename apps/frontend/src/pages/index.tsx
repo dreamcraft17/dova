@@ -1,580 +1,863 @@
+import Head from 'next/head';
 import Link from 'next/link';
-import { Fragment, useEffect, useRef, useState } from 'react';
-import { Layout } from '../components/Layout';
-import { ProductImage } from '../components/ProductImage';
-import { api } from '../lib/api';
-import styles from '../styles/Home.module.css';
-import { formatPricePerUnit, productUnit } from 'dova-shared';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import type { Product } from 'dova-shared';
+import { formatPricePerUnit, formatStockInUnit, productUnit } from 'dova-shared';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { api } from '../lib/api';
+import styles from '../styles/home-v3.module.css';
 
-type PreviewProduct = {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  categoryName?: string;
-  price: number;
-  inStock: boolean;
-  href: string;
-};
+const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
 
-const STRIP = [
-  { icon: '✓', label: 'Verified Suppliers' },
-  { icon: '✦', label: 'Agricultural Products' },
-  { icon: '↗', label: 'Flexible Fulfillment' },
-  { icon: '♧', label: 'Farmer Access' },
-  { icon: '⌁', label: 'Technology' },
-] as const;
-
-const PROBLEMS = [
-  {
-    number: '01',
-    title: 'Limited Market Access',
-    text: 'Farmers can struggle to reach consistent buyers beyond their immediate markets.',
-  },
-  {
-    number: '02',
-    title: 'Fragmented Supply',
-    text: 'Buyers often have to coordinate across multiple informal sources.',
-  },
-  {
-    number: '03',
-    title: 'Logistics Friction',
-    text: 'Moving agricultural products from source to destination can be difficult to coordinate.',
-  },
-] as const;
-
-const SOLUTION_FLOW = [
-  { label: 'Farmers & Suppliers', highlight: false },
-  { label: 'Verification', highlight: true },
-  { label: 'DOVA Marketplace', highlight: false },
-  { label: 'Fulfillment', highlight: true },
-  { label: 'Logistics', highlight: false },
-  { label: 'Customers & Businesses', highlight: true },
-] as const;
-
-const ECO_NODES = [
-  { label: 'Farmers', position: 'n1' },
-  { label: 'Verification', position: 'n2' },
-  { label: 'Logistics', position: 'n3' },
-  { label: 'DOVA AI', position: 'n4' },
-  { label: 'Marketplace', position: 'n5' },
-  { label: 'Farmer Services', position: 'n6' },
-] as const;
-
-const FARMER_BENEFITS = [
-  {
-    icon: '✓',
-    title: 'Reach More Buyers',
-    text: 'Showcase agricultural products to households and businesses.',
-  },
-  {
-    icon: '✓',
-    title: 'Digital Records',
-    text: 'Build useful transaction and supplier history over time.',
-  },
-  {
-    icon: '✓',
-    title: 'Access Services',
-    text: 'Connect with relevant agricultural services and future partner programs.',
-  },
-] as const;
-
-const BUYER_BENEFITS = [
-  {
-    icon: '01',
-    title: 'Discover Products',
-    text: 'Browse agricultural products from participating suppliers.',
-  },
-  {
-    icon: '02',
-    title: 'Flexible Fulfillment',
-    text: 'Use available delivery, pickup or scheduled fulfillment options.',
-  },
-  {
-    icon: '03',
-    title: 'Business Purchasing',
-    text: 'Support repeat and bulk sourcing for restaurants, retailers and other buyers.',
-  },
-] as const;
-
-const MODEL = [
-  {
-    title: 'Marketplace & Service Fees',
-    text: 'Revenue associated with transactions and platform services.',
-  },
-  {
-    title: 'Delivery & Fulfillment',
-    text: 'Revenue or margin from coordinated fulfillment and logistics services.',
-  },
-  {
-    title: 'Farmer Services',
-    text: 'Verification, aggregation, packaging, storage, analytics and related services.',
-  },
-  { title: 'Inputs & Services', text: 'Future agricultural input and service partnerships.' },
-  {
-    title: 'Financial Partnerships',
-    text: 'Potential partner revenue from licensed financing or insurance services.',
-  },
-  {
-    title: 'Future Membership',
-    text: 'Potential premium customer or business membership services.',
-  },
-] as const;
-
-const REVENUE_FLOW = [
-  { label: 'Customers', active: false },
-  { label: 'Transactions', active: false },
-  { label: 'DOVA Platform', active: true },
-  { label: 'Services', active: false },
-  { label: 'Revenue', active: false },
-] as const;
-
-const ROADMAP = [
-  {
-    stage: 'Now',
-    title: 'Marketplace',
-    text: 'Connect agricultural suppliers and buyers.',
-    future: false,
-  },
-  {
-    stage: 'Next',
-    title: 'Verification + Logistics',
-    text: 'Strengthen supplier and fulfillment infrastructure.',
-    future: false,
-  },
-  {
-    stage: 'Expanding',
-    title: 'Farmer Services + DOVA AI',
-    text: 'Add technology and agricultural support layers.',
-    future: false,
-  },
-  {
-    stage: 'Future',
-    title: 'Financial & Insurance Partnerships',
-    text: 'Expand access through appropriate licensed partners.',
-    future: true,
-  },
-  {
-    stage: 'Long Term',
-    title: 'Agricultural Infrastructure',
-    text: 'Develop a connected food and agricultural network.',
-    future: true,
-  },
-] as const;
-
-const ABOUT = [
-  {
-    title: 'About Us',
-    text: 'DOVA connects verified farmers and suppliers with customers through a secure, transparent marketplace — so fresh produce moves with clarity, fair pricing and reliable delivery.',
-  },
-  {
-    title: 'Mission',
-    text: 'To give every farmer a dependable route to market, and every buyer a dependable source of fresh agricultural products.',
-  },
-  {
-    title: 'Vision',
-    text: 'A connected agricultural network across Africa where sourcing, fulfillment and farmer services run on shared, trusted infrastructure.',
-  },
-] as const;
-
-/** Shown until the marketplace responds, and if it can't be reached. */
-const FALLBACK_PRODUCTS: PreviewProduct[] = [
-  { id: 'f1', name: 'Premium Rice', imageUrl: '/images/product1.jpg', price: 0, inStock: true, href: '/products' },
-  { id: 'f2', name: 'Premium Palm Oil', imageUrl: '/images/product2.jpg', price: 0, inStock: true, href: '/products' },
-  { id: 'f3', name: 'Organic Corn', imageUrl: '/images/product3.jpg', price: 0, inStock: true, href: '/products' },
-  { id: 'f4', name: 'Fresh Vegetables', imageUrl: '/images/product1.jpg', price: 0, inStock: true, href: '/products' },
-];
-
-function formatPrice(product: PreviewProduct) {
-  if (product.price <= 0) return '₦ —';
-  const unit = productUnit(product.name, product.categoryName);
-  return `₦ ${product.price.toLocaleString('en-NG')} ${formatPricePerUnit(unit)}`;
-}
-
-export default function Home() {
-  const [products, setProducts] = useState<PreviewProduct[]>(FALLBACK_PRODUCTS);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const pageRef = useRef<HTMLDivElement>(null);
+function Reveal({
+  as = 'div',
+  className,
+  children,
+  ...rest
+}: {
+  as?: 'div' | 'article';
+  className?: string;
+  children: ReactNode;
+  id?: string;
+  'aria-label'?: string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    api<{ data: Product[] }>('/products?page=1&limit=4')
-      .then((r) => {
-        if (!r.data?.length) return;
-        setProducts(
-          r.data.map((p) => ({
-            id: p.id,
-            name: p.name,
-            imageUrl: p.imageUrl,
-            categoryName: p.categoryName,
-            price: p.price,
-            inStock: p.stockQuantity > 0,
-            href: `/products/${p.id}`,
-          })),
-        );
-      })
-      .catch(() => undefined)
-      .finally(() => setProductsLoading(false));
-  }, []);
-
-  // One observer for the whole page rather than a ref per block; re-runs when the
-  // marketplace grid swaps in so the new cards get observed too.
-  useEffect(() => {
-    const root = pageRef.current;
-    if (!root) return;
-    const targets = Array.from(root.querySelectorAll<HTMLElement>('[data-reveal]'));
+    const el = ref.current;
+    if (!el) return;
     if (typeof IntersectionObserver === 'undefined') {
-      targets.forEach((el) => el.classList.add(styles.revealVisible));
+      setVisible(true);
       return;
     }
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add(styles.revealVisible);
-          observer.unobserve(entry.target);
-        });
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
       },
       { threshold: 0.12 },
     );
-    targets.forEach((el) => observer.observe(el));
+    observer.observe(el);
     return () => observer.disconnect();
-  }, [productsLoading]);
+  }, []);
+
+  const Tag = as as ElementType;
+  return (
+    <Tag ref={ref} className={cx(styles.reveal, visible && styles.revealVisible, className)} {...rest}>
+      {children}
+    </Tag>
+  );
+}
+
+const SUPPLY_STEPS = [
+  'Farmers',
+  'Sourcing',
+  'Processing',
+  'Quality Check',
+  'Packaging',
+  'DOVA',
+  'Logistics',
+  'Customers',
+];
+
+const TRUST_ITEMS = [
+  { title: 'Product clarity', text: 'Clear pack, price and availability information' },
+  { title: 'Secure checkout', text: 'Designed around the existing payment flow' },
+  { title: 'Quality focus', text: 'Built around better food sourcing and preparation' },
+  { title: 'Customer support', text: 'A clear route to help before and after an order' },
+];
+
+const CHALLENGES = [
+  {
+    title: 'Market access',
+    text: 'Farmers can face difficulty reaching consistent buyers beyond their immediate markets.',
+  },
+  {
+    title: 'Fragmented sourcing',
+    text: 'Buyers may have to coordinate across multiple informal sources to find the products they need.',
+  },
+  {
+    title: 'Fulfillment friction',
+    text: 'Moving agricultural products from source to destination requires coordination across supply and logistics.',
+  },
+];
+
+const PROCESS_STEPS = [
+  { title: 'Farmer sourcing', text: 'Build supply around real demand.' },
+  { title: 'Verification', text: 'Organize supplier information and checks.' },
+  { title: 'Processing', text: 'Turn selected raw materials into food products.' },
+  { title: 'Quality control', text: 'Keep quality information visible and structured.' },
+  { title: 'Packaging', text: 'Prepare products for consumer and business orders.' },
+  { title: 'Marketplace', text: 'Give customers one place to discover products.' },
+  { title: 'Fulfillment', text: 'Coordinate pickup, delivery and order flow.' },
+  { title: 'Customers', text: 'Serve households and business buyers.' },
+];
+
+const ORDER_STEPS = ['Order', 'Confirm', 'Prepare', 'Fulfill', 'Receive'];
+
+const FEATURE_POINTS = [
+  { title: 'Plantain flour first', text: 'Our flagship launch category.' },
+  {
+    title: 'Focused catalog',
+    text: 'More categories can be added as supply and operations develop.',
+  },
+  {
+    title: 'Infrastructure around food',
+    text: 'Sourcing, processing, packaging, marketplace and fulfillment form the larger system.',
+  },
+];
+
+const FILTERS = [
+  { id: 'featured', label: 'Featured' },
+  { id: 'flour', label: 'Flour' },
+  { id: 'staples', label: 'Staples' },
+  { id: 'produce', label: 'Fresh Produce' },
+  { id: 'bundles', label: 'Bundles' },
+  { id: 'coming', label: 'Coming Soon' },
+];
+
+type PreviewProduct = {
+  id: string;
+  name: string;
+  category: string;
+  tags: string[];
+  size: string;
+  price: string;
+  status: string;
+  tone: 'live' | 'soon';
+  href?: string;
+  packLines?: string[];
+  image?: { src: string; alt: string };
+};
+
+const PREVIEW_PRODUCTS: PreviewProduct[] = [
+  {
+    id: 'plantain-flour',
+    name: 'Plantain Flour',
+    category: 'Flour',
+    tags: ['flour'],
+    size: 'Pack sizes • See product page',
+    price: 'View product',
+    status: 'Starting',
+    tone: 'live',
+    href: '/products',
+    packLines: ['PLANTAIN', 'FLOUR', 'DOVA'],
+  },
+  {
+    id: 'cassava-flour',
+    name: 'Cassava Flour',
+    category: 'Flour',
+    tags: ['flour', 'coming'],
+    size: 'Expansion category',
+    price: 'Coming soon',
+    status: 'Soon',
+    tone: 'soon',
+    packLines: ['CASSAVA', 'FLOUR'],
+  },
+  {
+    id: 'yam-flour',
+    name: 'Yam Flour',
+    category: 'Flour',
+    tags: ['flour', 'coming'],
+    size: 'Expansion category',
+    price: 'Coming soon',
+    status: 'Soon',
+    tone: 'soon',
+    packLines: ['YAM', 'FLOUR'],
+  },
+  {
+    id: 'more-food',
+    name: 'More Food Products',
+    category: 'Farm products',
+    tags: ['coming'],
+    size: 'Curated as supply grows',
+    price: 'Coming soon',
+    status: 'Expansion',
+    tone: 'soon',
+    image: {
+      src: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=78',
+      alt: 'Plantains prepared for food processing',
+    },
+  },
+];
+
+const VALUE_LAYERS = [
+  {
+    title: 'Marketplace revenue',
+    text: 'Revenue associated with product transactions and platform services.',
+  },
+  {
+    title: 'Processing & packaging',
+    text: 'Value created by turning agricultural raw materials into market-ready food products.',
+  },
+  {
+    title: 'Fulfillment & delivery',
+    text: 'Coordinated movement of orders from supply points to customers.',
+  },
+  {
+    title: 'Business supply',
+    text: 'Repeat and bulk sourcing opportunities for restaurants, retailers and other buyers.',
+  },
+  {
+    title: 'Farmer services',
+    text: 'Future services around verification, aggregation, storage, data and market access.',
+  },
+  {
+    title: 'Future partnerships',
+    text: 'Potential licensed partnerships for financing, insurance and other agricultural services.',
+  },
+];
+
+const GLANCE = [
+  { label: 'Market', value: 'Nigeria', text: 'Starting locally, with a long-term African network in view.' },
+  {
+    label: 'Launch category',
+    value: 'Food Flour',
+    text: 'Plantain Flour is the first commercial product focus.',
+  },
+  {
+    label: 'Platform',
+    value: 'Food + Supply Chain',
+    text: 'Marketplace, sourcing, processing, packaging and fulfillment.',
+  },
+  {
+    label: 'Long-term direction',
+    value: 'Food Infrastructure',
+    text: 'Expand from products into a broader connected food network.',
+  },
+];
+
+const ROADMAP = [
+  {
+    label: 'Now',
+    title: 'Flour launch',
+    text: 'Plantain flour, farmer sourcing, processing, packaging, marketplace and available fulfillment.',
+    modifier: undefined,
+  },
+  {
+    label: 'Next',
+    title: 'Supply expansion',
+    text: 'More flour categories, more farmers, more food products, aggregation and stronger business supply.',
+    modifier: styles.roadNext,
+  },
+  {
+    label: 'Future',
+    title: 'Food infrastructure',
+    text: 'Regional distribution, deeper supply-chain technology, farmer financial partnerships, DOVA AI expansion and a broader African food network.',
+    modifier: styles.roadFuture,
+  },
+];
+
+export default function Home() {
+  const { user } = useAuth();
+  const { count } = useCart();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [filter, setFilter] = useState('featured');
+  const [liveProduct, setLiveProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    api<{ data: Product[] }>('/products?search=plantain&limit=1')
+      .then((r) => setLiveProduct(r.data[0] ?? null))
+      .catch(() => setLiveProduct(null));
+  }, []);
+
+  // Admin and supplier accounts don't shop, matching the cart rules in Layout.
+  const canShop = !user || user.role === 'customer';
+  const dashboard =
+    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
+
+  const products = useMemo(() => {
+    if (!liveProduct) return PREVIEW_PRODUCTS;
+    const unit = productUnit(liveProduct.name, liveProduct.categoryName);
+    return PREVIEW_PRODUCTS.map((p) =>
+      p.id === 'plantain-flour'
+        ? {
+            ...p,
+            name: liveProduct.name,
+            category: liveProduct.categoryName,
+            size: formatStockInUnit(liveProduct.stockQuantity, unit),
+            price: `₦ ${liveProduct.price.toLocaleString('en-NG')} ${formatPricePerUnit(unit)}`,
+            href: `/products/${liveProduct.id}`,
+          }
+        : p,
+    );
+  }, [liveProduct]);
+
+  const visibleProducts =
+    filter === 'featured' ? products : products.filter((p) => p.tags.includes(filter));
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
-    <Layout>
-      <div className={styles.page} ref={pageRef}>
+    <div className={styles.page}>
+      <Head>
+        <title>DOVA Chain — Food Supply Chain &amp; Agricultural Marketplace</title>
+        <meta
+          name="description"
+          content="DOVA Chain connects trusted farmers, food products and customers through a technology-enabled food supply chain, starting with flour."
+        />
+        <meta name="theme-color" content="#031F17" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&family=Inter:wght@400;500;700;800;900&display=swap"
+        />
+      </Head>
+
+      <header className={styles.siteHeader}>
+        <div className={cx(styles.container, styles.nav)}>
+          <Link href="/" className={styles.brand} aria-label="DOVA Chain home">
+            <span className={styles.brandName}>DOVA</span>
+            <span className={styles.brandSuffix}>CHAIN</span>
+          </Link>
+          <nav className={styles.navLinks} aria-label="Primary navigation">
+            <a href="#how">How It Works</a>
+            <Link href="/products">Products</Link>
+            <Link href="/bundles">Bundles</Link>
+            <a href="#farmers">Farmers</a>
+            <a href="#ai">DOVA AI</a>
+            <a href="#about">About</a>
+          </nav>
+          <div className={styles.navActions}>
+            <Link href="/products" className={styles.iconLink} aria-label="Search products">
+              ⌕
+            </Link>
+            {canShop && (
+              <Link href="/cart" className={styles.iconLink} aria-label="Open cart">
+                🛒
+                {count > 0 && <span className={styles.cartCount}>{count}</span>}
+              </Link>
+            )}
+            <Link href="/products" className={cx(styles.btn, styles.gold)}>
+              Shop DOVA
+            </Link>
+          </div>
+          <button
+            type="button"
+            className={styles.menuBtn}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobileMenu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? '×' : '☰'}
+          </button>
+        </div>
+        <div
+          id="mobileMenu"
+          className={cx(styles.mobileMenu, menuOpen && styles.mobileMenuOpen)}
+          aria-label="Mobile navigation"
+        >
+          <a href="#how" onClick={closeMenu}>
+            How It Works
+          </a>
+          <Link href="/products" onClick={closeMenu}>
+            Products
+          </Link>
+          <Link href="/bundles" onClick={closeMenu}>
+            Bundles
+          </Link>
+          <a href="#farmers" onClick={closeMenu}>
+            Farmers
+          </a>
+          <a href="#ai" onClick={closeMenu}>
+            DOVA AI
+          </a>
+          <a href="#roadmap" onClick={closeMenu}>
+            Roadmap
+          </a>
+          <div className={styles.mobileActions}>
+            <Link
+              href={user ? dashboard : '/auth/login'}
+              className={cx(styles.btn, styles.ghost)}
+              onClick={closeMenu}
+            >
+              {user ? 'My account' : 'Login'}
+            </Link>
+            <Link href="/products" className={cx(styles.btn, styles.gold)} onClick={closeMenu}>
+              Shop DOVA
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main>
         <section className={styles.hero}>
-          <div className={`${styles.container} ${styles.heroGrid}`}>
-            <div className={`${styles.heroCopy} ${styles.reveal}`} data-reveal="">
-              <div className={styles.eyebrow}>African AgriTech • Supply Chain</div>
+          <div className={cx(styles.container, styles.heroGrid)}>
+            <Reveal className={styles.heroCopy}>
+              <div className={styles.eyebrow}>African Food Supply Chain</div>
               <h1>
-                From Farm to Table. <span className={styles.heroAccent}>On Time, Every Time.</span>
+                Building a better <em>food supply chain.</em>
               </h1>
               <p>
-                DOVA Chain is building a technology-enabled agricultural marketplace and supply-chain
-                network connecting verified farmers and suppliers with households, restaurants,
-                retailers and commercial food buyers.
+                DOVA Chain connects trusted agricultural supply with consumers and businesses through
+                sourcing, processing, quality verification and reliable delivery — starting with food
+                flour.
               </p>
-              <div className={styles.actions}>
-                <Link href="/products" className={`${styles.btn} ${styles.primary}`}>
-                  Shop Agricultural Products →
+              <div className={styles.heroActions}>
+                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                  Shop Products <span aria-hidden="true">↗</span>
                 </Link>
-                <Link
-                  href="/auth/supplier-register"
-                  className={`${styles.btn} ${styles.secondary}`}
-                >
-                  Join as a Farmer →
+                <Link href="/auth/supplier-register" className={cx(styles.btn, styles.ghost)}>
+                  Join the DOVA Network <span aria-hidden="true">↗</span>
                 </Link>
               </div>
-            </div>
-
-            <div className={`${styles.heroImage} ${styles.reveal}`} data-reveal="">
-              <img src="/images/farmer.jpg" alt="Farmer standing in a field of young crops" />
-              <div className={styles.heroOverlay}>
-                <div className={styles.flow}>
-                  <span>FARMERS</span>
-                  <b aria-hidden="true">→</b>
-                  <span>DOVA CHAIN</span>
-                  <b aria-hidden="true">→</b>
-                  <span>LOGISTICS</span>
-                  <b aria-hidden="true">→</b>
-                  <span>CUSTOMERS</span>
-                </div>
+              <div className={styles.heroNote}>
+                <span className={styles.heroNoteDot} aria-hidden="true" />
+                Now: Plantain Flour · Next: More food categories · Future: Food infrastructure
               </div>
-            </div>
-          </div>
+            </Reveal>
 
-          <div className={styles.heroStrip}>
-            <div className={`${styles.container} ${styles.stripGrid}`}>
-              {STRIP.map((item) => (
-                <div className={styles.stripItem} key={item.label}>
-                  <span className={styles.icon} aria-hidden="true">
-                    {item.icon}
+            <Reveal className={styles.heroVisual} aria-label="Agriculture and plantain flour visual">
+              <div className={styles.heroPhoto}>
+                <img
+                  src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=82"
+                  alt="Fresh agricultural produce at a market"
+                />
+              </div>
+              <div className={styles.productOrbit}>
+                <div className={styles.orbitPack} aria-hidden="true">
+                  <span className={styles.orbitPackLabel}>
+                    PLANTAIN
+                    <br />
+                    FLOUR
                   </span>
-                  {item.label}
                 </div>
-              ))}
-            </div>
+                <small>First commercial entry point</small>
+                <strong>Plantain Flour</strong>
+              </div>
+              <div className={styles.heroBadge}>FARM → PROCESS → PACK → DELIVER</div>
+            </Reveal>
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.soft}`}>
+        <section className={styles.supplyStrip} aria-label="DOVA supply chain">
+          <div className={cx(styles.container, styles.supplyRow)}>
+            {SUPPLY_STEPS.map((step, i) => (
+              <Fragment key={step}>
+                <div className={styles.supplyStep}>
+                  <span className={styles.supplyDot}>{String(i + 1).padStart(2, '0')}</span>
+                  {step}
+                </div>
+                {i < SUPPLY_STEPS.length - 1 && (
+                  <div className={styles.supplyArrow} aria-hidden="true">
+                    →
+                  </div>
+                )}
+              </Fragment>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.trustBand} aria-label="DOVA buying confidence">
+          <div className={cx(styles.container, styles.trustGrid)}>
+            {TRUST_ITEMS.map((item, i) => (
+              <div className={styles.trustItem} key={item.title}>
+                <div className={styles.trustIcon} aria-hidden="true">
+                  {String(i + 1).padStart(2, '0')}
+                </div>
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>{item.text}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className={cx(styles.section, styles.light)}>
           <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
+            <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>The Challenge</div>
-              <h2>A fragmented food supply chain creates friction.</h2>
+              <h2>Food supply should be simpler.</h2>
               <p>
-                Between the farm gate and the kitchen sit brokers, guesswork and unreliable
-                transport. Both sides lose margin to the gap.
+                Farmers need dependable routes to buyers. Customers need dependable access to quality
+                food. Businesses need reliable sourcing. DOVA is designed to connect these parts into
+                one structured supply chain.
               </p>
-            </div>
-            <div className={styles.grid3}>
-              {PROBLEMS.map((item) => (
-                <article
-                  className={`${styles.card} ${styles.tallCard} ${styles.reveal}`}
-                  data-reveal=""
-                  key={item.number}
-                >
-                  <div className={styles.number}>{item.number}</div>
+            </Reveal>
+            <div className={styles.cards3}>
+              {CHALLENGES.map((item, i) => (
+                <Reveal as="article" className={styles.infoCard} key={item.title}>
+                  <div className={styles.infoIndex} aria-hidden="true">
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
-                </article>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={styles.section} id="solution">
-          <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
+        <section className={cx(styles.section, styles.processSection)} id="how">
+          <div className={cx(styles.container, styles.processWrap)}>
+            <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>The DOVA Solution</div>
-              <h2>One connected path from farmer to buyer.</h2>
+              <h2>One connected path from farm to customer.</h2>
               <p>
-                Every order moves along the same verified path — so both sides know where the
-                produce came from and when it arrives.
+                Source, verify, process, package and move food through a more organized path — with
+                technology supporting the network.
               </p>
-            </div>
-            <div className={`${styles.storyFlow} ${styles.reveal}`} data-reveal="">
-              {SOLUTION_FLOW.map((step, index) => (
-                <Fragment key={step.label}>
-                  {index > 0 && (
-                    <div className={styles.arrow} aria-hidden="true">
-                      →
-                    </div>
-                  )}
-                  <div
-                    className={`${styles.node}${step.highlight ? ` ${styles.nodeHighlight}` : ''}`}
-                  >
-                    {step.label}
-                  </div>
-                </Fragment>
+            </Reveal>
+            <div className={styles.processGrid}>
+              {PROCESS_STEPS.map((step, i) => (
+                <Reveal as="article" className={styles.processItem} key={step.title}>
+                  <span className={styles.processNum}>{String(i + 1).padStart(2, '0')}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.text}</p>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.dark}`}>
-          <div className={`${styles.container} ${styles.ecosystem}`}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
-              <div className={styles.eyebrow}>More Than a Marketplace</div>
-              <h2>DOVA Chain connects the pieces.</h2>
-              <p>
-                Marketplace, supplier verification, logistics, agricultural data, DOVA AI and farmer
-                services run as one network — with financial and insurance partnerships planned.
-              </p>
+        <section className={styles.orderStrip} aria-label="Customer order journey">
+          <div className={cx(styles.container, styles.orderRow)}>
+            <div className={styles.orderIntro}>
+              <strong>What happens after you order?</strong>
+              <span>A simple customer journey from product selection to delivery.</span>
             </div>
-            <div className={`${styles.ecoMap} ${styles.reveal}`} data-reveal="">
-              <div className={styles.ecoLine} aria-hidden="true" />
-              <div className={styles.ecoCenter}>
-                DOVA
-                <br />
-                CHAIN
+            {ORDER_STEPS.map((step, i) => (
+              <div className={styles.orderStep} key={step}>
+                <b aria-hidden="true">{String(i + 1).padStart(2, '0')}</b>
+                {step}
               </div>
-              {ECO_NODES.map((node) => (
-                <div
-                  className={`${styles.ecoNode} ${styles[node.position]}`}
-                  key={node.label}
-                >
-                  {node.label}
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={cx(styles.container, styles.flourFeature)}>
+            <Reveal className={styles.flourArt} aria-label="Plantain flour launch visual">
+              <div className={styles.flourPack} aria-hidden="true">
+                <div className={styles.packInner}>
+                  <span>FOOD FLOUR</span>
+                  <strong>
+                    PLANTAIN
+                    <br />
+                    FLOUR
+                  </strong>
+                  <div className={styles.packLeaf}>✦</div>
+                  <span>DOVA CHAIN</span>
                 </div>
+              </div>
+            </Reveal>
+            <Reveal className={styles.featureCopy}>
+              <div className={styles.eyebrow}>Starting With Flour</div>
+              <h2>Starting with Flour. Building for More.</h2>
+              <p>
+                Plantain flour is DOVA&apos;s focused first commercial entry point into a larger food
+                supply chain. The strategy is simple: start with a clear product category, learn the
+                operating loop, then expand the network around it.
+              </p>
+              <div className={styles.featureList}>
+                {FEATURE_POINTS.map((point) => (
+                  <div className={styles.featureItem} key={point.title}>
+                    <span className={styles.featureCheck} aria-hidden="true">
+                      ✓
+                    </span>
+                    <div>
+                      <b>{point.title}</b>
+                      <br />
+                      <small>{point.text}</small>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/products" className={cx(styles.btn, styles.outline)}>
+                Explore the DOVA Marketplace ↗
+              </Link>
+              <div className={styles.featureNote}>
+                Launch status: product availability should always reflect the live DOVA catalog.
+                Planned products are not presented as live inventory.
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section className={cx(styles.section, styles.light)} id="marketplace">
+          <div className={styles.container}>
+            <Reveal className={cx(styles.sectionHead, styles.sectionHeadRow)}>
+              <div className={styles.copy}>
+                <div className={styles.eyebrow}>Marketplace</div>
+                <h2>Start with Plantain Flour. Scale the catalog with purpose.</h2>
+                <p>
+                  Plantain Flour is the starting commercial product. As DOVA grows, additional food
+                  categories can be introduced without losing a simple, fast shopping experience.
+                </p>
+              </div>
+              <Link href="/products" className={cx(styles.btn, styles.outline, styles.sideLink)}>
+                View Live Products ↗
+              </Link>
+            </Reveal>
+
+            <div className={styles.marketToolbar} role="group" aria-label="Product categories">
+              {FILTERS.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className={cx(styles.filterChip, filter === chip.id && styles.filterChipActive)}
+                  aria-pressed={filter === chip.id}
+                  onClick={() => setFilter(chip.id)}
+                >
+                  {chip.label}
+                </button>
               ))}
             </div>
+
+            <div className={styles.catalogGrid}>
+              {visibleProducts.map((product) => (
+                <Reveal as="article" className={styles.productCard} key={product.id}>
+                  <div className={styles.productImage}>
+                    {product.image ? (
+                      <img src={product.image.src} alt={product.image.alt} loading="lazy" />
+                    ) : (
+                      <div className={styles.miniPack} aria-hidden="true">
+                        <span>
+                          {product.packLines?.map((line, i) => (
+                            <Fragment key={line}>
+                              {i > 0 && <br />}
+                              {line}
+                            </Fragment>
+                          ))}
+                        </span>
+                      </div>
+                    )}
+                    <span
+                      className={cx(
+                        styles.productStatus,
+                        styles.pill,
+                        product.tone === 'live' ? styles.live : styles.soon,
+                      )}
+                    >
+                      {product.status}
+                    </span>
+                  </div>
+                  <div className={styles.productBody}>
+                    <div className={styles.productCat}>{product.category}</div>
+                    <h3 className={styles.productName}>{product.name}</h3>
+                    <div className={styles.productMeta}>
+                      <div>
+                        <div className={styles.productSize}>{product.size}</div>
+                        <div className={styles.productPrice}>{product.price}</div>
+                      </div>
+                      {product.href ? (
+                        <Link
+                          href={product.href}
+                          className={styles.addBtn}
+                          aria-label={`View ${product.name}`}
+                        >
+                          +
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.addBtn}
+                          aria-label={`${product.name} coming soon`}
+                          disabled
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+              {visibleProducts.length === 0 && (
+                <p className={styles.catalogEmpty}>
+                  No preview products in this category yet.{' '}
+                  <Link href="/products">Browse the live catalog</Link>.
+                </p>
+              )}
+            </div>
+
+            <p className={styles.catalogNote}>
+              Only live product data should be displayed here. Plantain Flour is the current
+              commercial focus; future categories remain clearly marked until they are actually
+              launched.
+            </p>
           </div>
         </section>
 
         <section className={styles.section} id="farmers">
-          <div className={`${styles.container} ${styles.split}`}>
-            <div className={`${styles.imageCard} ${styles.reveal}`} data-reveal="">
-              <img src="/images/supplier.jpg" alt="Farmer holding freshly harvested seedlings" />
-            </div>
-            <div className={styles.reveal} data-reveal="">
-              <div className={styles.eyebrow}>For Farmers</div>
-              <h2>More markets. More visibility. More opportunity.</h2>
-              <p>
-                List your harvest once and reach households, restaurants and retailers already
-                buying on DOVA.
-              </p>
-              <div className={styles.checkList}>
-                {FARMER_BENEFITS.map((item) => (
-                  <div className={styles.check} key={item.title}>
-                    <span className={styles.icon} aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <div>
-                      <b>{item.title}</b>
-                      <p>{item.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/auth/supplier-register"
-                className={`${styles.btn} ${styles.outline}`}
-              >
-                Join DOVA as a Farmer →
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className={`${styles.section} ${styles.soft}`}>
-          <div className={`${styles.container} ${styles.split}`}>
-            <div className={styles.reveal} data-reveal="">
-              <div className={styles.eyebrow}>For Customers &amp; Businesses</div>
-              <h2>Source agricultural products through one connected platform.</h2>
-              <p>
-                One account, one cart, one delivery schedule — whether you are cooking dinner or
-                stocking a kitchen.
-              </p>
-              <div className={styles.checkList}>
-                {BUYER_BENEFITS.map((item) => (
-                  <div className={styles.check} key={item.title}>
-                    <span className={styles.icon} aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <div>
-                      <b>{item.title}</b>
-                      <p>{item.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Link href="/products" className={`${styles.btn} ${styles.primary}`}>
-                Source With DOVA →
-              </Link>
-            </div>
-            <div className={`${styles.imageCard} ${styles.reveal}`} data-reveal="">
-              <img src="/images/product2.jpg" alt="Produce traders at a busy market stall" />
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section} id="marketplace">
           <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
-              <div className={styles.eyebrow}>Marketplace Preview</div>
-              <h2>Fresh agricultural products, presented professionally.</h2>
-              <p>Live from the DOVA marketplace — listed and priced by verified suppliers.</p>
-            </div>
-            <div className={styles.marketGrid}>
-              {productsLoading
-                ? FALLBACK_PRODUCTS.map((p) => (
-                    <div className={styles.marketSkeleton} key={p.id} aria-hidden="true" />
-                  ))
-                : products.map((product) => (
-                    <Link
-                      className={`${styles.product} ${styles.reveal}`}
-                      data-reveal=""
-                      href={product.href}
-                      key={product.id}
-                    >
-                      <div className={styles.productMedia}>
-                        <ProductImage
-                          name={product.name}
-                          imageUrl={product.imageUrl}
-                          categoryName={product.categoryName}
-                        />
-                      </div>
-                      <div className={styles.productBody}>
-                        <h3>{product.name}</h3>
-                        <div className={styles.productMeta}>
-                          <span className={styles.price}>{formatPrice(product)}</span>
-                          <span
-                            className={`${styles.badge}${product.inStock ? '' : ` ${styles.badgeMuted}`}`}
-                          >
-                            {product.inStock ? 'Available' : 'Out of stock'}
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
+            <Reveal className={styles.sectionHead}>
+              <div className={styles.eyebrow}>For Farmers</div>
+              <h2>Better market access starts at the farm.</h2>
+              <p>
+                DOVA helps organize supply from farmers and connect it to real demand through a
+                structured marketplace and supply-chain workflow.
+              </p>
+            </Reveal>
+            <div className={styles.audienceGrid}>
+              <Reveal as="article" className={styles.audienceCard}>
+                <h3>Join as a Farmer</h3>
+                <p>
+                  Build a clearer route from what you grow to the people and businesses looking to buy
+                  food.
+                </p>
+                <div className={styles.benefits}>
+                  {[
+                    'Market access',
+                    'Supplier verification',
+                    'Aggregation and processing pathways',
+                    'Digital records',
+                    'Future farmer services',
+                  ].map((benefit) => (
+                    <div className={styles.benefit} key={benefit}>
+                      <i aria-hidden="true">✓</i>
+                      {benefit}
+                    </div>
                   ))}
-            </div>
-            <div
-              className={`${styles.actions} ${styles.actionsCenter} ${styles.reveal}`}
-              data-reveal=""
-              style={{ marginTop: 32 }}
-            >
-              <Link href="/products" className={`${styles.btn} ${styles.outline}`}>
-                View All Products →
-              </Link>
+                </div>
+                <Link href="/auth/supplier-register" className={cx(styles.btn, styles.outline)}>
+                  Become a DOVA Supplier ↗
+                </Link>
+              </Reveal>
+              <Reveal as="article" className={cx(styles.audienceCard, styles.darkCard)}>
+                <h3>For Customers &amp; Businesses</h3>
+                <p>
+                  Source food through one connected platform — from browsing and ordering to available
+                  fulfillment options.
+                </p>
+                <div className={styles.benefits}>
+                  {[
+                    'Browse products',
+                    'Order and pay',
+                    'Receive through available fulfillment',
+                    'Repeat or source in bulk as the catalog grows',
+                  ].map((benefit, i) => (
+                    <div className={styles.benefit} key={benefit}>
+                      <i aria-hidden="true">{String(i + 1).padStart(2, '0')}</i>
+                      {benefit}
+                    </div>
+                  ))}
+                </div>
+                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                  Source With DOVA ↗
+                </Link>
+              </Reveal>
             </div>
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.dark}`} id="ai">
-          <div className={`${styles.container} ${styles.aiBox}`}>
-            <div className={styles.reveal} data-reveal="">
+        <section className={cx(styles.section, styles.dark)} id="ai">
+          <div className={cx(styles.container, styles.aiGrid)}>
+            <Reveal>
               <div className={styles.eyebrow}>DOVA AI</div>
-              <h2>Intelligent agricultural assistance, built into the DOVA ecosystem.</h2>
-              <p>
-                Ask about a crop, send a photo of a struggling plant, or find the right product in
-                the marketplace — in the same place you buy and sell.
+              <h2>Technology that supports the agricultural network.</h2>
+              <p className={styles.aiLead}>
+                DOVA AI sits as a technology layer inside the wider ecosystem. Its agricultural role
+                includes helping users explore crop questions and possible plant-health issues from
+                images, while keeping the language appropriately cautious.
               </p>
-              <div className={styles.actions} style={{ marginTop: 28 }}>
-                <Link href="/chat" className={`${styles.btn} ${styles.primary}`}>
-                  Explore DOVA AI →
-                </Link>
+              <div className={cx(styles.benefits, styles.aiBenefits)}>
+                {[
+                  { icon: '✦', label: 'Crop and farming questions' },
+                  { icon: '⌕', label: 'Photo-based plant issue assistance' },
+                  { icon: '⌁', label: 'DOVA product and ecosystem guidance' },
+                ].map((item) => (
+                  <div className={styles.benefit} key={item.label}>
+                    <i aria-hidden="true">{item.icon}</i>
+                    {item.label}
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className={`${styles.phone} ${styles.reveal}`} data-reveal="">
-              <div className={styles.phoneScreen}>
-                <div className={styles.phoneTop}>
-                  <b>🌿 DOVA AI</b>
-                  <br />
+              <Link href="/chat" className={cx(styles.btn, styles.gold)}>
+                Explore DOVA AI ↗
+              </Link>
+            </Reveal>
+            <Reveal className={styles.aiDemo}>
+              <div className={styles.aiScreen}>
+                <div className={styles.aiTop}>
+                  <strong>🌿 DOVA AI</strong>
                   <small>Agricultural Assistant</small>
                 </div>
-                <div className={styles.aiMessage}>
+                <div className={styles.bubble}>
                   <b>You</b>
                   <br />
                   What could be affecting these leaves?
                 </div>
-                <div className={`${styles.aiMessage} ${styles.aiAnswer}`}>
+                <div className={cx(styles.bubble, styles.bubbleAnswer)}>
                   <b>DOVA AI</b>
                   <br />
-                  Upload a clear photo of the plant and I can help identify possible issues and
-                  suggest practical next steps.
+                  Upload a clear photo and I can help identify possible issues and suggest practical
+                  next steps.
                 </div>
-                <div className={styles.aiMessage}>
-                  <b>Quick actions</b>
-                  <br />
-                  🌱 Crop Help &nbsp; 📷 Scan Photo
-                  <br />
-                  🌾 Farming Questions &nbsp; 🧺 DOVA Products
+                <div className={styles.aiActions}>
+                  {['🌱 Crop Help', '📷 Scan Photo', '🌾 Farming Questions', '🧺 DOVA Products'].map(
+                    (action) => (
+                      <div className={styles.aiAction} key={action}>
+                        {action}
+                      </div>
+                    ),
+                  )}
                 </div>
-                <div className={styles.aiInput}>Ask DOVA AI anything… →</div>
+                <div className={cx(styles.bubble, styles.bubbleInput)}>Ask DOVA AI anything…</div>
               </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.soft}`}>
+        <section className={cx(styles.section, styles.light)}>
           <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
+            <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>Business Model</div>
-              <h2>Build multiple value layers around the agricultural network.</h2>
+              <h2>Build value layers around the food network.</h2>
               <p>
-                The marketplace funds the network; the network makes every layer above it worth
-                more.
+                DOVA can create value through the transactions and services that support sourcing,
+                processing, fulfillment and future network capabilities.
               </p>
-            </div>
-            <div className={styles.grid3}>
-              {MODEL.map((item) => (
-                <article
-                  className={`${styles.card} ${styles.tallCard} ${styles.reveal}`}
-                  data-reveal=""
-                  key={item.title}
-                >
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+            </Reveal>
+            <div className={styles.valueGrid}>
+              {VALUE_LAYERS.map((layer, i) => (
+                <Reveal as="article" className={styles.valueCard} key={layer.title}>
+                  <div className={styles.valueSymbol} aria-hidden="true">
+                    {String(i + 1).padStart(2, '0')}
+                  </div>
+                  <h3>{layer.title}</h3>
+                  <p>{layer.text}</p>
+                </Reveal>
               ))}
             </div>
-            <div className={`${styles.revenueFlow} ${styles.reveal}`} data-reveal="">
-              {REVENUE_FLOW.map((step, index) => (
-                <Fragment key={step.label}>
-                  {index > 0 && <b aria-hidden="true">→</b>}
-                  <span className={step.active ? styles.active : undefined}>{step.label}</span>
-                </Fragment>
+            <Reveal className={styles.valueFlow}>
+              <span>Customers</span>
+              <b aria-hidden="true">→</b>
+              <span>Transactions</span>
+              <b aria-hidden="true">→</b>
+              <span className={styles.valueFlowActive}>DOVA Platform</span>
+              <b aria-hidden="true">→</b>
+              <span>Services</span>
+              <b aria-hidden="true">→</b>
+              <span>Revenue</span>
+            </Reveal>
+          </div>
+        </section>
+
+        <section className={cx(styles.section, styles.light)}>
+          <div className={styles.container}>
+            <Reveal className={styles.sectionHead}>
+              <div className={styles.eyebrow}>DOVA At A Glance</div>
+              <h2>Focused enough to launch. Built enough to grow.</h2>
+              <p>
+                A concise view of where DOVA is starting today and the direction of the larger
+                platform.
+              </p>
+            </Reveal>
+            <div className={styles.glanceGrid}>
+              {GLANCE.map((item) => (
+                <Reveal as="article" className={styles.glanceCard} key={item.label}>
+                  <div className={styles.glanceLabel}>{item.label}</div>
+                  <strong>{item.value}</strong>
+                  <p>{item.text}</p>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -582,69 +865,127 @@ export default function Home() {
 
         <section className={styles.section} id="roadmap">
           <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
+            <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>Vision &amp; Roadmap</div>
-              <h2>Start with the marketplace. Build the infrastructure around it.</h2>
+              <h2>Start with flour. Build the infrastructure around it.</h2>
               <p>
-                What is live today and what is still ahead, kept clearly apart so nothing planned
-                reads as shipped.
+                Current, next and future capabilities are separated so planned infrastructure is not
+                presented as already operational.
               </p>
-            </div>
-            <div className={styles.timeline}>
+            </Reveal>
+            <div className={styles.roadmapGrid}>
               {ROADMAP.map((item) => (
-                <div
-                  className={`${styles.roadmap}${item.future ? ` ${styles.roadmapFuture}` : ''} ${styles.reveal}`}
-                  data-reveal=""
-                  key={item.title}
-                >
-                  <small>{item.stage}</small>
+                <Reveal as="article" className={cx(styles.roadCard, item.modifier)} key={item.label}>
+                  <div className={styles.roadLabel}>{item.label}</div>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
         </section>
 
-        <section className={`${styles.section} ${styles.soft}`}>
+        <section className={cx(styles.section, styles.light)} id="about">
           <div className={styles.container}>
-            <div className={`${styles.sectionHead} ${styles.reveal}`} data-reveal="">
+            <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>About DOVA Chain</div>
-              <h2>Technology connecting agriculture, people and opportunity.</h2>
-            </div>
-            <div className={styles.grid3}>
-              {ABOUT.map((item) => (
-                <article className={`${styles.card} ${styles.reveal}`} data-reveal="" key={item.title}>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
-              ))}
+              <h2>Products first. Network next. Infrastructure over time.</h2>
+              <p>
+                DOVA is an African food-supply-chain technology company building infrastructure that
+                connects agricultural supply with real demand.
+              </p>
+            </Reveal>
+            <div className={styles.aboutGrid}>
+              <Reveal as="article" className={styles.aboutCard}>
+                <strong>Mission</strong>
+                <h3>Connect agricultural supply with dependable food access.</h3>
+                <p>
+                  DOVA&apos;s platform is designed to make sourcing, processing, marketplace
+                  distribution and fulfillment more organized for farmers, customers and businesses.
+                </p>
+              </Reveal>
+              <Reveal as="article" className={styles.aboutCard}>
+                <strong>Vision</strong>
+                <h3>Build a connected food network across Africa.</h3>
+                <p>
+                  DOVA starts with products, builds the network around them, and grows toward broader
+                  food infrastructure without presenting future capabilities as current operations.
+                </p>
+              </Reveal>
             </div>
           </div>
         </section>
 
-        <section className={styles.cta} id="cta">
-          <div className={`${styles.container} ${styles.ctaContent} ${styles.reveal}`} data-reveal="">
-            <div className={styles.eyebrow}>Build With DOVA</div>
-            <h2>From Farm to Table. On Time, Every Time.</h2>
-            <p>
-              Whether you grow it, cook with it or sell it — there is a place for you on the DOVA
-              network.
-            </p>
-            <div className={`${styles.actions} ${styles.actionsCenter}`}>
-              <Link href="/products" className={`${styles.btn} ${styles.primary}`}>
-                Shop Products
-              </Link>
-              <Link href="/auth/supplier-register" className={`${styles.btn} ${styles.secondary}`}>
-                Join as a Farmer
-              </Link>
-              <Link href="/contact" className={`${styles.btn} ${styles.secondary}`}>
-                Partner With DOVA
-              </Link>
-            </div>
+        <section className={styles.cta}>
+          <div className={styles.container}>
+            <Reveal className={styles.ctaInner}>
+              <div className={styles.eyebrow}>Build With DOVA</div>
+              <h2>From Farm to Table. On Time, Every Time.</h2>
+              <p>
+                Whether you grow food, buy it for your household or source it for a business, DOVA is
+                building a more connected path through the food supply chain.
+              </p>
+              <div className={styles.ctaActions}>
+                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                  Shop Products ↗
+                </Link>
+                <Link href="/auth/supplier-register" className={cx(styles.btn, styles.ghost)}>
+                  Join as a Farmer ↗
+                </Link>
+                <Link href="/contact" className={cx(styles.btn, styles.ghost)}>
+                  Contact DOVA ↗
+                </Link>
+              </div>
+            </Reveal>
           </div>
         </section>
-      </div>
-    </Layout>
+      </main>
+
+      <footer className={styles.footer}>
+        <div className={styles.container}>
+          <div className={styles.footerGrid}>
+            <div className={styles.footerBrand}>
+              <Link href="/" className={styles.brand}>
+                <span className={styles.brandName}>DOVA</span>
+                <span className={styles.brandSuffix}>CHAIN</span>
+              </Link>
+              <p>Building a technology-enabled food supply chain, starting with flour.</p>
+            </div>
+            <div>
+              <div className={styles.footerTitle}>Platform</div>
+              <div className={styles.footerLinks}>
+                <Link href="/products">Products</Link>
+                <Link href="/bundles">Bundles</Link>
+                <a href="#how">How It Works</a>
+                <Link href="/chat">DOVA AI</Link>
+                <a href="#about">About Us</a>
+              </div>
+            </div>
+            <div>
+              <div className={styles.footerTitle}>Community</div>
+              <div className={styles.footerLinks}>
+                <a href="#farmers">For Farmers</a>
+                <Link href="/auth/login">Customer Login</Link>
+                <Link href="/auth/register">Register</Link>
+                <Link href="/feedback">Feedback</Link>
+              </div>
+            </div>
+            <div>
+              <div className={styles.footerTitle}>Contact</div>
+              <div className={styles.footerLinks}>
+                <a href="mailto:officialdovachain@gmail.com">officialdovachain@gmail.com</a>
+                <a href="tel:+2349032696825">+234 903 269 6825</a>
+                <span>Nigeria</span>
+                <Link href="/contact">Contact Us</Link>
+              </div>
+            </div>
+          </div>
+          <div className={styles.footerBottom}>
+            <span>© 2026 DOVA Chain. All rights reserved.</span>
+            <span>From Farm to Table. On Time, Every Time.</span>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
