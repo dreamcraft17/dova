@@ -73,11 +73,23 @@ export function Layout({
 
   const navLinks = (
     <>
-      {navLink('/', 'Home')}
-      {navLink('/products', 'Products')}
-      {navLink('/bundles', 'Bundles')}
-      {navLink('/about', 'About Us')}
-      {navLink('/contact', 'Contact Us')}
+
+      <Link href="/" onClick={() => setMenuOpen(false)}>
+        Home
+      </Link>
+      <Link href="/marketplace" onClick={() => setMenuOpen(false)}>
+        Products
+      </Link>
+      <Link href="/bundles" onClick={() => setMenuOpen(false)}>
+        Bundles
+      </Link>
+      <Link href="/about" onClick={() => setMenuOpen(false)}>
+        About Us
+      </Link>
+      <Link href="/contact" onClick={() => setMenuOpen(false)}>
+        Contact Us
+      </Link>
+
       {feedlogEnabled ? (
         <FeedlogLink
           isLoggedIn={Boolean(user)}
@@ -245,7 +257,7 @@ export function Layout({
                 <Link href="/">Home</Link>
               </li>
               <li>
-                <Link href="/products">Products</Link>
+                <Link href="/marketplace">Products</Link>
               </li>
               <li>
                 <Link href="/bundles">Bundles</Link>
