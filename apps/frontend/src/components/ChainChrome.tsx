@@ -1,28 +1,34 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
-const NAV_LINKS: readonly { label: string; href: string; external?: true }[] = [
-  { label: 'Home', href: '/' },
+const NAV_LINKS: readonly { label: string; href: string; anchor?: boolean }[] = [
+  { label: 'How It Works', href: '/#how', anchor: true },
   { label: 'Products', href: '/marketplace' },
   { label: 'Bundles', href: '/bundles' },
-  { label: 'About', href: 'https://dova.dntech.id/about', external: true },
-  { label: 'Contact', href: '/contact' },
-  { label: 'Feedback', href: '/feedback' },
+  { label: 'Farmers', href: '/#farmers', anchor: true },
+  { label: 'DOVA AI', href: '/chat' },
+  { label: 'About', href: '/about' },
 ];
 
 export function ChainChrome({ title, children }: { title: string; children: ReactNode }) {
+  const { user } = useAuth();
+  const { count } = useCart();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const dashboard =
+    user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
+
   useEffect(() => {
     document.title = title;
   }, [title]);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, []);
+
   return (
     <div className="storefront-app">
-      <div className="top">
-        <div className="container">
-          <span>DOVA CHAIN · FOOD SUPPLY CHAIN</span>
-          <span>Nigeria · Starting with Plantain Flour</span>
-        </div>
-      </div>
       <header className="nav">
         <div className="container navin">
           <Link className="logo" href="/">
@@ -30,14 +36,10 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
           </Link>
           <nav className="links" aria-label="Storefront navigation">
             {NAV_LINKS.map((link) =>
-              link.external ? (
-                <a key={link.href} href={link.href}>
-                  {link.label}
-                </a>
+              link.anchor ? (
+                <a key={link.href} href={link.href}>{link.label}</a>
               ) : (
-                <Link key={link.href} href={link.href}>
-                  {link.label}
-                </Link>
+                <Link key={link.href} href={link.href}>{link.label}</Link>
               ),
             )}
           </nav>
@@ -46,14 +48,56 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
               ⌕
             </Link>
             <Link className="icon" href="/cart" aria-label="Cart">
-              🛒
+              🛒{count > 0 && <span style={{ marginLeft: 4, fontSize: 10 }}>{count}</span>}
             </Link>
             <Link className="btn gold" href="/marketplace">
               Shop
             </Link>
+            <button type="button" className="menuBtn" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+              ☰
+            </button>
           </div>
         </div>
       </header>
+      <div className={`drawerBackdrop${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)} aria-hidden={!menuOpen} />
+      <div className={`drawer${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Link className="logo" href="/" onClick={() => setMenuOpen(false)}>
+            DOVA<i>CHAIN</i>
+          </Link>
+          <button type="button" style={{ background: 'transparent', border: 0, color: '#fff', fontSize: 18 }} onClick={() => setMenuOpen(false)}>
+            ✕
+          </button>
+        </div>
+        <nav className="links" aria-label="Mobile navigation">
+          {NAV_LINKS.map((link) =>
+            link.anchor ? (
+              <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>{link.label}</a>
+            ) : (
+              <Link key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>{link.label}</Link>
+            ),
+          )}
+          {user && (
+            <Link href={dashboard} onClick={() => setMenuOpen(false)}>
+              My account
+            </Link>
+          )}
+        </nav>
+        <div className="actions">
+          {user ? (
+            <Link className="btn outline" style={{ borderColor: 'rgba(255,255,255,.25)', color: '#fff' }} href={dashboard} onClick={() => setMenuOpen(false)}>
+              {user.fullName}
+            </Link>
+          ) : (
+            <Link className="btn outline" style={{ borderColor: 'rgba(255,255,255,.25)', color: '#fff' }} href="/auth/login" onClick={() => setMenuOpen(false)}>
+              Login
+            </Link>
+          )}
+          <Link className="btn gold" href="/marketplace" onClick={() => setMenuOpen(false)}>
+            Shop
+          </Link>
+        </div>
+      </div>
       <main>{children}</main>
       <footer className="footer">
         <div className="container">
@@ -73,7 +117,7 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
             </div>
             <div>
               <h4>COMPANY</h4>
-              <a href="https://dova.dntech.id/about">About Us</a>
+              <Link href="/about">About Us</Link>
               <Link href="/contact">Contact Us</Link>
               <Link href="/feedback">Feedback</Link>
             </div>

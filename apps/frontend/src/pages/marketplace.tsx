@@ -10,6 +10,34 @@ import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shar
 
 type CardProduct = Product & { available: boolean };
 
+let catalogCache: { at: number; products: CardProduct[]; categories: Category[] } | null = null;
+
+function useCatalog() {
+  const [products, setProducts] = useState<CardProduct[]>(() => catalogCache?.products ?? []);
+  const [categories, setCategories] = useState<Category[]>(() => catalogCache?.categories ?? []);
+  const [loading, setLoading] = useState(!catalogCache);
+
+  useEffect(() => {
+    if (catalogCache && Date.now() - catalogCache.at < 30_000) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      api<Category[]>('/categories').catch(() => []),
+      api<{ data: Product[] }>('/products?page=1&limit=24').catch(() => ({ data: [] })),
+    ])
+      .then(([cats, prods]) => {
+        const mapped = prods.data.map((p) => ({ ...p, available: p.stockQuantity > 0 }));
+        catalogCache = { at: Date.now(), products: mapped, categories: cats };
+        setCategories(cats);
+        setProducts(mapped);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { products, categories, loading };
+}
+
 function ProductCard({ product }: { product: CardProduct }) {
   const router = useRouter();
   return (
@@ -58,24 +86,10 @@ function ProductCard({ product }: { product: CardProduct }) {
 }
 
 export default function Marketplace() {
-  const [products, setProducts] = useState<CardProduct[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, categories, loading } = useCatalog();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [sort, setSort] = useState('featured');
-
-  useEffect(() => {
-    Promise.all([
-      api<Category[]>('/categories').catch(() => []),
-      api<{ data: Product[] }>('/products?page=1&limit=24').catch(() => ({ data: [] })),
-    ])
-      .then(([cats, prods]) => {
-        setCategories(cats);
-        setProducts(prods.data.map((p) => ({ ...p, available: p.stockQuantity > 0 })));
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const visibleProducts = useMemo(() => {
     const filtered = products.filter((product) => {
