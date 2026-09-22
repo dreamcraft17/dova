@@ -80,7 +80,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             ? '/admin'
             : r.user.role === 'supplier'
               ? '/supplier'
-              : '/products',
+              : '/marketplace',
         );
       }
     } catch (err) {

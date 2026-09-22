@@ -29,7 +29,7 @@ export default function About() {
           </div>
         </div>
         <p style={{ marginTop: 40 }}>
-          <Link href="/products" className="button">
+          <Link href="/marketplace" className="button">
             Explore marketplace
           </Link>
         </p>

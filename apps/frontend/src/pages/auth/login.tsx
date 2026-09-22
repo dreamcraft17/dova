@@ -55,7 +55,7 @@ export default function Login() {
           : r.user.role === 'supplier'
             ? '/supplier'
             : r.user.emailVerifiedAt
-              ? '/products'
+              ? '/marketplace'
               : '/customer/profile?verify=1';
       await router.push(destination);
     } catch (err) {
