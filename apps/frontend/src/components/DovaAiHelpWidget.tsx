@@ -19,6 +19,8 @@ const QUICK_HELP = [
   { label: 'How does delivery work?', answer: 'Choose pickup or delivery during checkout. Your order history shows the status after you place an order.' },
   { label: 'Ask about farming', answer: 'I can give general farming guidance. For crop or plant-health advice, share clear details and treat the response as an initial suggestion—not a diagnosis.' },
 ];
+const PROGRAMMING_REFUSAL = 'I can only help with DOVA products, bundles, orders, delivery, and general farming questions. I cannot help with coding or programming questions.';
+const PROGRAMMING_PATTERNS = /\b(coding|codingan|programming|pemrograman|source code|javascript|typescript|python|java|c\+\+|html|css|sql|api endpoint|function|syntax|debugging|algorithm)\b/i;
 
 export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
@@ -61,6 +63,10 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
     setInput('');
 
     if (!user) {
+      if (PROGRAMMING_PATTERNS.test(text)) {
+        addLocalHelp(text, PROGRAMMING_REFUSAL);
+        return;
+      }
       const match = QUICK_HELP.find((item) => text.toLowerCase().includes(item.label.toLowerCase().replace('?', '')));
       addLocalHelp(text, match?.answer || 'I can provide limited help about products, delivery, and general farming. Log in to ask DOVA AI a more specific question.');
       return;
