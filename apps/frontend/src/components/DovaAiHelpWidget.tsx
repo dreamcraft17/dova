@@ -15,12 +15,23 @@ const WELCOME: HelpMessage = {
 };
 
 const QUICK_HELP = [
-  { label: 'What can I buy?', answer: 'DOVA connects customers with curated agricultural food products. Explore the Products page to see what is currently available.' },
-  { label: 'How does delivery work?', answer: 'Choose pickup or delivery during checkout. Your order history shows the status after you place an order.' },
+  { label: 'What can I buy?', answer: 'DOVA lists curated agricultural food products. Open Products to browse what is currently available: /marketplace.' },
+  { label: 'How does delivery work?', answer: 'Choose pickup or delivery during checkout. After ordering, customers can track status in Orders: /customer/history.' },
   { label: 'Ask about farming', answer: 'I can give general farming guidance. For crop or plant-health advice, share clear details and treat the response as an initial suggestion—not a diagnosis.' },
 ];
 const PROGRAMMING_REFUSAL = 'I can only help with DOVA products, bundles, orders, delivery, and general farming questions. I cannot help with coding or programming questions.';
 const PROGRAMMING_PATTERNS = /\b(coding|codingan|programming|pemrograman|source code|javascript|typescript|python|java|c\+\+|html|css|sql|api endpoint|function|syntax|debugging|algorithm)\b/i;
+
+const GUEST_HELP_RULES = [
+  { pattern: /product|produk|buy|beli|marketplace|catalog|katalog/i, answer: 'DOVA lists curated agricultural food products. Browse the live catalog on Products: /marketplace.' },
+  { pattern: /bundle|paket/i, answer: 'You can find active product bundles on Bundles: /bundles. Each bundle shows its contents, price, and availability.' },
+  { pattern: /delivery|deliver|pickup|pick up|antar|kirim/i, answer: 'Customers choose pickup or delivery during checkout. After ordering, status is available in Orders: /customer/history.' },
+  { pattern: /checkout|payment|bayar|cart|keranjang/i, answer: 'Add products or bundles to Cart, then continue to Checkout to choose fulfillment and complete payment: /cart.' },
+  { pattern: /order|pesanan|history|riwayat/i, answer: 'Log in to view your order history and status on Orders: /customer/history.' },
+  { pattern: /farmer|supplier|petani|daftar.*jual|sell/i, answer: 'Farmers and suppliers can apply through the supplier registration page: /auth/supplier-register.' },
+  { pattern: /contact|support|kontak|bantuan/i, answer: 'For questions that need the DOVA team, use Contact Us: /contact.' },
+  { pattern: /about|dova chain|what is dova|tentang/i, answer: 'DOVA Chain connects farmers, food products, and customers through a technology-enabled agricultural marketplace. Learn more on About: /about.' },
+];
 
 export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
@@ -56,6 +67,11 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
     ]);
   }
 
+  function guestAnswer(text: string) {
+    return GUEST_HELP_RULES.find((rule) => rule.pattern.test(text))?.answer
+      || 'I can help with DOVA Products, Bundles, Cart, Checkout, Orders, delivery, farmer registration, Contact, and general farming. Try asking about one of those topics, or log in for full chat.';
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     const text = input.trim();
@@ -67,8 +83,7 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
         addLocalHelp(text, PROGRAMMING_REFUSAL);
         return;
       }
-      const match = QUICK_HELP.find((item) => text.toLowerCase().includes(item.label.toLowerCase().replace('?', '')));
-      addLocalHelp(text, match?.answer || 'I can provide limited help about products, delivery, and general farming. Log in to ask DOVA AI a more specific question.');
+      addLocalHelp(text, guestAnswer(text));
       return;
     }
 
