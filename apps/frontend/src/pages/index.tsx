@@ -395,7 +395,7 @@ export default function Home() {
               <h1>
                 Building a better <em>food supply chain.</em>
               </h1>
-              <p>
+              <p style={{color: '#ffff'}}>
                 DOVA Chain connects trusted agricultural supply with consumers and businesses through
                 sourcing, processing, quality verification and reliable delivery — starting with food
                 flour.
@@ -476,6 +476,8 @@ export default function Home() {
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>The Challenge</div>
               <h2>Food supply should be simpler.</h2>
+            </Reveal>
+            <Reveal className={styles.challengeText}>
               <p>
                 Farmers need dependable routes to buyers. Customers need dependable access to quality
                 food. Businesses need reliable sourcing. DOVA is designed to connect these parts into
