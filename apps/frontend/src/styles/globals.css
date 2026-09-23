@@ -74,25 +74,25 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--white);
+  background: #031F17;
   box-shadow: 0 3px 15px rgba(0, 0, 0, 0.12);
+  color: #fff;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--green);
+  color: #fff;
   font-size: 22px;
   font-weight: 700;
   z-index: 2;
 }
 
 .brand img {
-  width: 40px;
   height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand span {
@@ -1331,13 +1331,17 @@ form .button {
     flex-shrink: 0;
   }
 
+  .nav-desktop a:not(.button) {
+    color: #fff;
+  }
+
   .nav-desktop a:not(.button):hover {
     color: var(--gold);
   }
 
   .nav-desktop a.is-active:not(.button) {
     position: relative;
-    color: var(--green);
+    color: var(--gold);
     font-weight: 600;
   }
 
@@ -1349,7 +1353,7 @@ form .button {
     bottom: -7px;
     height: 2px;
     border-radius: 2px;
-    background: var(--green);
+    background: var(--gold);
   }
 
   .nav-desktop a.is-active:not(.button):hover {
@@ -2066,10 +2070,9 @@ form .button {
 }
 
 .auth-shell .auth-brand img {
-  width: 44px;
+  width: auto;
   height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .auth-context-mobile {

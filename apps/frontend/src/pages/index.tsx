@@ -313,6 +313,7 @@ export default function Home() {
       <header className={styles.siteHeader}>
         <div className={cx(styles.container, styles.nav)}>
           <Link href="/" className={styles.brand} aria-label="DOVA Chain home">
+            <img src="/images/logo.svg" alt="" className={styles.brandLogo} />
             <span className={styles.brandName}>DOVA</span>
             <span className={styles.brandSuffix}>CHAIN</span>
           </Link>
@@ -417,7 +418,7 @@ export default function Home() {
             <Reveal className={styles.heroVisual} aria-label="Agriculture and plantain flour visual">
               <div className={styles.heroPhoto}>
                 <img
-                  src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=82"
+                  src="/images/home-hero.jpeg"
                   alt="Fresh agricultural produce at a market"
                 />
               </div>
@@ -688,7 +689,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.section} id="farmers">
+        <section className={cx(styles.section, styles.farmersSection)} id="farmers">
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>For Farmers</div>
@@ -779,7 +780,7 @@ export default function Home() {
             <Reveal className={styles.aiDemo}>
               <div className={styles.aiScreen}>
                 <div className={styles.aiTop}>
-                  <strong>🌿 DOVA AI</strong>
+                  <strong> DOVA AI</strong>
                   <small>Agricultural Assistant</small>
                 </div>
                 <div className={styles.bubble}>
@@ -808,7 +809,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={cx(styles.section, styles.light)}>
+        <section className={cx(styles.section, styles.light, styles.businessSection)}>
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>Business Model</div>
@@ -843,7 +844,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={cx(styles.section, styles.light)}>
+        <section className={cx(styles.section, styles.light, styles.glanceSection)}>
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>DOVA At A Glance</div>
@@ -948,6 +949,7 @@ export default function Home() {
           <div className={styles.footerGrid}>
             <div className={styles.footerBrand}>
               <Link href="/" className={styles.brand}>
+                <img src="/images/logo.svg" alt="" className={styles.brandLogo} />
                 <span className={styles.brandName}>DOVA</span>
                 <span className={styles.brandSuffix}>CHAIN</span>
               </Link>
