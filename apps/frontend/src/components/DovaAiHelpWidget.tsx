@@ -1,0 +1,124 @@
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { MessageCircle, Send, Sparkles, X } from 'lucide-react';
+import type { ChatMessage } from 'dova-shared';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { api, ApiError } from '../lib/api';
+
+type HelpMessage = ChatMessage & { local?: boolean };
+
+const WELCOME: HelpMessage = {
+  id: 'dova-ai-welcome',
+  role: 'assistant',
+  text: 'Hi! I can help you find products, understand delivery, or answer general farming questions.',
+  createdAt: new Date(0).toISOString(),
+};
+
+const QUICK_HELP = [
+  { label: 'What can I buy?', answer: 'DOVA connects customers with curated agricultural food products. Explore the Products page to see what is currently available.' },
+  { label: 'How does delivery work?', answer: 'Choose pickup or delivery during checkout. Your order history shows the status after you place an order.' },
+  { label: 'Ask about farming', answer: 'I can give general farming guidance. For crop or plant-health advice, share clear details and treat the response as an initial suggestion—not a diagnosis.' },
+];
+
+export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const [messages, setMessages] = useState<HelpMessage[]>([WELCOME]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const history = await api<{ messages: ChatMessage[] }>('/chat/history');
+        if (!cancelled && history.messages.length) setMessages([WELCOME, ...history.messages]);
+      } catch {
+        // The widget remains usable with the welcome message if history is unavailable.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, user]);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, loading]);
+
+  function addLocalHelp(label: string, answer: string) {
+    setMessages((current) => [
+      ...current,
+      { id: `guest-question-${Date.now()}`, role: 'user', text: label, createdAt: new Date().toISOString(), local: true },
+      { id: `guest-answer-${Date.now() + 1}`, role: 'assistant', text: answer, createdAt: new Date().toISOString(), local: true },
+    ]);
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput('');
+
+    if (!user) {
+      const match = QUICK_HELP.find((item) => text.toLowerCase().includes(item.label.toLowerCase().replace('?', '')));
+      addLocalHelp(text, match?.answer || 'I can provide limited help about products, delivery, and general farming. Log in to ask DOVA AI a more specific question.');
+      return;
+    }
+
+    setMessages((current) => [...current, { id: `local-${Date.now()}`, role: 'user', text, createdAt: new Date().toISOString() }]);
+    setLoading(true);
+    try {
+      const result = await api<{ messages: ChatMessage[] }>('/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      });
+      setMessages((current) => [...current, ...result.messages]);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Could not reach DOVA AI.';
+      showToast(message, 'error');
+      setMessages((current) => [...current, { id: `error-${Date.now()}`, role: 'assistant', text: `⚠️ ${message}`, createdAt: new Date().toISOString() }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="dova-ai-widget" role="dialog" aria-label="DOVA AI help">
+      <div className="dova-ai-widget__header">
+        <span className="dova-ai-widget__icon" aria-hidden="true"><Sparkles size={17} /></span>
+        <div><strong>DOVA AI Help</strong><small>{user ? 'Ask about DOVA or farming' : 'Quick help for visitors'}</small></div>
+        <button type="button" className="dova-ai-widget__close" onClick={onClose} aria-label="Close DOVA AI help"><X size={18} /></button>
+      </div>
+
+      <div className="dova-ai-widget__messages" ref={listRef}>
+        {messages.map((message) => (
+          <div key={message.id} className={`chat-bubble-row chat-bubble-row--${message.role}`}>
+            <div className={`chat-bubble chat-bubble--${message.role}`}>
+              {message.text.split('\n').map((line, index) => <p key={index}>{line}</p>)}
+            </div>
+          </div>
+        ))}
+        {loading ? <div className="dova-ai-widget__typing" aria-label="DOVA AI is typing"><span /><span /><span /></div> : null}
+      </div>
+
+      {!user ? (
+        <div className="dova-ai-widget__quick-help">
+          {QUICK_HELP.map((item) => <button type="button" key={item.label} onClick={() => addLocalHelp(item.label, item.answer)}>{item.label}</button>)}
+          <a href="/auth/login">Log in for full chat</a>
+        </div>
+      ) : null}
+
+      <form className="dova-ai-widget__composer" onSubmit={submit}>
+        <input value={input} onChange={(event) => setInput(event.target.value)} placeholder={user ? 'Ask DOVA AI…' : 'Ask a quick help question…'} disabled={loading} maxLength={2000} aria-label="Message DOVA AI" />
+        <button type="submit" disabled={loading || !input.trim()} aria-label="Send message"><Send size={16} /></button>
+      </form>
+    </div>
+  );
+}
+
+export function DovaAiHelpTrigger({ onClick }: { onClick: () => void }) {
+  return <button type="button" className="dova-ai-help-trigger" onClick={onClick}><MessageCircle size={17} aria-hidden="true" /> Explore DOVA AI</button>;
+}

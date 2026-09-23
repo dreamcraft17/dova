@@ -7,6 +7,7 @@ import { formatPricePerUnit, formatStockInUnit, productUnit } from 'dova-shared'
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { api } from '../lib/api';
+import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
 import styles from '../styles/home-v3.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
@@ -259,6 +260,7 @@ export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [filter, setFilter] = useState('featured');
   const [liveProduct, setLiveProduct] = useState<Product | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     api<{ data: Product[] }>('/products?search=plantain&limit=1')
@@ -773,9 +775,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <Link href="/chat" className={cx(styles.btn, styles.gold)}>
-                Explore DOVA AI ↗
-              </Link>
+              <DovaAiHelpTrigger onClick={() => setAiOpen(true)} />
             </Reveal>
             <Reveal className={styles.aiDemo}>
               <div className={styles.aiScreen}>
@@ -990,6 +990,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      <DovaAiHelpWidget open={aiOpen} onClose={() => setAiOpen(false)} />
     </div>
   );
 }
