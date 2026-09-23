@@ -45,6 +45,13 @@ export type ChatIdentity = {
   botpressUserKey: string;
   botpressConversationId?: string;
 };
+export type ChatRecord = {
+  id: string;
+  userId: string;
+  role: 'user' | 'assistant';
+  text: string;
+  createdAt: string;
+};
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -1051,6 +1058,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.pool.query(
       'UPDATE chat_identities SET botpress_conversation_id=$1, updated_at=NOW() WHERE user_id=$2',
       [conversationId, userId],
+    );
+  }
+
+  async chatListMessages(userId: string): Promise<ChatRecord[]> {
+    if (!this.pool) return [];
+    const result = await this.pool.query(
+      'SELECT id, user_id, role, text, created_at FROM chat_messages WHERE user_id=$1 ORDER BY created_at ASC',
+      [userId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id, userId: row.user_id, role: row.role, text: row.text,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async chatSaveMessage(message: ChatRecord) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO chat_messages (id,user_id,role,text,created_at) VALUES ($1,$2,$3,$4,$5)',
+      [message.id, message.userId, message.role, message.text, message.createdAt],
     );
   }
 }
