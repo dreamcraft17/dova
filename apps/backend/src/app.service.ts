@@ -889,6 +889,12 @@ export class AppService {
   }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
+  async bulkSetProductsActive(ids: string[], active: boolean) {
+    await this.database.bulkSetProductsActive(ids, active);
+    const idSet = new Set(ids);
+    for (const product of this.products) if (idSet.has(product.id)) product.isActive = active;
+    return { ids, isActive: active };
+  }
   async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }
   async makeSupplierUser(body: any) {
     if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data');

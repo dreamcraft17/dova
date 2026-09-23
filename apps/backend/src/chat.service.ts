@@ -1,165 +1,86 @@
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ChatMessage } from 'dova-shared';
-import { ChatIdentity, DatabaseService, StoredUser } from './database.service';
+import { ChatRecord, DatabaseService, StoredUser } from './database.service';
 
-const REQUEST_TIMEOUT_MS = 10_000;
-const POLL_INTERVAL_MS = 700;
+const REQUEST_TIMEOUT_MS = 20_000;
+const MAX_CONTEXT_MESSAGES = 20;
 
-type BotpressUser = { id: string; name?: string };
-type BotpressMessagePayload = { type: string; text?: string; markdown?: string; [key: string]: unknown };
-type BotpressMessage = { id: string; userId: string; conversationId: string; payload: BotpressMessagePayload; createdAt: string };
+type GeminiPart = { text?: string };
+type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
+type GeminiResponse = { candidates?: Array<{ content?: { parts?: GeminiPart[] } }> };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function describePayload(payload: BotpressMessagePayload): string {
-  return `[Unsupported ${payload.type} message]`;
-}
-
-/** Talks to a Botpress bot on behalf of a DOVA user via the headless Botpress Chat API. */
+/** Talks to Gemini on behalf of a DOVA user via the Gemini generateContent API. */
 @Injectable()
 export class ChatService {
-  /** In-memory fallback identity store, mirrors FeedbackService's dual-path pattern when there is no database. */
-  private readonly identities = new Map<string, ChatIdentity>();
+  private readonly histories = new Map<string, ChatRecord[]>();
 
   constructor(private readonly database: DatabaseService) {}
 
-  private useDatabase() {
-    return this.database.enabled;
+  private apiKey(): string {
+    const key = process.env.GEMINI_API_KEY?.trim();
+    if (!key) throw new ServiceUnavailableException('The AI assistant is not configured yet.');
+    return key;
   }
 
-  private replyTimeoutMs() {
-    return Number(process.env.BOTPRESS_REPLY_TIMEOUT_MS) || 20_000;
+  private apiUrl() {
+    const base = process.env.GEMINI_API_URL?.trim() || 'https://generativelanguage.googleapis.com/v1beta';
+    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
+    return `${base}/models/${model}:generateContent`;
   }
 
-  private webhookId(): string {
-    const id = process.env.BOTPRESS_WEBHOOK_ID?.trim();
-    if (!id) throw new ServiceUnavailableException('The AI assistant is not configured yet.');
-    return id;
-  }
-
-  private baseUrl() {
-    const base = process.env.BOTPRESS_CHAT_API_URL?.trim() || 'https://chat.botpress.cloud';
-    return `${base}/${this.webhookId()}`;
-  }
-
-  private async botpressFetch<T>(path: string, options: { method: string; userKey?: string; body?: unknown }): Promise<T> {
-    const url = `${this.baseUrl()}${path}`;
+  private async generate(contents: GeminiContent[]): Promise<string> {
+    const apiKey = this.apiKey();
     let response: Response;
     try {
-      response = await fetch(url, {
-        method: options.method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(options.userKey ? { 'x-user-key': options.userKey } : {}),
-        },
-        body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      response = await fetch(this.apiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+        body: JSON.stringify({ contents }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
-      console.warn('[Chat] Botpress request failed:', (error as Error).message);
+      console.warn('[Chat] Gemini request failed:', (error as Error).message);
       throw new BadRequestException('The AI assistant is unavailable right now. Please try again.');
     }
-    const payload = await response.json().catch(() => undefined);
-    const errorCode = payload && typeof payload === 'object' && 'code' in payload ? Number((payload as any).code) : undefined;
-    if (!response.ok || (errorCode !== undefined && errorCode >= 400 && errorCode < 600)) {
-      console.warn('[Chat] Botpress returned an error:', response.status, payload);
+
+    const payload = await response.json().catch(() => undefined) as GeminiResponse | undefined;
+    if (!response.ok) {
+      console.warn('[Chat] Gemini returned an error:', response.status);
       throw new BadRequestException('The AI assistant is unavailable right now. Please try again.');
     }
-    return payload as T;
+    const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
+    if (!text) throw new BadRequestException('The AI assistant returned an empty response. Please try again.');
+    return text;
   }
 
-  private async getIdentity(userId: string): Promise<ChatIdentity | undefined> {
-    if (this.useDatabase()) return this.database.chatGetIdentity(userId);
-    return this.identities.get(userId);
+  private async getHistory(userId: string): Promise<ChatRecord[]> {
+    if (this.database.enabled) return this.database.chatListMessages(userId);
+    return this.histories.get(userId) || [];
   }
 
-  private async ensureIdentity(user: StoredUser): Promise<ChatIdentity> {
-    const existing = await this.getIdentity(user.id);
-    if (existing) return existing;
-
-    const created = await this.botpressFetch<{ user: BotpressUser; key: string }>('/users', {
-      method: 'POST',
-      body: { name: user.fullName },
-    });
-    const identity: ChatIdentity = { userId: user.id, botpressUserId: created.user.id, botpressUserKey: created.key };
-    if (this.useDatabase()) {
-      await this.database.chatCreateIdentity(identity);
-    } else {
-      this.identities.set(user.id, identity);
-    }
-    return identity;
+  private async saveMessage(message: ChatRecord) {
+    if (this.database.enabled) return this.database.chatSaveMessage(message);
+    const history = this.histories.get(message.userId) || [];
+    history.push(message);
+    this.histories.set(message.userId, history);
   }
 
-  private async ensureConversation(identity: ChatIdentity): Promise<string> {
-    if (identity.botpressConversationId) return identity.botpressConversationId;
-
-    const created = await this.botpressFetch<{ conversation: { id: string } }>('/conversations', {
-      method: 'POST',
-      userKey: identity.botpressUserKey,
-      body: {},
-    });
-    identity.botpressConversationId = created.conversation.id;
-    if (this.useDatabase()) {
-      await this.database.chatSetConversation(identity.userId, created.conversation.id);
-    } else {
-      this.identities.set(identity.userId, identity);
-    }
-    return created.conversation.id;
+  async history(user: StoredUser): Promise<{ conversationId: null; messages: ChatMessage[] }> {
+    const messages = await this.getHistory(user.id);
+    return { conversationId: null, messages: messages.map(({ id, role, text, createdAt }) => ({ id, role, text, createdAt })) };
   }
 
-  private async listMessages(conversationId: string, userKey: string): Promise<BotpressMessage[]> {
-    const result = await this.botpressFetch<{ messages: BotpressMessage[] }>(
-      `/conversations/${conversationId}/messages`,
-      { method: 'GET', userKey },
-    );
-    return result.messages;
-  }
-
-  private toChatMessage(message: BotpressMessage, mine: boolean): ChatMessage {
-    const { payload } = message;
-    const text = payload.text ?? payload.markdown ?? describePayload(payload);
-    return {
-      id: message.id,
-      role: mine ? 'user' : 'assistant',
-      text,
-      createdAt: new Date(message.createdAt).toISOString(),
-    };
-  }
-
-  async history(user: StoredUser): Promise<{ conversationId: string | null; messages: ChatMessage[] }> {
-    const identity = await this.getIdentity(user.id);
-    if (!identity?.botpressConversationId) return { conversationId: null, messages: [] };
-
-    const messages = await this.listMessages(identity.botpressConversationId, identity.botpressUserKey);
-    const sorted = [...messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    return {
-      conversationId: identity.botpressConversationId,
-      messages: sorted.map((message) => this.toChatMessage(message, message.userId === identity.botpressUserId)),
-    };
-  }
-
-  async sendMessage(user: StoredUser, text: string): Promise<{ conversationId: string; messages: ChatMessage[] }> {
-    const identity = await this.ensureIdentity(user);
-    const conversationId = await this.ensureConversation(identity);
-
-    const sent = await this.botpressFetch<{ message: BotpressMessage }>('/messages', {
-      method: 'POST',
-      userKey: identity.botpressUserKey,
-      body: { conversationId, payload: { type: 'text', text } },
-    });
-
-    const sentAt = new Date(sent.message.createdAt).getTime();
-    const deadline = Date.now() + this.replyTimeoutMs();
-    while (Date.now() < deadline) {
-      await sleep(POLL_INTERVAL_MS);
-      const messages = await this.listMessages(conversationId, identity.botpressUserKey);
-      const replies = messages
-        .filter((message) => message.userId !== identity.botpressUserId && new Date(message.createdAt).getTime() > sentAt)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-      if (replies.length) {
-        return { conversationId, messages: replies.map((message) => this.toChatMessage(message, false)) };
-      }
-    }
-    return { conversationId, messages: [] };
+  async sendMessage(user: StoredUser, text: string): Promise<{ conversationId: null; messages: ChatMessage[] }> {
+    const history = await this.getHistory(user.id);
+    const userMessage: ChatRecord = { id: `user-${Date.now()}`, userId: user.id, role: 'user', text, createdAt: new Date().toISOString() };
+    await this.saveMessage(userMessage);
+    const contents: GeminiContent[] = [
+      ...history.slice(-MAX_CONTEXT_MESSAGES).map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.text }] } as GeminiContent)),
+      { role: 'user', parts: [{ text }] },
+    ];
+    const replyText = await this.generate(contents);
+    const reply: ChatRecord = { id: `assistant-${Date.now()}`, userId: user.id, role: 'assistant', text: replyText, createdAt: new Date().toISOString() };
+    await this.saveMessage(reply);
+    return { conversationId: null, messages: [{ id: reply.id, role: reply.role, text: reply.text, createdAt: reply.createdAt }] };
   }
 }
