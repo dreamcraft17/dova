@@ -45,6 +45,13 @@ export type ChatIdentity = {
   botpressUserKey: string;
   botpressConversationId?: string;
 };
+export type ChatRecord = {
+  id: string;
+  userId: string;
+  role: 'user' | 'assistant';
+  text: string;
+  createdAt: string;
+};
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -794,6 +801,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async setUserActive(userId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE users SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, userId]); }
   async adminProducts() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC'); return result.rows.map(row => this.mapProduct(row)); }
   async setProductActive(productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, productId]); }
+  async bulkSetProductsActive(productIds: string[], active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=ANY($2::uuid[])', [active, productIds]); }
   async adminOrders(status = '', search = '') { if (!this.pool) return undefined; const values: unknown[] = []; const filters: string[] = []; if (status) { values.push(status); filters.push(`o.status=$${values.length}`); } if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`(LOWER(o.order_number) LIKE $${values.length} OR LOWER(u.full_name) LIKE $${values.length})`); } const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''; const result = await this.pool.query(`SELECT o.*,u.full_name AS customer_name FROM orders o JOIN users u ON u.id=o.customer_id ${where} ORDER BY o.created_at DESC`, values); return result.rows.map(row => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, status: row.status, totalAmount: Number(row.total_amount), createdAt: new Date(row.created_at).toISOString() })); }
   async insertContactSubmission(body: { name: string; email: string; message: string }) {
     if (!this.pool) return undefined;
@@ -1050,6 +1058,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.pool.query(
       'UPDATE chat_identities SET botpress_conversation_id=$1, updated_at=NOW() WHERE user_id=$2',
       [conversationId, userId],
+    );
+  }
+
+  async chatListMessages(userId: string): Promise<ChatRecord[]> {
+    if (!this.pool) return [];
+    const result = await this.pool.query(
+      'SELECT id, user_id, role, text, created_at FROM chat_messages WHERE user_id=$1 ORDER BY created_at ASC',
+      [userId],
+    );
+    return result.rows.map((row) => ({
+      id: row.id, userId: row.user_id, role: row.role, text: row.text,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async chatSaveMessage(message: ChatRecord) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO chat_messages (id,user_id,role,text,created_at) VALUES ($1,$2,$3,$4,$5)',
+      [message.id, message.userId, message.role, message.text, message.createdAt],
     );
   }
 }
