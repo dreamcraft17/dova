@@ -4494,6 +4494,32 @@ form .button {
   cursor: not-allowed;
 }
 
+.chat-guest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.chat-guest-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  padding: 10px 16px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.chat-guest-button--primary {
+  background: var(--green);
+  color: #fff;
+}
+
 .chat-launcher {
   position: fixed;
   right: clamp(16px, 4vw, 28px);
