@@ -192,8 +192,8 @@ export function Layout({
       <header className="header">
         <div className="header-inner">
           <Link href="/" className="brand">
-            <img src="/images/logo.jpg" alt="DOVA" />
-            DOVA
+            <img src="/images/logo.svg" alt="DOVA" />
+            DOVA CHAIN
           </Link>
           <nav className="nav-desktop">{navLinks}</nav>
         </div>

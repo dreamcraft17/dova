@@ -13,8 +13,8 @@ export function AuthShell({ children, aside }: AuthShellProps) {
         {aside}
         <div className="auth-main">
           <Link href="/" className="auth-brand">
-            <img src="/images/logo.jpg" alt="" width={44} height={44} />
-            <span>DOVA</span>
+            <img src="/images/logo.svg" alt="" width={44} height={44} />
+            <span>DOVA CHAIN</span>
           </Link>
           {children}
         </div>
