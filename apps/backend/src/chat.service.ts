@@ -46,7 +46,7 @@ export class ChatService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: `You are DOVA AI, a helpful assistant for the DOVA agricultural marketplace. Use the DOVA website guide to explain the site's content and UI. Use the live catalog context below when answering product and bundle questions. Never invent product names, prices, stock, bundle contents, delivery promises, or policies. If the site guide or catalog does not contain an answer, say that you do not have that information and direct the user to Contact DOVA. Keep farming advice general and cautious.\n\n${DOVA_SITE_CONTEXT}\nLIVE DOVA CATALOG:\n${catalogContext}` }] },
+          systemInstruction: { parts: [{ text: `You are DOVA AI, a warm and conversational assistant for the DOVA agricultural marketplace. Match the user's language (English or Indonesian) and answer naturally, not like a canned FAQ. You may explain, compare products, make reasonable recommendations from the live catalog, ask a clarifying question, and guide the user through the website. Keep answers concise but useful. Use the DOVA website guide to explain the site's content and UI. Use the live catalog context below when answering product and bundle questions. Never invent product names, prices, stock, bundle contents, delivery promises, or policies. If the site guide or catalog does not contain an answer, be honest about the limit and suggest the relevant DOVA page or Contact DOVA. Do not answer coding/programming questions. Do not expose private account data or perform account/order/payment actions in chat. Keep farming advice general and cautious.\n\n${DOVA_SITE_CONTEXT}\nLIVE DOVA CATALOG:\n${catalogContext}` }] },
           contents,
         } satisfies GeminiRequest),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -127,5 +127,22 @@ export class ChatService {
     const reply: ChatRecord = { id: `assistant-${Date.now()}`, userId: user.id, role: 'assistant', text: replyText, createdAt: new Date().toISOString() };
     await this.saveMessage(reply);
     return { conversationId: null, messages: [{ id: reply.id, role: reply.role, text: reply.text, createdAt: reply.createdAt }] };
+  }
+
+  async sendGuestMessage(text: string): Promise<{ conversationId: null; messages: ChatMessage[] }> {
+    if (this.isProgrammingRequest(text)) {
+      return {
+        conversationId: null,
+        messages: [{ id: `guest-refusal-${Date.now()}`, role: 'assistant', text: PROGRAMMING_REFUSAL, createdAt: new Date().toISOString() }],
+      };
+    }
+    const replyText = await this.generate(
+      [{ role: 'user', parts: [{ text }] }],
+      await this.catalogContext(),
+    );
+    return {
+      conversationId: null,
+      messages: [{ id: `guest-assistant-${Date.now()}`, role: 'assistant', text: replyText, createdAt: new Date().toISOString() }],
+    };
   }
 }

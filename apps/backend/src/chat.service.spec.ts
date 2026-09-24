@@ -68,4 +68,13 @@ describe('ChatService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result.messages[0].text).toContain('cannot help with coding');
   });
+
+  it('allows a guest to ask a natural-language public catalog question', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'We currently have Plantain Flour available.' }] } }] }),
+    );
+    const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendGuestMessage('Tell me about your products');
+    expect(result.messages[0].text).toContain('Plantain Flour');
+  });
 });

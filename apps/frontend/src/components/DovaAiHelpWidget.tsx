@@ -83,7 +83,19 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
         addLocalHelp(text, PROGRAMMING_REFUSAL);
         return;
       }
-      addLocalHelp(text, guestAnswer(text));
+      setMessages((current) => [...current, { id: `guest-${Date.now()}`, role: 'user', text, createdAt: new Date().toISOString() }]);
+      setLoading(true);
+      try {
+        const result = await api<{ messages: ChatMessage[] }>('/chat/guest', {
+          method: 'POST',
+          body: JSON.stringify({ text }),
+        });
+        setMessages((current) => [...current, ...result.messages]);
+      } catch {
+        setMessages((current) => [...current, { id: `guest-fallback-${Date.now()}`, role: 'assistant', text: guestAnswer(text), createdAt: new Date().toISOString() }]);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
