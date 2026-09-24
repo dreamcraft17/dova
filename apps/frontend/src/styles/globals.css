@@ -4629,6 +4629,7 @@ form .button {
 .dova-ai-widget__messages .chat-bubble--user {
   border-bottom-right-radius: 5px;
   background: #087b4f;
+  color: #fff;
 }
 
 .dova-ai-widget__typing {

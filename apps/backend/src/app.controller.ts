@@ -465,4 +465,10 @@ export class AppController {
   @Post('chat/messages') sendChatMessage(@CurrentUser() user: StoredUser, @Body() body: SendChatMessageDto) {
     return this.chat.sendMessage(user, body.text);
   }
+
+  @Public()
+  @Throttle({ default: { limit: 12, ttl: 60_000 } })
+  @Post('chat/guest') sendGuestChatMessage(@Body() body: SendChatMessageDto) {
+    return this.chat.sendGuestMessage(body.text);
+  }
 }
