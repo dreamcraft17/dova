@@ -1,132 +1,41 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import DovaChainNavbar from './DovaChainNavbar';
 
-const NAV_LINKS: readonly { label: string; href: string; anchor?: boolean; also?: string[] }[] = [
-  { label: 'How It Works', href: '/#how', anchor: true },
-  { label: 'Products', href: '/marketplace', also: ['/products'] },
+const NAV_ITEMS = [
+  { label: 'How It Works', href: '/#how' },
+  { label: 'Products', href: '/marketplace', matchPrefixes: ['/products'] },
   { label: 'Bundles', href: '/bundles' },
-  { label: 'Farmers', href: '/#farmers', anchor: true },
+  { label: 'Farmers', href: '/#farmers' },
   { label: 'DOVA AI', href: '/chat' },
   { label: 'About', href: '/about' },
 ];
 
-function isActive(pathname: string, link: (typeof NAV_LINKS)[number]) {
-  if (link.anchor) return false;
-  return [link.href, ...(link.also ?? [])].some(
-    (base) => pathname === base || pathname.startsWith(`${base}/`),
-  );
-}
-
 export function ChainChrome({ title, children }: { title: string; children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { count } = useCart();
-  const { pathname } = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const dashboard =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
+  const canShop = !user || user.role === 'customer';
 
   useEffect(() => {
     document.title = title;
   }, [title]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, []);
-
   return (
     <div className="storefront-app">
-      <header className={`nav${isScrolled ? ' scrolled' : ''}`}>
-        <div className="container navin">
-          <Link className="logo" href="/" style={{ color: '#fff' }}>
-            <img src="/images/logo.svg" alt="" />
-            DOVA<i>CHAIN</i>
-          </Link>
-          <nav className="links" aria-label="Storefront navigation">
-            {NAV_LINKS.map((link) =>
-              link.anchor ? (
-                <a key={link.href} href={link.href} style={{ color: '#fff' }}>{link.label}</a>
-              ) : (
-                <Link key={link.href} href={link.href} aria-current={isActive(pathname, link) ? 'page' : undefined} style={{ color: '#fff' }}>
-                  {link.label}
-                </Link>
-              ),
-            )}
-          </nav>
-          <div className="actions">
-            <Link className="icon" href="/marketplace" aria-label="Search" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.25)' }}>
-              ⌕
-            </Link>
-            <Link className="icon" href="/cart" aria-label="Cart" style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.25)' }}>
-              🛒{count > 0 && <span style={{ marginLeft: 4, fontSize: 10 }}>{count}</span>}
-            </Link>
-            <Link className="btn gold" href="/marketplace">
-              Shop
-            </Link>
-            <button type="button" className="menuBtn" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
-              ☰
-            </button>
-          </div>
-        </div>
-      </header>
-      <div className={`drawerBackdrop${menuOpen ? ' open' : ''}`} onClick={() => setMenuOpen(false)} aria-hidden={!menuOpen} />
-      <div className={`drawer${menuOpen ? ' open' : ''}`} aria-hidden={!menuOpen}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Link className="logo" href="/" onClick={() => setMenuOpen(false)}>
-            <img src="/images/logo.svg" alt="" />
-            DOVA<i>CHAIN</i>
-          </Link>
-          <button type="button" style={{ background: 'transparent', border: 0, color: '#fff', fontSize: 18 }} onClick={() => setMenuOpen(false)}>
-            ✕
-          </button>
-        </div>
-        <nav className="links" aria-label="Mobile navigation">
-          {NAV_LINKS.map((link) =>
-            link.anchor ? (
-              <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>{link.label}</a>
-            ) : (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={isActive(pathname, link) ? 'page' : undefined}
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ),
-          )}
-          {user && (
-            <Link href={dashboard} onClick={() => setMenuOpen(false)}>
-              My account
-            </Link>
-          )}
-        </nav>
-        <div className="actions">
-          {user ? (
-            <Link className="btn outline" style={{ borderColor: 'rgba(255,255,255,.25)', color: '#fff' }} href={dashboard} onClick={() => setMenuOpen(false)}>
-              {user.fullName}
-            </Link>
-          ) : (
-            <Link className="btn outline" style={{ borderColor: 'rgba(255,255,255,.25)', color: '#fff' }} href="/auth/login" onClick={() => setMenuOpen(false)}>
-              Login
-            </Link>
-          )}
-          <Link className="btn gold" href="/marketplace" onClick={() => setMenuOpen(false)}>
-            Shop
-          </Link>
-        </div>
-      </div>
+      <DovaChainNavbar
+        navItems={NAV_ITEMS}
+        user={user ? { fullName: user.fullName } : null}
+        cartCount={count}
+        canShop={canShop}
+        dashboardHref={dashboard}
+        onLogout={() => {
+          void logout();
+        }}
+      />
       <main>{children}</main>
       <footer className="footer">
         <div className="container">
