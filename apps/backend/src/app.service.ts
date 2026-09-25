@@ -780,6 +780,7 @@ export class AppService {
   async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
   async adminDashboard() { return (await this.database.adminDashboard()) ?? { users: this.users.length, suppliers: this.suppliers.length, products: this.products.length, orders: this.orders.length, pendingSuppliers: this.suppliers.filter(s => s.status === 'pending').length }; }
   async pendingSuppliers() { return (await this.database.pendingSuppliers()) ?? this.suppliers.filter(s => s.status === 'pending').map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName })); }
+  async adminSuppliers() { return (await this.database.adminSuppliers()) ?? this.suppliers.map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName, productsCount: this.products.filter(p => p.supplierId === s.id).length })); }
   async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'approved')); return { id: s.id, status: 'approved' }; }
   async rejectSupplier(id: string, reason: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'rejected', reason); const local = this.suppliers.find(x => x.id === s.id); if (local) { local.status = 'rejected'; local.rejectionReason = reason; } const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = false; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'rejected', reason)); return { id: s.id, status: 'rejected', reason }; }
   async adminUsers() {
@@ -895,7 +896,20 @@ export class AppService {
     for (const product of this.products) if (idSet.has(product.id)) product.isActive = active;
     return { ids, isActive: active };
   }
-  async adminOrders(status = '', search = '') { const stored = await this.database.adminOrders(status, search); if (stored) return stored; return this.orders.filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase()))); }
+  async adminOrders(status = '', search = '') {
+    const stored = await this.database.adminOrders(status, search);
+    if (stored) return stored;
+    return this.orders
+      .filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase())))
+      .map(order => ({ id: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName, status: order.status, totalAmount: order.totalAmount, createdAt: order.createdAt }));
+  }
+  async adminOrderDetail(id: string) {
+    const stored = await this.database.adminOrderDetail(id);
+    if (stored) return stored;
+    const order = this.orders.find(o => o.id === id);
+    if (!order) return undefined;
+    return { ...order, customerName: this.users.find(u => u.id === order.customerId)?.fullName };
+  }
   async makeSupplierUser(body: any) {
     if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data');
     const normalizedEmail = body.email.toLowerCase();
