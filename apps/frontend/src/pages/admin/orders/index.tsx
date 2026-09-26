@@ -88,7 +88,7 @@ function OrdersContent() {
             onChange={(e) => setSearch(e.target.value)}
             className="md:max-w-xs"
           />
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v as typeof statusFilter)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder="All status" />
             </SelectTrigger>

@@ -90,7 +90,7 @@ function FeedbackContent() {
                   </TableCell>
                   <TableCell>{post.votes}</TableCell>
                   <TableCell>
-                    <Select value={post.status} disabled={actionBusy} onValueChange={(v) => void setStatus(post.id, v as FeedbackStatus)}>
+                    <Select value={post.status} disabled={actionBusy} onValueChange={(v: string) => void setStatus(post.id, v as FeedbackStatus)}>
                       <SelectTrigger className="w-40">
                         <SelectValue />
                       </SelectTrigger>

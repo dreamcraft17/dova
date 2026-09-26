@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import {
   Activity,
   BarChart3,
@@ -71,7 +71,6 @@ function initials(fullName: string | undefined) {
 function AdminSidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { showToast } = useToast();
 
   return (
     <Sidebar collapsible="offcanvas" className="border-none">
@@ -87,34 +86,27 @@ function AdminSidebar() {
             <span className="text-xs text-white/60">Dashboard Management</span>
           </span>
         </Link>
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-          >
-            <Link href="/">Storefront</Link>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-            onClick={() => void logout().then(() => router.push('/'))}
-          >
-            Logout
-          </Button>
-        </div>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+        >
+          <Link href="/">Storefront</Link>
+        </Button>
       </SidebarHeader>
       <SidebarContent className="px-2 py-3">
-        <div className="px-2 pb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white/40">
+        <div className="px-2.5 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#b9cec5]">
           Management
         </div>
-        <SidebarMenu>
+        <SidebarMenu className="gap-[5px]">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
             <SidebarMenuItem key={href}>
-              <SidebarMenuButton asChild isActive={isNavItemActive(router.pathname, href)}>
+              <SidebarMenuButton
+                asChild
+                isActive={isNavItemActive(router.pathname, href)}
+                className="h-auto gap-3 rounded-[13px] px-3 py-3 text-[13px] font-bold text-[#edf6f2] data-active:bg-gradient-to-r data-active:from-[var(--gold)] data-active:to-[#e4c65c] data-active:font-bold data-active:text-[var(--deep)] data-active:shadow-[0_9px_24px_rgba(0,0,0,0.13)]"
+              >
                 <Link href={href}>
                   <Icon />
                   <span>{label}</span>
@@ -126,16 +118,15 @@ function AdminSidebar() {
       </SidebarContent>
       <SidebarFooter className="border-t border-sidebar-border p-4 text-white">
         <p className="text-sm font-bold">{user?.fullName ?? 'Administrator'}</p>
-        <p className="text-xs text-white/60">
-          Signed in as {user?.role ?? 'admin'}. Actions are permission-checked by the backend.
-        </p>
-        <button
+        <Button
           type="button"
-          className="mt-2 text-left text-xs text-white/50 underline decoration-dotted hover:text-white"
-          onClick={() => showToast('Notification preferences are not configurable yet.', 'info')}
+          variant="outline"
+          size="sm"
+          className="mt-2 w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+          onClick={() => void logout().then(() => router.push('/'))}
         >
-          Manage notifications
-        </button>
+          Logout
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );
@@ -194,6 +185,12 @@ export function AdminLayout({
   subtitle?: string;
   children: ReactNode;
 }) {
+  // Radix portals (Select, Sheet) mount on <body>, outside this wrapper, so they need the theme tokens there too.
+  useEffect(() => {
+    document.body.classList.add('admin-app');
+    return () => document.body.classList.remove('admin-app');
+  }, []);
+
   return (
     <SidebarProvider className={`admin-app ${inter.variable} ${dmSans.variable}`}>
       <AdminSidebar />

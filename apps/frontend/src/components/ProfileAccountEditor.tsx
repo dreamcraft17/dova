@@ -5,6 +5,10 @@ import type { User } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { ApiError, api } from '../lib/api';
 import { useToast } from '../context/ToastContext';
+import { StatusPill, SupplierCard, buttonStyles, fieldStyles } from './supplier/ui';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Props = {
   user: User;
@@ -85,63 +89,159 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
     }
   }
 
-  const cardStyle = variant === 'customer'
-    ? { background: '#fff', border: '1px solid var(--line)', borderRadius: 14, padding: '20px' }
-    : undefined;
+  if (variant === 'supplier') {
+    return (
+      <div className="space-y-3.5">
+        {!verified ? <EmailVerificationPanel user={user} variant={variant} /> : null}
+        <SupplierCard className="p-6">
+          <h3 className="mb-4 text-[15px] font-bold text-[var(--near)]">Account Details</h3>
+          <form onSubmit={(e) => void saveProfile(e)}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="supplier-fullname" className={fieldStyles.label}>
+                  Full Name *
+                </Label>
+                <Input
+                  id="supplier-fullname"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  minLength={2}
+                  required
+                  autoComplete="name"
+                  className={fieldStyles.control}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="supplier-phone" className={fieldStyles.label}>
+                  Phone Number
+                </Label>
+                <Input
+                  id="supplier-phone"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  minLength={7}
+                  placeholder="+234 ..."
+                  autoComplete="tel"
+                  className={fieldStyles.control}
+                />
+              </div>
+              <div className="grid gap-1.5 md:col-span-2">
+                <Label htmlFor="supplier-email" className={fieldStyles.label}>
+                  Email Address
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input id="supplier-email" value={user.email} disabled className={`${fieldStyles.control} flex-1`} />
+                  <StatusPill tone={verified ? 'green' : 'yellow'}>{verified ? 'Verified' : 'Not verified'}</StatusPill>
+                </div>
+              </div>
+            </div>
+            {profileErr ? <p className="mt-3 text-xs text-destructive">{profileErr}</p> : null}
+            {profileMsg ? <p className="mt-3 text-xs text-[var(--emerald)]">{profileMsg}</p> : null}
+            <div className="mt-5 flex justify-end">
+              <Button type="submit" className={buttonStyles.primary} disabled={profileBusy}>
+                {profileBusy ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        </SupplierCard>
+
+        {canChangePassword ? (
+          <SupplierCard className="p-6">
+            <h3 className="mb-1 text-[15px] font-bold text-[var(--near)]">Security</h3>
+            <p className="mb-4 text-[11px] text-muted-foreground">
+              Change your password while signed in, or use{' '}
+              <Link href="/auth/forgot-password" className="font-bold text-[var(--emerald)] hover:underline">
+                forgot password
+              </Link>{' '}
+              if you cannot sign in.
+            </p>
+            <form onSubmit={(e) => void submitPassword(e)}>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="supplier-current-password" className={fieldStyles.label}>
+                    Current Password
+                  </Label>
+                  <Input
+                    id="supplier-current-password"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="current-password"
+                    className={fieldStyles.control}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="supplier-new-password" className={fieldStyles.label}>
+                    New Password
+                  </Label>
+                  <Input
+                    id="supplier-new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                    className={fieldStyles.control}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="supplier-confirm-password" className={fieldStyles.label}>
+                    Confirm New Password
+                  </Label>
+                  <Input
+                    id="supplier-confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                    className={fieldStyles.control}
+                  />
+                </div>
+              </div>
+              {passwordErr ? <p className="mt-3 text-xs text-destructive">{passwordErr}</p> : null}
+              {passwordMsg ? <p className="mt-3 text-xs text-[var(--emerald)]">{passwordMsg}</p> : null}
+              <div className="mt-5 flex justify-end">
+                <Button type="submit" variant="outline" className={buttonStyles.light} disabled={passwordBusy}>
+                  {passwordBusy ? 'Updating…' : 'Change Password'}
+                </Button>
+              </div>
+            </form>
+          </SupplierCard>
+        ) : null}
+      </div>
+    );
+  }
+
+  const cardStyle = { background: '#fff', border: '1px solid var(--line)', borderRadius: 14, padding: '20px' };
 
   return (
-    <div style={variant === 'customer' ? { display: 'flex', flexDirection: 'column', gap: 20 } : undefined}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {!verified ? <EmailVerificationPanel user={user} variant={variant} /> : null}
-      <section className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined} style={cardStyle}>
-        {variant === 'customer' ? (
-          <h2 style={{ margin: '0 0 16px', fontSize: 18, color: 'var(--green)' }}>Profile Information</h2>
-        ) : (
-          <h3>Account</h3>
-        )}
+      <section style={cardStyle}>
+        <h2 style={{ margin: '0 0 16px', fontSize: 18, color: 'var(--green)' }}>Profile Information</h2>
 
-        <dl className={variant === 'supplier' ? undefined : undefined}>
-          {variant === 'supplier' && (
-            <>
-              <div className="supplier-dash-profile-row">
-                <dt>Email</dt>
-                <dd>{user.email}</dd>
-              </div>
-              <div className="supplier-dash-profile-row">
-                <dt>Email verification</dt>
-                <dd>
-                  <span className={`supplier-dash-badge ${verified ? 'success' : 'warn'}`}>
-                    {verified ? 'Verified' : 'Not verified'}
-                  </span>
-                  {verified && user.emailVerifiedAt ? (
-                    <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--muted)' }}>
-                      {new Date(user.emailVerifiedAt).toLocaleDateString('en-NG')}
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-
-        {variant === 'customer' && (
-          <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>{user.email}</span>
-            <span style={{
-              padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-              background: verified ? '#dcfce7' : '#fef3c7',
-              color: verified ? '#15803d' : '#b45309',
-            }}>
-              {verified ? 'Email verified' : 'Email not verified'}
+        <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>{user.email}</span>
+          <span style={{
+            padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+            background: verified ? '#dcfce7' : '#fef3c7',
+            color: verified ? '#15803d' : '#b45309',
+          }}>
+            {verified ? 'Email verified' : 'Email not verified'}
+          </span>
+          {verified && user.emailVerifiedAt ? (
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+              since {new Date(user.emailVerifiedAt).toLocaleDateString('en-NG')}
             </span>
-            {verified && user.emailVerifiedAt ? (
-              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                since {new Date(user.emailVerifiedAt).toLocaleDateString('en-NG')}
-              </span>
-            ) : null}
-          </div>
-        )}
+          ) : null}
+        </div>
 
-        <form onSubmit={(e) => void saveProfile(e)} className="form-grid" style={{ marginTop: variant === 'supplier' ? 12 : 0 }}>
+        <form onSubmit={(e) => void saveProfile(e)} className="form-grid">
           <label>
             Full name
             <input
@@ -162,11 +262,9 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
               autoComplete="tel"
             />
           </label>
-          {variant === 'customer' && (
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', gridColumn: '1 / -1' }}>
-              Account type: Customer · Member since {memberSince}
-            </p>
-          )}
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)', gridColumn: '1 / -1' }}>
+            Account type: Customer · Member since {memberSince}
+          </p>
           {profileErr && <p className="error" style={{ gridColumn: '1 / -1' }}>{profileErr}</p>}
           {profileMsg && <p style={{ gridColumn: '1 / -1', color: 'var(--green)', margin: 0 }}>{profileMsg}</p>}
           <div style={{ gridColumn: '1 / -1' }}>
@@ -178,12 +276,8 @@ export function ProfileAccountEditor({ user, variant = 'customer' }: Props) {
       </section>
 
       {canChangePassword ? (
-        <section className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined} style={cardStyle}>
-          {variant === 'customer' ? (
-            <h2 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--green)' }}>Security</h2>
-          ) : (
-            <h3>Security</h3>
-          )}
+        <section style={cardStyle}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--green)' }}>Security</h2>
           <p style={{ margin: '0 0 16px', fontSize: 14, color: 'var(--muted)' }}>
             Change your password while signed in, or use{' '}
             <Link href="/auth/forgot-password">forgot password</Link> if you cannot sign in.
@@ -310,19 +404,60 @@ function EmailVerificationPanel({ user, variant }: EmailVerificationPanelProps) 
     }
   }
 
-  const cardStyle = variant === 'customer'
-    ? { background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 14, padding: '20px' }
-    : undefined;
+  if (variant === 'supplier') {
+    return (
+      <SupplierCard className="border-[#ead79d] bg-[#fff7df] p-6">
+        <h2 className="mb-1 text-[15px] font-bold text-[var(--near)]">Email verification</h2>
+        <p className="mb-4 text-[11px] text-[#7c6214]">
+          Enter the 6-digit code we sent to <strong>{user.email}</strong>. For older accounts created before inline
+          verification, complete this here.
+        </p>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="supplier-otp" className={fieldStyles.label}>
+              Verification Code
+            </Label>
+            <Input
+              className={`${fieldStyles.control} max-w-[200px] tracking-[0.3em]`}
+              id="supplier-otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              required
+              placeholder="000000"
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+          </div>
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" className={buttonStyles.primary} disabled={busy}>
+              {busy ? 'Verifying…' : 'Verify Email'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className={buttonStyles.light}
+              disabled={resendBusy || resendCooldown > 0}
+              onClick={() => void resend()}
+            >
+              {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+            </Button>
+          </div>
+        </form>
+      </SupplierCard>
+    );
+  }
+
+  const cardStyle = { background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 14, padding: '20px' };
 
   return (
-    <section
-      className={variant === 'supplier' ? 'supplier-dash-panel supplier-dash-profile-card' : undefined}
-      style={cardStyle}
-      aria-labelledby="email-verification-heading"
-    >
+    <section style={cardStyle} aria-labelledby="email-verification-heading">
       <h2
         id="email-verification-heading"
-        style={{ margin: '0 0 8px', fontSize: variant === 'customer' ? 18 : undefined, color: 'var(--green)' }}
+        style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--green)' }}
       >
         Email verification
       </h2>
