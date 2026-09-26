@@ -148,7 +148,7 @@ export function AdminUserDialog({ userId, open, currentUserId, onClose, onSaved 
   const canDeleteUser = Boolean(detail && !isSelf);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+    <Dialog open={open} onOpenChange={(next: boolean) => { if (!next) onClose(); }}>
       <DialogContent className="admin-app max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Manage user</DialogTitle>
@@ -211,7 +211,7 @@ export function AdminUserDialog({ userId, open, currentUserId, onClose, onSaved 
                 <Select
                   value={form.role}
                   disabled={isSelf}
-                  onValueChange={(value) => setForm({ ...form, role: value as Role })}
+                  onValueChange={(value: string) => setForm({ ...form, role: value as Role })}
                 >
                   <SelectTrigger id="admin-user-role" className="w-full">
                     <SelectValue />
@@ -234,7 +234,7 @@ export function AdminUserDialog({ userId, open, currentUserId, onClose, onSaved 
                   id="admin-user-active"
                   checked={form.isActive}
                   disabled={isSelf}
-                  onCheckedChange={(checked) => setForm({ ...form, isActive: checked })}
+                  onCheckedChange={(checked: boolean) => setForm({ ...form, isActive: checked })}
                 />
               </div>
               {isSelf && <p className="text-xs text-muted-foreground">You cannot deactivate your own account.</p>}

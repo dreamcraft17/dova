@@ -36,7 +36,7 @@ function BundlesContent() {
             Curate multi-product packages sold at a bundle price.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild variant="gold">
           <Link href="/admin/bundles/new">+ New Bundle</Link>
         </Button>
       </div>
@@ -66,7 +66,7 @@ function BundlesContent() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+          <Select value={statusFilter} onValueChange={(v: string) => setStatusFilter(v as typeof statusFilter)}>
             <SelectTrigger className="w-full md:w-40">
               <SelectValue />
             </SelectTrigger>
