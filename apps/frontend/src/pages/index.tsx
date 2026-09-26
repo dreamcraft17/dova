@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { api } from '../lib/api';
 import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
+import DovaChainNavbar from '../components/DovaChainNavbar';
 import styles from '../styles/home-v3.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
@@ -255,9 +256,8 @@ const ROADMAP = [
 ];
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { count } = useCart();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [filter, setFilter] = useState('featured');
   const [liveProduct, setLiveProduct] = useState<Product | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
@@ -293,8 +293,6 @@ export default function Home() {
   const visibleProducts =
     filter === 'featured' ? products : products.filter((p) => p.tags.includes(filter));
 
-  const closeMenu = () => setMenuOpen(false);
-
   return (
     <div className={styles.page}>
       <Head>
@@ -312,83 +310,15 @@ export default function Home() {
         />
       </Head>
 
-      <header className={styles.siteHeader}>
-        <div className={cx(styles.container, styles.nav)}>
-          <Link href="/" className={styles.brand} aria-label="DOVA Chain home">
-            <img src="/images/logo.svg" alt="" className={styles.brandLogo} />
-            <span className={styles.brandName}>DOVA</span>
-            <span className={styles.brandSuffix}>CHAIN</span>
-          </Link>
-          <nav className={styles.navLinks} aria-label="Primary navigation">
-            <a href="#how">How It Works</a>
-            <Link href="/marketplace">Products</Link>
-            <Link href="/bundles">Bundles</Link>
-            <a href="#farmers">Farmers</a>
-            <a href="#ai">DOVA AI</a>
-            <a href="#about">About</a>
-          </nav>
-          <div className={styles.navActions}>
-            <Link href="/marketplace" className={styles.iconLink} aria-label="Search products">
-              ⌕
-            </Link>
-            {canShop && (
-              <Link href="/cart" className={styles.iconLink} aria-label="Open cart">
-                🛒
-                {count > 0 && <span className={styles.cartCount}>{count}</span>}
-              </Link>
-            )}
-            <Link href="/marketplace" className={cx(styles.btn, styles.gold)}>
-              Shop DOVA
-            </Link>
-          </div>
-          <button
-            type="button"
-            className={styles.menuBtn}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            aria-controls="mobileMenu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? '×' : '☰'}
-          </button>
-        </div>
-        <div
-          id="mobileMenu"
-          className={cx(styles.mobileMenu, menuOpen && styles.mobileMenuOpen)}
-          aria-label="Mobile navigation"
-        >
-          <a href="#how" onClick={closeMenu}>
-            How It Works
-          </a>
-          <Link href="/marketplace" onClick={closeMenu}>
-            Products
-          </Link>
-          <Link href="/bundles" onClick={closeMenu}>
-            Bundles
-          </Link>
-          <a href="#farmers" onClick={closeMenu}>
-            Farmers
-          </a>
-          <a href="#ai" onClick={closeMenu}>
-            DOVA AI
-          </a>
-          <a href="#roadmap" onClick={closeMenu}>
-            Roadmap
-          </a>
-          <div className={styles.mobileActions}>
-            <Link
-              href={user ? dashboard : '/auth/login'}
-              className={cx(styles.btn, styles.ghost)}
-              onClick={closeMenu}
-            >
-              {user ? 'My account' : 'Login'}
-            </Link>
-            <Link href="/marketplace" className={cx(styles.btn, styles.gold)} onClick={closeMenu}>
-              Shop DOVA
-            </Link>
-          </div>
-        </div>
-      </header>
+      <DovaChainNavbar
+        user={user ? { fullName: user.fullName } : null}
+        cartCount={count}
+        canShop={canShop}
+        dashboardHref={dashboard}
+        onLogout={() => {
+          void logout();
+        }}
+      />
 
       <main>
         <section className={styles.hero}>

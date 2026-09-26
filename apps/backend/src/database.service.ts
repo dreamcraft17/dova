@@ -722,6 +722,65 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND supplier_order_status = ANY($4::text[]) RETURNING id,order_id', [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query('UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2', [status, orderId]); return true; }
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
   async pendingSuppliers() { if (!this.pool) return undefined; const result = await this.pool.query("SELECT sp.*,u.email,u.full_name FROM supplier_profiles sp JOIN users u ON u.id=sp.user_id WHERE sp.verification_status='pending' ORDER BY sp.created_at"); return result.rows.map(row => ({ id: row.id, userId: row.user_id, businessName: row.business_name, contactName: row.full_name, email: row.email, phone: row.business_phone, status: row.verification_status, documentUrl: row.verification_doc_url, createdAt: new Date(row.created_at).toISOString() })); }
+  async adminOrderDetail(orderId: string) {
+    if (!this.pool) return undefined;
+    const orderResult = await this.pool.query(
+      'SELECT o.*, u.full_name AS customer_name FROM orders o JOIN users u ON u.id = o.customer_id WHERE o.id = $1 LIMIT 1',
+      [orderId],
+    );
+    const row = orderResult.rows[0];
+    if (!row) return undefined;
+    const itemResult = await this.pool.query(
+      'SELECT oi.*,p.*,s.business_name,c.name AS category_name FROM order_items oi JOIN products p ON p.id=oi.product_id JOIN supplier_profiles s ON s.id=oi.supplier_id JOIN categories c ON c.id=p.category_id WHERE oi.order_id=$1 ORDER BY oi.created_at',
+      [row.id],
+    );
+    return {
+      id: row.id,
+      orderNumber: row.order_number,
+      customerId: row.customer_id,
+      customerName: row.customer_name,
+      status: row.status,
+      totalAmount: Number(row.total_amount),
+      deliveryName: row.delivery_name,
+      deliveryAddress: row.delivery_address,
+      deliveryPhone: row.delivery_phone,
+      fulfillmentType: row.fulfillment_type,
+      paymentReference: row.payment_reference || undefined,
+      paymentVerifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined,
+      items: itemResult.rows.map((item) => ({
+        id: item.id,
+        product: this.mapProduct(item),
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+        subtotal: Number(item.subtotal),
+        supplierOrderStatus: item.supplier_order_status,
+      })),
+      createdAt: new Date(row.created_at).toISOString(),
+    };
+  }
+  async adminSuppliers() {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT sp.*, u.email, u.full_name,
+        (SELECT COUNT(*)::int FROM products p WHERE p.supplier_id = sp.id) AS products_count
+       FROM supplier_profiles sp JOIN users u ON u.id = sp.user_id
+       ORDER BY sp.created_at DESC`,
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      businessName: row.business_name,
+      contactName: row.full_name,
+      email: row.email,
+      phone: row.business_phone,
+      location: row.business_address,
+      status: row.verification_status,
+      documentUrl: row.verification_doc_url,
+      productsCount: row.products_count,
+      verifiedAt: row.verified_at ? new Date(row.verified_at).toISOString() : undefined,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
   async setSupplierStatus(supplierId: string, status: string, reason?: string) {
     if (!this.pool) return;
     await this.pool.query(

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, NotFoundException, Param, Patch, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -315,6 +315,9 @@ export class AppController {
   @Get('admin/dashboard') admin() { return this.service.adminDashboard(); }
 
   @Roles('admin')
+  @Get('admin/suppliers') adminSuppliers() { return this.service.adminSuppliers(); }
+
+  @Roles('admin')
   @Get('admin/suppliers/pending') pendingSuppliers() { return this.service.pendingSuppliers(); }
 
   @Roles('admin')
@@ -393,6 +396,13 @@ export class AppController {
   @Roles('admin')
   @Get('admin/orders') adminOrders(@Query('status') status = '', @Query('search') search = '') {
     return this.service.adminOrders(status, search);
+  }
+
+  @Roles('admin')
+  @Get('admin/orders/:id') async adminOrderDetail(@Param('id') id: string) {
+    const order = await this.service.adminOrderDetail(id);
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
   }
 
   @Roles('admin')
