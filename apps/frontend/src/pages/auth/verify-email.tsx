@@ -1,8 +1,12 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Mail } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
-import { Loading } from '../../components/Loading';
+import { AuthAside } from '../../components/auth/AuthAside';
+import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthField, AuthOtpField } from '../../components/auth/AuthField';
+import { AuthCheckbox, AuthMessage, AuthSubmit, AuthTextButton } from '../../components/auth/AuthControls';
 import { api, ApiError, configureLoginPersistence } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -85,69 +89,57 @@ export default function VerifyEmail() {
   }
 
   return (
-    <AuthShell>
-      <div className="register-card verify-email-card">
-        <h1>Verify Your Email</h1>
-        <p>
-          {fromLogin
+    <AuthShell aside={<AuthAside variant="verify" />}>
+      <AuthCard
+        eyebrow="Email verification"
+        title="Verify your email"
+        subtitle={
+          fromLogin
             ? 'Your account is not verified yet. Enter the 6-digit code we sent to your inbox to sign in.'
-            : 'Enter the 6-digit code we sent to your inbox to activate your account.'}
-        </p>
-        {fromLogin && resendBusy ? (
-          <p className="muted" style={{ marginTop: -8, marginBottom: 16, fontSize: 14 }}>
-            Sending verification code…
-          </p>
-        ) : null}
-        <form onSubmit={submit}>
-          <label>Email</label>
-          <input
+            : 'Enter the 6-digit code we sent to your inbox to activate your account.'
+        }
+        notice={fromLogin && resendBusy ? 'Sending verification code…' : undefined}
+        footer={
+          <>
+            <p>
+              Didn&apos;t get a code?{' '}
+              <AuthTextButton disabled={resendBusy || resendCooldown > 0 || !email} onClick={() => void resend()}>
+                {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </AuthTextButton>
+            </p>
+            <p>
+              Wrong email? <Link href="/auth/register">Register again</Link>
+            </p>
+            <p>
+              Already verified?{' '}
+              <Link href={email ? `/auth/login?email=${encodeURIComponent(email)}` : '/auth/login'}>Back to sign in</Link>
+            </p>
+          </>
+        }
+      >
+        <form className="grid gap-4" onSubmit={submit}>
+          <AuthField
+            id="verify-email"
+            label="Email"
             type="email"
+            autoComplete="email"
+            inputMode="email"
             required
-            placeholder="Enter your email"
+            placeholder="you@company.com"
+            icon={<Mail className="size-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <label>Verification code</label>
-          <input
-            className="otp-input"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="\d{6}"
-            maxLength={6}
-            required
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          />
-          <div className="remember">
-            <label>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />{' '}
-              Remember Me
-            </label>
-          </div>
-          <button type="submit" disabled={busy}>
-            {busy ? <Loading label="Verifying…" inline size="sm" /> : 'Verify & Continue'}
-          </button>
-          {error && <p className="error">{error}</p>}
+          <AuthOtpField id="verify-code" label="Verification code" value={code} onChange={setCode} />
+          <AuthCheckbox id="verify-remember" checked={rememberMe} onChange={setRememberMe}>
+            Remember me
+          </AuthCheckbox>
+          {error ? <AuthMessage tone="error">{error}</AuthMessage> : null}
+          <AuthSubmit busy={busy} busyLabel="Verifying…">
+            Verify &amp; Continue
+          </AuthSubmit>
         </form>
-        <div className="login-link">
-          Didn&apos;t get a code?{' '}
-          <button type="button" className="link-button" disabled={resendBusy || resendCooldown > 0} onClick={() => void resend()}>
-            {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
-          </button>
-        </div>
-        <div className="login-link">
-          Wrong email? <Link href="/auth/register">Register again</Link>
-        </div>
-        <div className="login-link">
-          Already verified? <Link href={email ? `/auth/login?email=${encodeURIComponent(email)}` : '/auth/login'}>Back to login</Link>
-        </div>
-      </div>
+      </AuthCard>
     </AuthShell>
   );
 }

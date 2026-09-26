@@ -3,12 +3,12 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { Lock, Mail, User as UserIcon } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
-import { Loading } from '../../components/Loading';
 import { RegistrationSuccessModal } from '../../components/RegistrationSuccessModal';
 import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard, type AuthStep } from '../../components/auth/AuthCard';
-import { AuthField } from '../../components/auth/AuthField';
+import { AuthField, AuthOtpField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
+import { AuthMessage, AuthSecondaryButton, AuthSubmit } from '../../components/auth/AuthControls';
 import { ApiError, api, configureLoginPersistence } from '../../lib/api';
 import type { User } from 'dova-shared';
 import { useAuth } from '../../context/AuthContext';
@@ -108,21 +108,28 @@ export default function Register() {
   return (
     <AuthShell aside={<AuthAside variant="register" />}>
       <AuthCard
-        title="Customer registration"
-        subtitle="For customers purchasing from DOVA suppliers—not supplier onboarding."
+        eyebrow="Customer registration"
+        title="Create your account"
+        subtitle="For customers purchasing from DOVA suppliers — not supplier onboarding."
         steps={steps}
         notice={
-          <p>
-            Enter your work email, tap <strong>Send code</strong>, then type the 6-digit OTP below before you create your account.
-          </p>
+          <>
+            Enter your work email, tap <strong>Send code</strong>, then type the 6-digit code below before you create
+            your account.
+          </>
         }
         footer={
-          <p>
-            Already registered? <Link href="/auth/login">Sign in</Link>
-          </p>
+          <>
+            <p>
+              Already registered? <Link href="/auth/login">Sign in</Link>
+            </p>
+            <p>
+              Selling on DOVA? <Link href="/auth/supplier-register">Apply as a supplier</Link>
+            </p>
+          </>
         }
       >
-        <form className="auth-form" onSubmit={submit} noValidate>
+        <form className="grid gap-4" onSubmit={submit} noValidate>
           <AuthField
             id="register-name"
             label="Full name"
@@ -132,7 +139,7 @@ export default function Register() {
             required
             minLength={2}
             placeholder="Ada Okonkwo"
-            icon={<UserIcon size={16} />}
+            icon={<UserIcon className="size-4" />}
             value={form.fullName}
             onChange={(e) => setForm({ ...form, fullName: e.target.value })}
           />
@@ -145,7 +152,7 @@ export default function Register() {
             inputMode="email"
             required
             placeholder="you@company.com"
-            icon={<Mail size={16} />}
+            icon={<Mail className="size-4" />}
             value={form.email}
             onChange={(e) => {
               setForm({ ...form, email: e.target.value });
@@ -153,34 +160,26 @@ export default function Register() {
               setCodeSent(false);
             }}
           />
-          <div className="auth-otp-row">
-            <label htmlFor="register-code" className="auth-field-label">
-              Email verification code
-            </label>
-            <div className="auth-otp-controls">
-              <input
-                id="register-code"
-                className="otp-input"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="\d{6}"
-                maxLength={6}
-                required
-                placeholder="000000"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              />
-              <button
-                type="button"
-                className="auth-inline-button"
+          <AuthOtpField
+            id="register-code"
+            label="Email verification code"
+            value={code}
+            onChange={setCode}
+            action={
+              <AuthSecondaryButton
                 disabled={sendBusy || resendCooldown > 0 || !form.email}
                 onClick={() => void sendCode()}
               >
-                {sendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend ${resendCooldown}s` : codeSent ? 'Resend code' : 'Send code'}
-              </button>
-            </div>
-          </div>
+                {sendBusy
+                  ? 'Sending…'
+                  : resendCooldown > 0
+                    ? `Resend ${resendCooldown}s`
+                    : codeSent
+                      ? 'Resend code'
+                      : 'Send code'}
+              </AuthSecondaryButton>
+            }
+          />
           <AuthPasswordField
             id="register-password"
             label="Password"
@@ -189,7 +188,7 @@ export default function Register() {
             required
             minLength={8}
             placeholder="At least 8 characters"
-            icon={<Lock size={16} />}
+            icon={<Lock className="size-4" />}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
@@ -201,17 +200,15 @@ export default function Register() {
             required
             minLength={8}
             placeholder="Repeat password"
-            icon={<Lock size={16} />}
+            icon={<Lock className="size-4" />}
             value={form.confirmPassword}
             onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-            error={
-              form.confirmPassword && !passwordMatch ? 'Passwords do not match.' : undefined
-            }
+            error={form.confirmPassword && !passwordMatch ? 'Passwords do not match.' : undefined}
           />
-          {error ? <p className="auth-form-error" role="alert">{error}</p> : null}
-          <button type="submit" className="auth-submit" disabled={busy || code.length !== 6 || showSuccessModal}>
-            {busy ? <Loading label="Creating account…" inline size="sm" /> : 'Create account'}
-          </button>
+          {error ? <AuthMessage tone="error">{error}</AuthMessage> : null}
+          <AuthSubmit busy={busy} busyLabel="Creating account…" disabled={code.length !== 6 || showSuccessModal}>
+            Create Account
+          </AuthSubmit>
         </form>
       </AuthCard>
       <RegistrationSuccessModal
@@ -221,4 +218,4 @@ export default function Register() {
       />
     </AuthShell>
   );
-};
+}
