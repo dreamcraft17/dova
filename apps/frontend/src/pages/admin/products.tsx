@@ -93,7 +93,7 @@ function ProductsContent() {
 
       <Card className="p-5">
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Tabs value={tab} onValueChange={(v) => { setTab(v as ProductTab); setSelected(new Set()); }}>
+          <Tabs value={tab} onValueChange={(v: string) => { setTab(v as ProductTab); setSelected(new Set()); }}>
             <TabsList>
               <TabsTrigger value="available">Available ({counts.available})</TabsTrigger>
               <TabsTrigger value="low_stock">Low Stock ({counts.low_stock})</TabsTrigger>
