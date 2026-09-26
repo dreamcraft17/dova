@@ -1,10 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { passwordToggleState } from 'dova-shared';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Lock, Mail } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
-import { Loading } from '../../components/Loading';
+import { AuthAside } from '../../components/auth/AuthAside';
+import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthField, AuthOtpField } from '../../components/auth/AuthField';
+import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
+import { AuthMessage, AuthSubmit, AuthTextButton } from '../../components/auth/AuthControls';
 import { api, ApiError } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 
@@ -15,10 +18,6 @@ export default function ResetPassword() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const passwordToggle = passwordToggleState(showPassword);
-  const confirmPasswordToggle = passwordToggleState(showConfirmPassword);
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -69,85 +68,68 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthShell>
-      <div className="register-card verify-email-card">
-        <h1>Reset Password</h1>
-        <p>Enter the code from your email and choose a new password.</p>
-        <form onSubmit={submit}>
-          <label>Email</label>
-          <input
+    <AuthShell aside={<AuthAside variant="recovery" />}>
+      <AuthCard
+        eyebrow="Account recovery"
+        title="Reset your password"
+        subtitle="Enter the code from your email and choose a new password."
+        footer={
+          <>
+            <p>
+              Didn&apos;t get a code?{' '}
+              <AuthTextButton disabled={resendBusy || resendCooldown > 0 || !email} onClick={() => void resend()}>
+                {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </AuthTextButton>
+            </p>
+            <p>
+              <Link href="/auth/login">Back to sign in</Link>
+            </p>
+          </>
+        }
+      >
+        <form className="grid gap-4" onSubmit={submit}>
+          <AuthField
+            id="reset-email"
+            label="Email"
             type="email"
+            autoComplete="email"
+            inputMode="email"
             required
-            placeholder="Enter your email"
+            placeholder="you@company.com"
+            icon={<Mail className="size-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <label>Reset code</label>
-          <input
-            className="otp-input"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="\d{6}"
-            maxLength={6}
+          <AuthOtpField id="reset-code" label="Reset code" value={code} onChange={setCode} />
+          <AuthPasswordField
+            id="reset-password"
+            label="New password"
+            autoComplete="new-password"
             required
-            placeholder="000000"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            minLength={8}
+            placeholder="At least 8 characters"
+            icon={<Lock className="size-4" />}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
-          <label>New password</label>
-          <div className="password-input-wrap">
-            <input
-              type={passwordToggle.inputType}
-              required
-              minLength={8}
-              placeholder="New password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              className="password-toggle-btn"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={passwordToggle.ariaLabel}
-            >
-              {passwordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <label>Confirm password</label>
-          <div className="password-input-wrap">
-            <input
-              type={confirmPasswordToggle.inputType}
-              required
-              minLength={8}
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              className="password-toggle-btn"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              aria-label={confirmPasswordToggle.ariaLabel}
-            >
-              {confirmPasswordToggle.icon === 'eye' ? <Eye size={18} /> : <EyeOff size={18} />}
-            </button>
-          </div>
-          <button type="submit" disabled={busy}>
-            {busy ? <Loading label="Updating…" inline size="sm" /> : 'Update password'}
-          </button>
-          {error && <p className="error">{error}</p>}
+          <AuthPasswordField
+            id="reset-confirm-password"
+            label="Confirm new password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="Repeat new password"
+            icon={<Lock className="size-4" />}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            error={confirmPassword && password !== confirmPassword ? 'Passwords do not match.' : undefined}
+          />
+          {error ? <AuthMessage tone="error">{error}</AuthMessage> : null}
+          <AuthSubmit busy={busy} busyLabel="Updating…">
+            Update Password
+          </AuthSubmit>
         </form>
-        <div className="login-link">
-          Didn&apos;t get a code?{' '}
-          <button type="button" className="link-button" disabled={resendBusy || resendCooldown > 0} onClick={() => void resend()}>
-            {resendBusy ? 'Sending…' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
-          </button>
-        </div>
-        <div className="login-link">
-          <Link href="/auth/login">Back to login</Link>
-        </div>
-      </div>
+      </AuthCard>
     </AuthShell>
   );
 }

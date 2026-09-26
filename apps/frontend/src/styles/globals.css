@@ -44,7 +44,7 @@ body.menu-open {
   overflow: hidden;
 }
 
-a {
+a:where(:not(.admin-app *)) {
   color: inherit;
   text-decoration: none;
 }
@@ -54,11 +54,11 @@ img {
   display: block;
 }
 
-button,
+button:where(:not(.admin-app *)),
 .button,
-input,
-select,
-textarea {
+input:where(:not(.admin-app *)),
+select:where(:not(.admin-app *)),
+textarea:where(:not(.admin-app *)) {
   font: inherit;
   touch-action: manipulation;
 }
@@ -74,25 +74,25 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: var(--white);
+  background: #031F17;
   box-shadow: 0 3px 15px rgba(0, 0, 0, 0.12);
+  color: #fff;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--green);
+  color: #fff;
   font-size: 22px;
   font-weight: 700;
   z-index: 2;
 }
 
 .brand img {
-  width: 40px;
   height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand span {
@@ -885,7 +885,7 @@ a.button.secondary:hover {
   font: inherit;
 }
 
-.grid {
+.grid:where(:not(.admin-app *)) {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
@@ -998,7 +998,7 @@ a.button.secondary:hover {
 }
 
 .row select,
-select {
+select:where(:not(.admin-app *)) {
   padding: 12px 14px;
   border: 1px solid var(--line);
   background: #fff;
@@ -1006,21 +1006,21 @@ select {
   font: inherit;
 }
 
-form {
+form:where(:not(.admin-app *)) {
   display: grid;
   gap: 18px;
   max-width: 440px;
 }
 
-label {
+label:where(:not(.admin-app *)) {
   display: grid;
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
 }
 
-input,
-textarea {
+input:where(:not(.admin-app *)),
+textarea:where(:not(.admin-app *)) {
   font: inherit;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -1222,7 +1222,7 @@ form .button {
 
 /* ========== BREAKPOINTS (enhance up from mobile) ========== */
 @media (min-width: 640px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(2, 1fr);
     gap: 18px;
   }
@@ -1331,13 +1331,17 @@ form .button {
     flex-shrink: 0;
   }
 
+  .nav-desktop a:not(.button) {
+    color: #fff;
+  }
+
   .nav-desktop a:not(.button):hover {
     color: var(--gold);
   }
 
   .nav-desktop a.is-active:not(.button) {
     position: relative;
-    color: var(--green);
+    color: var(--gold);
     font-weight: 600;
   }
 
@@ -1349,7 +1353,7 @@ form .button {
     bottom: -7px;
     height: 2px;
     border-radius: 2px;
-    background: var(--green);
+    background: var(--gold);
   }
 
   .nav-desktop a.is-active:not(.button):hover {
@@ -1388,7 +1392,7 @@ form .button {
     gap: 24px;
   }
 
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(3, 1fr);
     gap: 22px;
     padding: 20px var(--pad-x) 60px;
@@ -1443,13 +1447,13 @@ form .button {
 }
 
 @media (min-width: 1100px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
 @media (min-width: 1280px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(5, 1fr);
   }
 }
@@ -2066,10 +2070,9 @@ form .button {
 }
 
 .auth-shell .auth-brand img {
-  width: 44px;
+  width: auto;
   height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .auth-context-mobile {
@@ -4489,6 +4492,215 @@ form .button {
 .chat-composer button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.chat-guest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.chat-guest-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  padding: 10px 16px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  color: var(--green);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.chat-guest-button--primary {
+  background: var(--green);
+  color: #fff;
+}
+
+.dova-ai-help-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.dova-ai-help-trigger:hover,
+.dova-ai-help-trigger:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
+}
+
+.dova-ai-widget {
+  position: fixed;
+  right: clamp(16px, 4vw, 28px);
+  bottom: clamp(16px, 4vw, 28px);
+  z-index: 60;
+  width: min(calc(100vw - 32px), 392px);
+  height: min(580px, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(3, 31, 23, 0.12);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(3, 31, 23, 0.25);
+}
+
+.dova-ai-widget__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #0d6b45 0%, #087b4f 100%);
+  color: #fff;
+}
+
+.dova-ai-widget__header strong,
+.dova-ai-widget__header small {
+  display: block;
+}
+
+.dova-ai-widget__header strong { font-size: 15px; letter-spacing: -0.01em; }
+.dova-ai-widget__header small { margin-top: 3px; color: rgba(255, 255, 255, 0.76); font-size: 11px; }
+
+.dova-ai-widget__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.dova-ai-widget__close {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.dova-ai-widget__close:hover,
+.dova-ai-widget__close:focus-visible { background: rgba(255, 255, 255, 0.14); }
+
+.dova-ai-widget__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f7f8f4;
+}
+
+.dova-ai-widget__messages .chat-bubble {
+  max-width: 84%;
+  padding: 11px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: 0 2px 5px rgba(3, 31, 23, 0.035);
+}
+
+.dova-ai-widget__messages .chat-bubble--assistant {
+  border-color: #d4e4dc;
+  border-bottom-left-radius: 5px;
+  background: #eaf5ef;
+}
+
+.dova-ai-widget__messages .chat-bubble--user {
+  border-bottom-right-radius: 5px;
+  background: #087b4f;
+  color: #fff;
+}
+
+.dova-ai-widget__typing {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--mint);
+}
+
+.dova-ai-widget__typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chat-typing 1.2s infinite ease-in-out; }
+.dova-ai-widget__typing span:nth-child(2) { animation-delay: 0.15s; }
+.dova-ai-widget__typing span:nth-child(3) { animation-delay: 0.3s; }
+
+.dova-ai-widget__quick-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 11px 14px 12px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.dova-ai-widget__quick-help button,
+.dova-ai-widget__quick-help a {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: #126b4a;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.dova-ai-widget__quick-help button:hover,
+.dova-ai-widget__quick-help button:focus-visible,
+.dova-ai-widget__quick-help a:hover,
+.dova-ai-widget__quick-help a:focus-visible { border-color: var(--green); background: var(--mint); }
+
+.dova-ai-widget__composer {
+  display: flex;
+  gap: 8px;
+  padding: 11px 14px 14px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+
+.dova-ai-widget__composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 1px solid #cbdcd3;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.dova-ai-widget__composer input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(15, 107, 67, 0.12); }
+.dova-ai-widget__composer button { width: 42px; height: 42px; border: 0; border-radius: 999px; background: #8dbda9; color: #fff; cursor: pointer; transition: background 160ms ease, transform 160ms ease; }
+.dova-ai-widget__composer button:not(:disabled):hover { background: #087b4f; transform: translateY(-1px); }
+.dova-ai-widget__composer button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  .dova-ai-widget { right: 12px; bottom: 12px; width: calc(100vw - 24px); height: min(620px, calc(100dvh - 24px)); }
 }
 
 .chat-launcher {

@@ -7,6 +7,8 @@ import { formatPricePerUnit, formatStockInUnit, productUnit } from 'dova-shared'
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { api } from '../lib/api';
+import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
+import DovaChainNavbar from '../components/DovaChainNavbar';
 import styles from '../styles/home-v3.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
@@ -254,11 +256,11 @@ const ROADMAP = [
 ];
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { count } = useCart();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [filter, setFilter] = useState('featured');
   const [liveProduct, setLiveProduct] = useState<Product | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     api<{ data: Product[] }>('/products?search=plantain&limit=1')
@@ -291,8 +293,6 @@ export default function Home() {
   const visibleProducts =
     filter === 'featured' ? products : products.filter((p) => p.tags.includes(filter));
 
-  const closeMenu = () => setMenuOpen(false);
-
   return (
     <div className={styles.page}>
       <Head>
@@ -310,82 +310,15 @@ export default function Home() {
         />
       </Head>
 
-      <header className={styles.siteHeader}>
-        <div className={cx(styles.container, styles.nav)}>
-          <Link href="/" className={styles.brand} aria-label="DOVA Chain home">
-            <span className={styles.brandName}>DOVA</span>
-            <span className={styles.brandSuffix}>CHAIN</span>
-          </Link>
-          <nav className={styles.navLinks} aria-label="Primary navigation">
-            <a href="#how">How It Works</a>
-            <Link href="/products">Products</Link>
-            <Link href="/bundles">Bundles</Link>
-            <a href="#farmers">Farmers</a>
-            <a href="#ai">DOVA AI</a>
-            <a href="#about">About</a>
-          </nav>
-          <div className={styles.navActions}>
-            <Link href="/products" className={styles.iconLink} aria-label="Search products">
-              ⌕
-            </Link>
-            {canShop && (
-              <Link href="/cart" className={styles.iconLink} aria-label="Open cart">
-                🛒
-                {count > 0 && <span className={styles.cartCount}>{count}</span>}
-              </Link>
-            )}
-            <Link href="/products" className={cx(styles.btn, styles.gold)}>
-              Shop DOVA
-            </Link>
-          </div>
-          <button
-            type="button"
-            className={styles.menuBtn}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            aria-controls="mobileMenu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? '×' : '☰'}
-          </button>
-        </div>
-        <div
-          id="mobileMenu"
-          className={cx(styles.mobileMenu, menuOpen && styles.mobileMenuOpen)}
-          aria-label="Mobile navigation"
-        >
-          <a href="#how" onClick={closeMenu}>
-            How It Works
-          </a>
-          <Link href="/products" onClick={closeMenu}>
-            Products
-          </Link>
-          <Link href="/bundles" onClick={closeMenu}>
-            Bundles
-          </Link>
-          <a href="#farmers" onClick={closeMenu}>
-            Farmers
-          </a>
-          <a href="#ai" onClick={closeMenu}>
-            DOVA AI
-          </a>
-          <a href="#roadmap" onClick={closeMenu}>
-            Roadmap
-          </a>
-          <div className={styles.mobileActions}>
-            <Link
-              href={user ? dashboard : '/auth/login'}
-              className={cx(styles.btn, styles.ghost)}
-              onClick={closeMenu}
-            >
-              {user ? 'My account' : 'Login'}
-            </Link>
-            <Link href="/products" className={cx(styles.btn, styles.gold)} onClick={closeMenu}>
-              Shop DOVA
-            </Link>
-          </div>
-        </div>
-      </header>
+      <DovaChainNavbar
+        user={user ? { fullName: user.fullName } : null}
+        cartCount={count}
+        canShop={canShop}
+        dashboardHref={dashboard}
+        onLogout={() => {
+          void logout();
+        }}
+      />
 
       <main>
         <section className={styles.hero}>
@@ -395,13 +328,13 @@ export default function Home() {
               <h1>
                 Building a better <em>food supply chain.</em>
               </h1>
-              <p>
+              <p style={{color: '#ffff'}}>
                 DOVA Chain connects trusted agricultural supply with consumers and businesses through
                 sourcing, processing, quality verification and reliable delivery — starting with food
                 flour.
               </p>
               <div className={styles.heroActions}>
-                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                <Link href="/marketplace" className={cx(styles.btn, styles.gold)}>
                   Shop Products <span aria-hidden="true">↗</span>
                 </Link>
                 <Link href="/auth/supplier-register" className={cx(styles.btn, styles.ghost)}>
@@ -417,7 +350,7 @@ export default function Home() {
             <Reveal className={styles.heroVisual} aria-label="Agriculture and plantain flour visual">
               <div className={styles.heroPhoto}>
                 <img
-                  src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=82"
+                  src="/images/home-hero.jpeg"
                   alt="Fresh agricultural produce at a market"
                 />
               </div>
@@ -476,6 +409,8 @@ export default function Home() {
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>The Challenge</div>
               <h2>Food supply should be simpler.</h2>
+            </Reveal>
+            <Reveal className={styles.challengeText}>
               <p>
                 Farmers need dependable routes to buyers. Customers need dependable access to quality
                 food. Businesses need reliable sourcing. DOVA is designed to connect these parts into
@@ -571,7 +506,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <Link href="/products" className={cx(styles.btn, styles.outline)}>
+              <Link href="/marketplace" className={cx(styles.btn, styles.outline)}>
                 Explore the DOVA Marketplace ↗
               </Link>
               <div className={styles.featureNote}>
@@ -593,7 +528,7 @@ export default function Home() {
                   categories can be introduced without losing a simple, fast shopping experience.
                 </p>
               </div>
-              <Link href="/products" className={cx(styles.btn, styles.outline, styles.sideLink)}>
+              <Link href="/marketplace" className={cx(styles.btn, styles.outline, styles.sideLink)}>
                 View Live Products ↗
               </Link>
             </Reveal>
@@ -673,7 +608,7 @@ export default function Home() {
               {visibleProducts.length === 0 && (
                 <p className={styles.catalogEmpty}>
                   No preview products in this category yet.{' '}
-                  <Link href="/products">Browse the live catalog</Link>.
+                  <Link href="/marketplace">Browse the live catalog</Link>.
                 </p>
               )}
             </div>
@@ -686,7 +621,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.section} id="farmers">
+        <section className={cx(styles.section, styles.farmersSection)} id="farmers">
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>For Farmers</div>
@@ -740,7 +675,7 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                <Link href="/marketplace" className={cx(styles.btn, styles.gold)}>
                   Source With DOVA ↗
                 </Link>
               </Reveal>
@@ -770,14 +705,12 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <Link href="/chat" className={cx(styles.btn, styles.gold)}>
-                Explore DOVA AI ↗
-              </Link>
+              <DovaAiHelpTrigger onClick={() => setAiOpen(true)} />
             </Reveal>
             <Reveal className={styles.aiDemo}>
               <div className={styles.aiScreen}>
                 <div className={styles.aiTop}>
-                  <strong>🌿 DOVA AI</strong>
+                  <strong> DOVA AI</strong>
                   <small>Agricultural Assistant</small>
                 </div>
                 <div className={styles.bubble}>
@@ -806,7 +739,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={cx(styles.section, styles.light)}>
+        <section className={cx(styles.section, styles.light, styles.businessSection)}>
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>Business Model</div>
@@ -841,7 +774,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={cx(styles.section, styles.light)}>
+        <section className={cx(styles.section, styles.light, styles.glanceSection)}>
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>DOVA At A Glance</div>
@@ -926,7 +859,7 @@ export default function Home() {
                 building a more connected path through the food supply chain.
               </p>
               <div className={styles.ctaActions}>
-                <Link href="/products" className={cx(styles.btn, styles.gold)}>
+                <Link href="/marketplace" className={cx(styles.btn, styles.gold)}>
                   Shop Products ↗
                 </Link>
                 <Link href="/auth/supplier-register" className={cx(styles.btn, styles.ghost)}>
@@ -946,6 +879,7 @@ export default function Home() {
           <div className={styles.footerGrid}>
             <div className={styles.footerBrand}>
               <Link href="/" className={styles.brand}>
+                <img src="/images/logo.svg" alt="" className={styles.brandLogo} />
                 <span className={styles.brandName}>DOVA</span>
                 <span className={styles.brandSuffix}>CHAIN</span>
               </Link>
@@ -954,7 +888,7 @@ export default function Home() {
             <div>
               <div className={styles.footerTitle}>Platform</div>
               <div className={styles.footerLinks}>
-                <Link href="/products">Products</Link>
+                <Link href="/marketplace">Products</Link>
                 <Link href="/bundles">Bundles</Link>
                 <a href="#how">How It Works</a>
                 <Link href="/chat">DOVA AI</Link>
@@ -986,6 +920,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      <DovaAiHelpWidget open={aiOpen} onClose={() => setAiOpen(false)} />
     </div>
   );
 }

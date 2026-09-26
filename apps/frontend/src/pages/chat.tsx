@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { Send, Sparkles } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
-import { RequireAuth } from '../components/RequireAuth';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api, ApiError } from '../lib/api';
@@ -15,8 +15,13 @@ const WELCOME: ChatMessage = {
   createdAt: new Date(0).toISOString(),
 };
 
+const GUEST_INFO = [
+  'DOVA AI membantu menjawab pertanyaan umum tentang pertanian dan produk DOVA.',
+  'Untuk saran yang lebih personal, riwayat chat, pesanan, dan bantuan lanjutan, silakan masuk atau daftar.',
+];
+
 function ChatPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -25,6 +30,11 @@ function ChatPage() {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setLoadingHistory(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -41,7 +51,7 @@ function ChatPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authLoading, user]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
@@ -100,13 +110,26 @@ function ChatPage() {
           </span>
           <div>
             <h1>DOVA AI Assistant</h1>
-            <p>Ask about products, orders, delivery, or farming advice.</p>
+            <p>{user ? 'Ask about products, orders, delivery, or farming advice.' : 'General agricultural guidance from DOVA AI.'}</p>
           </div>
         </header>
 
         <div className="chat-messages" ref={listRef}>
-          {loadingHistory ? (
+          {authLoading || loadingHistory ? (
             <Loading label="Loading your conversation…" block size="sm" />
+          ) : !user ? (
+            <>
+              <div className="chat-bubble-row chat-bubble-row--assistant">
+                <div className="chat-bubble chat-bubble--assistant">
+                  <p>{WELCOME.text}</p>
+                  {GUEST_INFO.map((line) => <p key={line}>{line}</p>)}
+                </div>
+              </div>
+              <div className="chat-guest-actions">
+                <Link href="/auth/login" className="chat-guest-button chat-guest-button--primary">Log in to chat</Link>
+                <Link href="/auth/register" className="chat-guest-button">Create an account</Link>
+              </div>
+            </>
           ) : (
             messages.map((message) => (
               <div key={message.id} className={`chat-bubble-row chat-bubble-row--${message.role}`}>
@@ -129,30 +152,26 @@ function ChatPage() {
           ) : null}
         </div>
 
-        <form className="chat-composer" onSubmit={submit}>
-          <input
-            type="text"
-            placeholder={`Message the assistant${user?.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}…`}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={sending}
-            maxLength={2000}
-          />
-          <button type="submit" disabled={sending || !input.trim()} aria-label="Send message">
-            <Send size={18} />
-          </button>
-        </form>
+        {user ? (
+          <form className="chat-composer" onSubmit={submit}>
+            <input
+              type="text"
+              placeholder={`Message the assistant${user.fullName ? `, ${user.fullName.split(' ')[0]}` : ''}…`}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={sending}
+              maxLength={2000}
+            />
+            <button type="submit" disabled={sending || !input.trim()} aria-label="Send message">
+              <Send size={18} />
+            </button>
+          </form>
+        ) : null}
       </div>
     </section>
   );
 }
 
 export default function Chat() {
-  return (
-    <Layout>
-      <RequireAuth>
-        <ChatPage />
-      </RequireAuth>
-    </Layout>
-  );
+  return <Layout><ChatPage /></Layout>;
 }

@@ -2,6 +2,8 @@ import type { AppProps } from 'next/app';
 import '../styles/globals.css';
 import '../styles/dashboard-redesign.css';
 import '../styles/mobile-first.css';
+import '../styles/storefront.css';
+import '../styles/admin-tailwind.css';
 import { AuthProvider } from '../context/AuthContext';
 import { CartProvider } from '../context/CartContext';
 import { ToastProvider } from '../context/ToastContext';

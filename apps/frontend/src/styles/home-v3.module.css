@@ -69,7 +69,7 @@
 }
 
 .section {
-  padding: 104px 0;
+  padding: 44px 0;
 }
 
 .dark {
@@ -90,7 +90,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.74rem;
+  font-size: 0.8125rem;
   font-weight: 900;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -166,7 +166,7 @@
   gap: 7px;
   padding: 7px 10px;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -187,9 +187,11 @@
   position: fixed;
   inset: 0 0 auto;
   z-index: 1000;
-  background: rgba(3, 31, 23, 0.9);
+  background: rgba(3, 31, 23, 0.96);
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--dark-line);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 3px 14px rgba(3, 31, 23, 0.06);
+  color: #fff;
 }
 
 .nav {
@@ -201,21 +203,26 @@
 
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 7px;
+  align-items: center;
+  gap: 8px;
   min-width: max-content;
-  color: var(--white);
+  color: #fff;
   font-weight: 950;
   letter-spacing: 0.08em;
 }
 
+.brandLogo {
+  height: 34px;
+  width: auto;
+}
+
 .brandName {
   font-size: 1.22rem;
-  color: var(--white);
+  color: #fff;
 }
 
 .brandSuffix {
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   color: var(--gold-light);
   letter-spacing: 0.2em;
 }
@@ -225,7 +232,7 @@
   align-items: center;
   gap: 23px;
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.76);
+  color: #fff;
   font-size: 0.86rem;
   font-weight: 700;
 }
@@ -245,11 +252,11 @@
   position: relative;
   width: 42px;
   height: 42px;
-  border: 1px solid var(--dark-line);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: var(--white);
+  color: #fff;
 }
 
 .iconLink:hover {
@@ -261,13 +268,13 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  min-width: 19px;
-  height: 19px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 5px;
   border-radius: 999px;
   background: var(--gold);
   color: var(--black);
-  font-size: 0.6rem;
+  font-size: 0.8125rem;
   font-weight: 900;
   display: grid;
   place-items: center;
@@ -277,7 +284,7 @@
   display: none;
   background: none;
   border: 0;
-  color: var(--white);
+  color: #fff;
   font-size: 1.5rem;
   width: 44px;
   height: 44px;
@@ -347,6 +354,7 @@
   font-size: 1.08rem;
   max-width: 660px;
   margin: 25px 0 30px;
+  color: var(--white);
 }
 
 .heroActions {
@@ -360,8 +368,8 @@
   align-items: center;
   gap: 10px;
   margin-top: 20px;
-  font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  color: var(--white);
 }
 
 .heroNoteDot {
@@ -433,7 +441,7 @@
   color: var(--forest);
   font-weight: 950;
   letter-spacing: 0.08em;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.2;
   text-align: center;
   box-shadow: 0 9px 22px rgba(0, 0, 0, 0.2);
@@ -443,7 +451,7 @@
   display: block;
   margin-top: 10px;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -457,7 +465,7 @@
   border-radius: 17px;
   background: var(--gold);
   color: var(--black);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 950;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
 }
@@ -482,7 +490,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   font-weight: 900;
   color: var(--forest);
   text-align: center;
@@ -536,6 +544,17 @@
   flex: none;
 }
 
+.challengeText {
+  width: 100%;
+  max-width: none;
+  margin: -24px 0 24px;
+}
+
+.challengeText p {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .cards3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -577,6 +596,18 @@
   overflow: hidden;
 }
 
+.processSection .eyebrow {
+  color: var(--gold-light);
+}
+
+.processSection h2 {
+  color: var(--white);
+}
+
+.processSection p {
+  color: var(--white);
+}
+
 .processSection::before {
   content: '';
   position: absolute;
@@ -615,7 +646,7 @@
 }
 
 .processNum {
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   color: var(--gold-light);
   font-weight: 900;
   letter-spacing: 0.1em;
@@ -627,7 +658,7 @@
 }
 
 .processItem p {
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
 }
 
 /* Order strip */
@@ -645,13 +676,13 @@
 }
 
 .orderIntro strong {
-  font-size: 1rem;
+  font-size: 1.25rem;
 }
 
 .orderIntro span {
   display: block;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.88rem;
   margin-top: 3px;
 }
 
@@ -659,7 +690,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.72rem;
+  font-size: 0.95rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -672,7 +703,7 @@
   place-items: center;
   background: rgba(255, 255, 255, 0.08);
   color: var(--gold-light);
-  font-size: 0.66rem;
+  font-size: 0.8125rem;
   flex: none;
 }
 
@@ -752,7 +783,7 @@
 }
 
 .packInner span {
-  font-size: 0.66rem;
+  font-size: 0.8125rem;
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -793,7 +824,7 @@
 }
 
 .featureNote {
-  font-size: 0.74rem;
+  font-size: 0.8125rem;
   color: var(--muted);
   margin-top: 15px;
 }
@@ -814,7 +845,7 @@
   color: var(--forest);
   border-radius: 999px;
   padding: 9px 14px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -874,7 +905,7 @@
 }
 
 .miniPack span {
-  font-size: 0.62rem;
+  font-size: 0.8125rem;
   font-weight: 950;
   line-height: 1.05;
   letter-spacing: 0.08em;
@@ -891,7 +922,7 @@
 }
 
 .productCat {
-  font-size: 0.63rem;
+  font-size: 0.8125rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.09em;
@@ -913,7 +944,7 @@
 }
 
 .productSize {
-  font-size: 0.69rem;
+  font-size: 0.8125rem;
   color: var(--muted);
 }
 
@@ -960,7 +991,7 @@
 
 .catalogNote {
   margin-top: 16px;
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   color: var(--muted);
 }
 
@@ -1002,17 +1033,29 @@
 
 .trustItem strong {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 
 .trustItem span {
   display: block;
   margin-top: 2px;
-  font-size: 0.67rem;
+  font-size: 0.8125rem;
   color: var(--muted);
 }
 
 /* At a glance */
+.businessSection {
+  padding-bottom: 36px;
+}
+
+.glanceSection {
+  padding-top: 36px;
+}
+
+.glanceSection .sectionHead {
+  margin-bottom: 30px;
+}
+
 .glanceGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1027,7 +1070,7 @@
 }
 
 .glanceLabel {
-  font-size: 0.64rem;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-weight: 900;
@@ -1042,10 +1085,18 @@
 
 .glanceCard p {
   margin-top: 6px;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
 }
 
 /* Audience */
+.farmersSection .sectionHead {
+  margin-bottom: 24px;
+}
+
+.farmersSection .sectionHead p {
+  margin-top: 24px;
+}
+
 .audienceGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1167,7 +1218,7 @@
   border-radius: 16px;
   background: var(--white);
   border: 1px solid var(--line);
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 
 .bubbleAnswer {
@@ -1192,7 +1243,7 @@
   border-radius: 13px;
   padding: 11px;
   background: var(--white);
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   font-weight: 800;
   text-align: left;
 }
@@ -1239,7 +1290,7 @@
   justify-content: center;
   gap: 9px;
   flex-wrap: wrap;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 850;
 }
 
@@ -1249,7 +1300,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-.valueFlowActive {
+.valueFlow span.valueFlowActive {
   background: var(--gold);
   color: var(--black);
 }
@@ -1292,7 +1343,7 @@
 }
 
 .roadLabel {
-  font-size: 0.67rem;
+  font-size: 0.8125rem;
   font-weight: 950;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -1335,7 +1386,7 @@
 
 .aboutCard strong {
   display: block;
-  font-size: 0.68rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--gold-dark);
@@ -1344,7 +1395,7 @@
 
 /* CTA */
 .cta {
-  padding: 100px 0;
+  padding: 56px 0;
   background: linear-gradient(135deg, var(--black), var(--forest));
   color: var(--white);
   text-align: center;
@@ -1374,6 +1425,11 @@
 .cta h2 {
   max-width: 700px;
   margin: auto;
+  color: var(--white);
+}
+
+.cta .eyebrow {
+  color: var(--gold-light);
 }
 
 .cta p {
@@ -1410,7 +1466,7 @@
 }
 
 .footerTitle {
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.13em;
   color: var(--gold-light);
@@ -1426,7 +1482,7 @@
 .footerLinks a,
 .footerLinks span {
   color: rgba(255, 255, 255, 0.62);
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 
 .footerLinks a:hover {
@@ -1438,7 +1494,7 @@
   margin-top: 35px;
   padding-top: 18px;
   color: rgba(255, 255, 255, 0.42);
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1623,7 +1679,19 @@
   }
 
   .section {
-    padding: 76px 0;
+    padding: 32px 0;
+  }
+
+  .cta {
+    padding: 40px 0;
+  }
+
+  .businessSection {
+    padding-bottom: 24px;
+  }
+
+  .glanceSection {
+    padding-top: 24px;
   }
 
   .page h1 {
@@ -1669,7 +1737,7 @@
   }
 
   .supplyStep {
-    font-size: 0.62rem;
+    font-size: 0.8125rem;
     justify-content: flex-start;
     text-align: left;
   }
@@ -1717,11 +1785,11 @@
   }
 
   .productSize {
-    font-size: 0.61rem;
+    font-size: 0.8125rem;
   }
 
   .productPrice {
-    font-size: 0.78rem;
+    font-size: 0.8125rem;
   }
 
   .addBtn {
@@ -1735,7 +1803,7 @@
   }
 
   .pill {
-    font-size: 0.58rem;
+    font-size: 0.8125rem;
     padding: 5px 7px;
   }
 
