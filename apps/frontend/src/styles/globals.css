@@ -44,7 +44,7 @@ body.menu-open {
   overflow: hidden;
 }
 
-a {
+a:where(:not(.admin-app *)) {
   color: inherit;
   text-decoration: none;
 }
@@ -54,11 +54,11 @@ img {
   display: block;
 }
 
-button,
+button:where(:not(.admin-app *)),
 .button,
-input,
-select,
-textarea {
+input:where(:not(.admin-app *)),
+select:where(:not(.admin-app *)),
+textarea:where(:not(.admin-app *)) {
   font: inherit;
   touch-action: manipulation;
 }
@@ -885,7 +885,7 @@ a.button.secondary:hover {
   font: inherit;
 }
 
-.grid {
+.grid:where(:not(.admin-app *)) {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
@@ -998,7 +998,7 @@ a.button.secondary:hover {
 }
 
 .row select,
-select {
+select:where(:not(.admin-app *)) {
   padding: 12px 14px;
   border: 1px solid var(--line);
   background: #fff;
@@ -1006,21 +1006,21 @@ select {
   font: inherit;
 }
 
-form {
+form:where(:not(.admin-app *)) {
   display: grid;
   gap: 18px;
   max-width: 440px;
 }
 
-label {
+label:where(:not(.admin-app *)) {
   display: grid;
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
 }
 
-input,
-textarea {
+input:where(:not(.admin-app *)),
+textarea:where(:not(.admin-app *)) {
   font: inherit;
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -1222,7 +1222,7 @@ form .button {
 
 /* ========== BREAKPOINTS (enhance up from mobile) ========== */
 @media (min-width: 640px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(2, 1fr);
     gap: 18px;
   }
@@ -1392,7 +1392,7 @@ form .button {
     gap: 24px;
   }
 
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(3, 1fr);
     gap: 22px;
     padding: 20px var(--pad-x) 60px;
@@ -1447,13 +1447,13 @@ form .button {
 }
 
 @media (min-width: 1100px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(4, 1fr);
   }
 }
 
 @media (min-width: 1280px) {
-  .grid {
+  .grid:where(:not(.admin-app *)) {
     grid-template-columns: repeat(5, 1fr);
   }
 }

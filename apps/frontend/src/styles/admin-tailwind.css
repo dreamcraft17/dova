@@ -96,17 +96,47 @@
   --chart-3: var(--gold);
   --chart-4: var(--lime);
   --chart-5: var(--forest);
-  --radius: 1.375rem;
+  /* Buttons/inputs use --radius (template .btn = 12px); cards have their own radius. */
+  --radius: 0.75rem;
+  --card-radius: 22px;
+  --card-shadow: 0 0 0 1px #e2e9e4, var(--admin-shadow);
 
   /* Sidebar: dark green brand gradient, gold active-item highlight */
   --sidebar: var(--deep);
   --sidebar-foreground: #ffffff;
   --sidebar-primary: var(--gold);
   --sidebar-primary-foreground: var(--deep);
-  --sidebar-accent: var(--forest);
+  --sidebar-accent: rgba(255, 255, 255, 0.05);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: var(--gold);
+}
+
+/* Supplier portal overrides, ported from the dova-react-ts supplier.css template. */
+.supplier-app {
+  --line: rgba(3, 31, 23, 0.1);
+  --card-radius: 20px;
+  --card-shadow: 0 0 0 1px var(--line), 0 8px 30px rgba(3, 31, 23, 0.045);
+  --sidebar: var(--near);
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+}
+
+/*
+ * Unlayered on purpose so it beats the shadcn Card's rounded-xl/ring-1 utilities;
+ * per-theme values come from --card-radius/--card-shadow above.
+ */
+.admin-app [data-slot='card'] {
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+.admin-app [data-sidebar='sidebar'] {
+  background: linear-gradient(180deg, var(--deep), var(--forest));
+}
+
+.supplier-app [data-sidebar='sidebar'] {
+  background: linear-gradient(180deg, var(--near), var(--deep));
 }
 
 .admin-app {

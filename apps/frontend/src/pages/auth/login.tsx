@@ -3,11 +3,11 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { Lock, Mail } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
-import { Loading } from '../../components/Loading';
 import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
+import { AuthCheckbox, AuthSubmit } from '../../components/auth/AuthControls';
 import { api, configureLoginPersistence } from '../../lib/api';
 import { clearTokens, getRememberedEmail, setRememberedEmail } from '../../lib/auth-session';
 import type { User } from 'dova-shared';
@@ -68,25 +68,28 @@ export default function Login() {
   return (
     <AuthShell aside={<AuthAside variant="login" />}>
       <AuthCard
+        eyebrow="Authorized access"
         title="Sign in to your account"
         subtitle="Use the email and password you registered with."
-        notice={
-          passwordChanged ? (
-            <p>Password updated. Sign in with your new password.</p>
-          ) : undefined
+        notice={passwordChanged ? 'Password updated. Sign in with your new password.' : undefined}
+        securityNote={
+          <>
+            <strong>One sign-in for every role.</strong> After signing in you&apos;ll go straight to the marketplace,
+            your supplier dashboard or the admin console.
+          </>
         }
         footer={
           <>
             <p>
               New to DOVA? <Link href="/auth/register">Create a customer account</Link>
             </p>
-            <p className="auth-footer-secondary">
+            <p>
               List products on DOVA? <Link href="/auth/supplier-register">Supplier application</Link>
             </p>
           </>
         }
       >
-        <form className="auth-form" onSubmit={submit}>
+        <form className="grid gap-4" onSubmit={submit}>
           <AuthField
             id="login-email"
             label="Email"
@@ -96,7 +99,7 @@ export default function Login() {
             inputMode="email"
             required
             placeholder="you@company.com"
-            icon={<Mail size={16} />}
+            icon={<Mail className="size-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -107,27 +110,22 @@ export default function Login() {
             autoComplete="current-password"
             required
             minLength={8}
-            placeholder="Minimum 8 characters"
-            icon={<Lock size={16} />}
+            placeholder="Enter your password"
+            icon={<Lock className="size-4" />}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <div className="auth-form-row">
-            <label className="auth-checkbox">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span>Remember me</span>
-            </label>
-            <Link href="/auth/forgot-password" className="auth-inline-link">
+          <div className="flex items-center justify-between gap-3">
+            <AuthCheckbox id="login-remember" checked={rememberMe} onChange={setRememberMe}>
+              Remember me
+            </AuthCheckbox>
+            <Link href="/auth/forgot-password" className="text-xs font-black text-[var(--emerald)] hover:underline">
               Forgot password?
             </Link>
           </div>
-          <button type="submit" className="auth-submit" disabled={busy}>
-            {busy ? <Loading label="Signing in…" inline size="sm" /> : 'Sign in'}
-          </button>
+          <AuthSubmit busy={busy} busyLabel="Signing in…">
+            Sign In
+          </AuthSubmit>
         </form>
       </AuthCard>
     </AuthShell>

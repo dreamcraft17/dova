@@ -109,7 +109,7 @@ export function BundleForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bundle-category">Category</Label>
-          <Select value={form.categoryId || 'none'} onValueChange={(v) => setForm({ ...form, categoryId: v === 'none' ? '' : v })}>
+          <Select value={form.categoryId || 'none'} onValueChange={(v: string) => setForm({ ...form, categoryId: v === 'none' ? '' : v })}>
             <SelectTrigger id="bundle-category" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -147,7 +147,7 @@ export function BundleForm({
           <Label htmlFor="bundle-featured" className="cursor-pointer">
             Featured
           </Label>
-          <Switch id="bundle-featured" checked={form.isFeatured} onCheckedChange={(checked) => setForm({ ...form, isFeatured: checked })} />
+          <Switch id="bundle-featured" checked={form.isFeatured} onCheckedChange={(checked: boolean) => setForm({ ...form, isFeatured: checked })} />
         </div>
 
         <div className="space-y-2 rounded-lg border border-input p-3">
@@ -204,7 +204,7 @@ export function BundleForm({
 
         {message ? <p className="text-sm text-destructive">{message}</p> : null}
 
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" variant="gold" disabled={busy}>
           {busy ? 'Saving…' : submitLabel}
         </Button>
       </form>
