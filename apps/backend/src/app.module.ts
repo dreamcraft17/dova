@@ -20,7 +20,7 @@ import { RolesGuard } from './roles.guard';
   imports: [
     JwtModule.register({ secret: process.env.JWT_SECRET ?? 'change-me-in-development', signOptions: { expiresIn: '15m' } }),
     ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 100 },
+      { name: 'default', ttl: 60_000, limit: 250 },
       { name: 'auth', ttl: 60_000, limit: 10 },
     ]),
   ],

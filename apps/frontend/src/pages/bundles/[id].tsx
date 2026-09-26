@@ -1,13 +1,11 @@
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
-import Head from 'next/head';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
-import { Layout } from '../../components/Layout';
-import { Loading } from '../../components/Loading';
+import { ChainChrome } from '../../components/ChainChrome';
 import { ProductImage } from '../../components/ProductImage';
+import { Loading } from '../../components/Loading';
 import { LoginModal } from '../../components/LoginModal';
 import { BundleContents } from '../../components/bundles/BundleContents';
-import { BundleQuantitySelector } from '../../components/bundles/BundleQuantitySelector';
 import { api } from '../../lib/api';
 import type { BundleDetail } from 'dova-shared';
 import { useCart } from '../../context/CartContext';
@@ -16,220 +14,127 @@ import { useToast } from '../../context/ToastContext';
 
 export default function BundleDetailPage() {
   const r = useRouter();
-  const [bundle, setBundle] = useState<BundleDetail>();
-  const [qty, setQty] = useState(1);
-  const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening' | ''>('');
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [slotError, setSlotError] = useState('');
-  const [qtyError, setQtyError] = useState('');
+  const { id } = r.query;
   const { refresh: refreshCart } = useCart();
   const { user } = useAuth();
   const { showToast } = useToast();
-
-  const loadBundle = () => {
-    if (!r.query.id) return;
-    setLoading(true);
-    api<BundleDetail>(`/bundles/${r.query.id}`)
-      .then(setBundle)
-      .catch(() => setBundle(undefined))
-      .finally(() => setLoading(false));
-  };
+  const [bundle, setBundle] = useState<BundleDetail>();
+  const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening'>('morning');
+  const [busy, setBusy] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [message, setMessage] = useState('Connect purchase actions to the existing cart/API.');
 
   useEffect(() => {
-    loadBundle();
-  }, [r.query.id]);
+    if (!id || typeof id !== 'string') return;
+    setLoading(true);
+    api<BundleDetail>(`/bundles/${id}`)
+      .then(setBundle)
+      .catch(() => showToast('Bundle not found or unavailable.', 'error'))
+      .finally(() => setLoading(false));
+  }, [id]);
 
-  async function addToCart() {
-    if (!bundle) return;
+  if (loading) return <ChainChrome title="Loading…"><Loading label="Loading bundle…" block /></ChainChrome>;
+  if (!bundle) return <ChainChrome title="Not Found"><section className="section"><p style={{ padding: '0 20px' }}>Bundle not found.</p></section></ChainChrome>;
 
-    if (!user) {
-      showToast('Please login to add items to your cart.', 'info');
-      setShowLoginModal(true);
-      return;
-    }
+  const { computed } = bundle;
 
-    if (user.role !== 'customer') {
-      showToast('Only customer accounts can add items to the cart.', 'error');
-      return;
-    }
-
-    if (!deliverySlot) {
-      setSlotError('Please select a delivery slot (Morning or Evening).');
-      showToast('Please select a delivery slot.', 'error');
-      return;
-    }
-    setSlotError('');
-
-    const available = bundle.computed.availableQuantity;
-    if (qty > available) {
-      const message = `Only ${available} of "${bundle.name}" are available.`;
-      setQtyError(message);
-      showToast(message, 'error');
-      return;
-    }
-    setQtyError('');
-
+  const addToCart = async () => {
+    if (!user) { setShowLoginModal(true); return; }
+    if (user.role !== 'customer') { showToast('Only customer accounts can add items to the cart.', 'error'); return; }
     setBusy(true);
     try {
       await api('/cart/add-bundle', {
         method: 'POST',
-        body: JSON.stringify({ bundleId: bundle.id, quantity: qty, deliverySlot }),
+        body: JSON.stringify({ bundleId: bundle.id, quantity, deliverySlot }),
       });
       await refreshCart();
-      showToast(`${bundle.name} added to cart!`, 'success');
+      setMessage(`${bundle.name} (${deliverySlot}) selected, quantity ${quantity}. Connect this action to the live DOVA cart/API.`);
     } catch (e) {
       showToast((e as Error).message, 'error');
     } finally {
       setBusy(false);
     }
-  }
-
-  if (loading) {
-    return (
-      <Layout>
-        <Loading label="Loading bundle…" block />
-      </Layout>
-    );
-  }
-
-  if (!bundle) {
-    return (
-      <Layout>
-        <section className="page-head">
-          <p className="error">Bundle not found or unavailable.</p>
-          <div style={{ marginTop: 12 }}>
-            <Link href="/bundles" className="button small">
-              ← Back to bundles
-            </Link>
-          </div>
-        </section>
-      </Layout>
-    );
-  }
-
-  const { computed } = bundle;
+  };
 
   return (
-    <Layout>
-      <Head>
-        <title>{bundle.name} — DOVA</title>
-        <meta name="description" content={bundle.description || `Buy ${bundle.name} on DOVA.`} />
-      </Head>
-
-      <section className="detail">
-        <div className="product-image large">
-          <ProductImage
-            name={bundle.name}
-            imageUrl={bundle.imageUrl}
-            categoryName={bundle.categoryName}
-            decorative={false}
-          />
-        </div>
-        <div>
-          <nav aria-label="Breadcrumb" style={{ marginBottom: 12 }}>
-            <Link href="/bundles" className="muted">
-              ← Back to bundles
-            </Link>
-          </nav>
-          <p className="eyebrow">{bundle.categoryName || 'Bundle'}</p>
-          <h1>{bundle.name}</h1>
-          <p className="origin-meta">
-            <span>📍 Curated by DOVA</span>
-            <span className="stars">★★★★★</span>
-          </p>
-          <div className="price-box" style={{ margin: '12px 0' }}>
-            <p className="price big">₦ {bundle.bundlePrice.toLocaleString('en-NG')}</p>
-            {computed.savingsAmount > 0 && (
-              <p className="muted" style={{ margin: '4px 0 0' }}>
-                Save ₦ {computed.savingsAmount.toLocaleString('en-NG')} ({Math.round(computed.savingsPercentage)}%)
-                off the ₦ {computed.individualTotal.toLocaleString('en-NG')} regular price.
-              </p>
-            )}
-          </div>
-          <p style={{ margin: '12px 0 16px', lineHeight: 1.6 }}>{bundle.description}</p>
-
-          <BundleContents contents={bundle.contents} />
-
-          {!computed.isOutOfStock ? (
-            <div style={{ marginTop: 20 }}>
-              <p className="stock-info" style={{ color: 'var(--green)', fontWeight: 600, fontSize: 14, margin: '8px 0 16px' }}>
-                ✓ {computed.availableQuantity} bundle(s) available in stock
-              </p>
-
-              <div className="delivery-slot">
-                <label className="delivery-slot-label">
-                  Delivery Slot <span className="required">*</span>
-                </label>
-                <div className="delivery-slot-options">
-                  <button
-                    type="button"
-                    className={`slot-btn${deliverySlot === 'morning' ? ' active' : ''}`}
-                    disabled={busy}
-                    onClick={() => {
-                      setDeliverySlot('morning');
-                      setSlotError('');
-                    }}
-                  >
-                    🌅 Morning <span className="slot-time">07:00 – 12:00</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`slot-btn${deliverySlot === 'evening' ? ' active' : ''}`}
-                    disabled={busy}
-                    onClick={() => {
-                      setDeliverySlot('evening');
-                      setSlotError('');
-                    }}
-                  >
-                    🌇 Evening <span className="slot-time">15:00 – 20:00</span>
-                  </button>
+    <ChainChrome title={`${bundle.name} — DOVA Chain`}>
+      <section className="section">
+        <div className="container">
+          <div className="eyebrow">Bundles / {bundle.categoryName || 'Bundle'} / {bundle.name}</div>
+          <div className="product-main" style={{ marginTop: '12px' }}>
+            <div>
+              <div className="gallery">
+                <span className="badge">{computed.isOutOfStock ? 'Out of Stock' : 'Bundle'}</span>
+                <div className="pack">
+                  <ProductImage name={bundle.name} imageUrl={bundle.imageUrl} categoryName={bundle.categoryName} decorative={false} />
                 </div>
-                {slotError ? <p className="error" role="alert">{slotError}</p> : null}
               </div>
-
-              <BundleQuantitySelector
-                value={qty}
-                max={computed.availableQuantity}
-                disabled={busy}
-                error={qtyError}
-                onChange={(val) => {
-                  setQty(val);
-                  setQtyError('');
-                }}
-              />
-
-              <div style={{ marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="button"
-                  disabled={busy || computed.availableQuantity < 1}
-                  onClick={addToCart}
-                >
-                  {busy ? <Loading label="Adding…" inline size="sm" /> : 'Add to cart'}
-                </button>
+              <div className="thumbs">
+                <div className="thumb">Front</div>
+                <div className="thumb">Back</div>
+                <div className="thumb">Pack</div>
+                <div className="thumb">Detail</div>
               </div>
-
-              {qty > 0 && (
-                <p style={{ marginTop: 12, fontSize: 16, color: 'var(--green)', fontWeight: 600 }}>
-                  Total: ₦ {(bundle.bundlePrice * qty).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              )}
             </div>
-          ) : (
-            <p className="error" style={{ margin: '16px 0', fontWeight: 600 }}>
-              This bundle is currently out of stock.
-            </p>
-          )}
+            <div>
+              <div className="eyebrow">DOVA · {bundle.categoryName || 'Bundle'}</div>
+              <h1>{bundle.name}</h1>
+              <p style={{ color: 'var(--muted)', fontSize: '.78rem' }}>{bundle.description}</p>
+              <div className="rating"><b>★★★★★</b><small>Bundle rating placeholder</small></div>
+              <div className="pricebig">₦ {bundle.bundlePrice.toLocaleString('en-NG')}</div>
+              {computed.savingsAmount > 0 && (
+                <div className="price" style={{ marginTop: '-8px' }}>
+                  Save ₦ {computed.savingsAmount.toLocaleString('en-NG')} ({Math.round(computed.savingsPercentage)}% off)
+                </div>
+              )}
+              <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Delivery Slot</h4>
+              <div className="variants">
+                <button type="button" className={`variant ${deliverySlot === 'morning' ? 'active' : ''}`} disabled={computed.isOutOfStock || busy} onClick={() => setDeliverySlot('morning')}>Morning</button>
+                <button type="button" className={`variant ${deliverySlot === 'evening' ? 'active' : ''}`} disabled={computed.isOutOfStock || busy} onClick={() => setDeliverySlot('evening')}>Evening</button>
+              </div>
+              <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Quantity</h4>
+              <div className="purchase">
+                <div className="qty">
+                  <button type="button" onClick={() => setQuantity((v) => Math.max(1, v - 1))}>−</button>
+                  <input aria-label="Quantity" value={quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setQuantity(Math.max(1, Number(e.target.value) || 1))} />
+                  <button type="button" onClick={() => setQuantity((v) => Math.min(computed.availableQuantity, v + 1))}>+</button>
+                </div>
+                <button className="btn green" type="button" onClick={addToCart} disabled={busy || computed.isOutOfStock}>
+                  {busy ? 'Adding…' : 'Add to Cart'}
+                </button>
+                <Link className="btn gold" href="/cart">View Cart</Link>
+              </div>
+              <div id="msg" style={{ fontSize: '.62rem', color: 'var(--muted)', marginTop: '8px' }}>{message}</div>
+              <div className="features">
+                <div className="feature"><b>Bundle contents</b><span>Clear view of included items.</span></div>
+                <div className="feature"><b>Price clarity</b><span>Savings compared to individual prices.</span></div>
+                <div className="feature"><b>Secure checkout</b><span>Standardized DOVA payment flow.</span></div>
+                <div className="feature"><b>Fulfillment</b><span>Delivery tracking included.</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <LoginModal
-        open={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onSuccess={addToCart}
-      />
-    </Layout>
+      <section className="section">
+        <div className="container">
+          <div className="detail">
+            <div className="panel">
+              <h3>Bundle contents</h3>
+              <BundleContents contents={bundle.contents} />
+            </div>
+            <div className="panel">
+              <h3>Delivery &amp; returns</h3>
+              <p>Next-day delivery available for orders placed before 6 PM. Returns handled via support.</p>
+              <Link className="btn outline" href="/contact">Need help?</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <LoginModal open={showLoginModal} onClose={() => setShowLoginModal(false)} onSuccess={addToCart} />
+    </ChainChrome>
   );
 }
