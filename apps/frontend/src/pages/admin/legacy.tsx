@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Layout } from '../components/Layout';
-import { RequireAuth } from '../components/RequireAuth';
-import { DashboardShell } from '../components/DashboardShell';
-import { Loading, LoadingOverlay } from '../components/Loading';
+import { Layout } from '../../components/Layout';
+import { RequireAuth } from '../../components/RequireAuth';
+import { DashboardShell } from '../../components/DashboardShell';
+import { Loading, LoadingOverlay } from '../../components/Loading';
 import {
   IconBox,
   IconCart,
@@ -13,10 +13,10 @@ import {
   IconMail,
   IconStore,
   IconUsers,
-} from '../components/DashboardIcons';
-import { api } from '../lib/api';
-import { useAuth } from '../context/AuthContext';
-import { AdminUserModal } from '../components/AdminUserModal';
+} from '../../components/DashboardIcons';
+import { api } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import { AdminUserModal } from '../../components/AdminUserModal';
 import type { BundleDetail, BundleListResponse, BundleSummary, Category, FeedbackPost, FeedbackStatus, Order, Product } from 'dova-shared';
 import { FEEDBACK_STATUSES, computeBundlePricing, feedbackStatusLabel, getProductTab } from 'dova-shared';
 

@@ -1,0 +1,19 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#075f3b" opacity="0.08"/>
+
+  <!-- Main design: stylized D -->
+  <g transform="translate(50, 60)">
+    <!-- Vertical line of D -->
+    <rect x="10" y="0" width="14" height="80" fill="#075f3b" rx="7"/>
+
+    <!-- Curved part of D -->
+    <path d="M 24 10 Q 50 10 50 40 Q 50 70 24 70" fill="none" stroke="#075f3b" stroke-width="14" stroke-linecap="round"/>
+
+    <!-- Gold accent dot -->
+    <circle cx="65" cy="40" r="8" fill="#d6a63a"/>
+  </g>
+
+  <!-- Gold bottom accent line -->
+  <line x1="30" y1="175" x2="170" y2="175" stroke="#d6a63a" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Tokens below are scoped to `.admin-app` (not `:root`) on purpose: this file
+ * is imported globally in _app.tsx (required for Tailwind's utility classes
+ * to be available), but the storefront still relies on unscoped legacy CSS
+ * in globals.css/storefront.css. Scoping keeps admin theming from leaking
+ * into storefront pages. Values are ported from the dova-react-ts design
+ * template's `.admin-app` palette in src/styles/admin.css.
+ */
+
+@theme inline {
+  --font-heading: var(--font-dm-sans);
+  --font-sans: var(--font-inter);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.admin-app {
+  /* Brand palette (dova-react-ts admin.css) */
+  --near: #031f17;
+  --deep: #052a1f;
+  --forest: #063b2a;
+  --emerald: #087f5b;
+  --bright: #0ba66f;
+  --gold: #d4af37;
+  --gold2: #f0d878;
+  --gold3: #a88416;
+  --lime: #b7d63a;
+  --lime2: #d5ea72;
+  --cream: #f7f8f3;
+  --admin-muted-ink: #718078;
+  --ink: #12231c;
+  --line: #dde6e0;
+  --admin-shadow: 0 18px 50px rgba(3, 31, 23, 0.1);
+
+  /* shadcn contract, mapped onto the brand palette above */
+  --background: var(--cream);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--deep);
+  --primary-foreground: #ffffff;
+  --secondary: var(--emerald);
+  --secondary-foreground: #ffffff;
+  --muted: #edf0ee;
+  --muted-foreground: var(--admin-muted-ink);
+  --accent: var(--gold);
+  --accent-foreground: var(--deep);
+  --destructive: #9b3027;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--bright);
+  --chart-1: var(--bright);
+  --chart-2: var(--emerald);
+  --chart-3: var(--gold);
+  --chart-4: var(--lime);
+  --chart-5: var(--forest);
+  --radius: 1.375rem;
+
+  /* Sidebar: dark green brand gradient, gold active-item highlight */
+  --sidebar: var(--deep);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: var(--deep);
+  --sidebar-accent: var(--forest);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: var(--gold);
+}
+
+.admin-app {
+  @apply bg-background text-foreground;
+  font-family:
+    var(--font-inter), var(--font-dm-sans), Arial, sans-serif;
+}
+
+.admin-app *,
+.admin-app *::before,
+.admin-app *::after {
+  @apply border-border outline-ring/50;
+}
