@@ -33,6 +33,25 @@ const GUEST_HELP_RULES = [
   { pattern: /about|dova chain|what is dova|tentang/i, answer: 'DOVA Chain connects farmers, food products, and customers through a technology-enabled agricultural marketplace. Learn more on About: /about.' },
 ];
 
+function renderMessageText(text: string) {
+  return text.split('\n').map((line, index) => {
+    const parts = line.split(/(\*\*[^*]+\*\*|`\/[^`]+`)/g);
+    return (
+      <p key={index}>
+        {parts.map((part, partIndex) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={partIndex}>{part.slice(2, -2)}</strong>;
+          }
+          if (part.startsWith('`/') && part.endsWith('`')) {
+            return <code key={partIndex}>{part.slice(1, -1)}</code>;
+          }
+          return part;
+        })}
+      </p>
+    );
+  });
+}
+
 export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -128,9 +147,9 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
 
       <div className="dova-ai-widget__messages" ref={listRef}>
         {messages.map((message) => (
-          <div key={message.id} className={`chat-bubble-row chat-bubble-row--${message.role}`}>
+            <div key={message.id} className={`chat-bubble-row chat-bubble-row--${message.role}`}>
             <div className={`chat-bubble chat-bubble--${message.role}`}>
-              {message.text.split('\n').map((line, index) => <p key={index}>{line}</p>)}
+              {renderMessageText(message.text)}
             </div>
           </div>
         ))}
