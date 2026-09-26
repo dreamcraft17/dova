@@ -1,8 +1,12 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Mail } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
-import { Loading } from '../../components/Loading';
+import { AuthAside } from '../../components/auth/AuthAside';
+import { AuthCard } from '../../components/auth/AuthCard';
+import { AuthField } from '../../components/auth/AuthField';
+import { AuthMessage, AuthSubmit } from '../../components/auth/AuthControls';
 import { api } from '../../lib/api';
 
 export default function ForgotPassword() {
@@ -31,29 +35,43 @@ export default function ForgotPassword() {
   }
 
   return (
-    <AuthShell>
-      <div className="register-card verify-email-card">
-        <h1>Forgot Password</h1>
-        <p>Enter your account email and we&apos;ll send a 6-digit reset code.</p>
-        <form onSubmit={submit}>
-          <label>Email</label>
-          <input
+    <AuthShell aside={<AuthAside variant="recovery" />}>
+      <AuthCard
+        eyebrow="Account recovery"
+        title="Forgot your password?"
+        subtitle="Enter your account email and we'll send a 6-digit reset code."
+        securityNote={
+          <>
+            <strong>Didn&apos;t get an email?</strong> Check your spam folder — you can request a new code on the next
+            screen.
+          </>
+        }
+        footer={
+          <p>
+            Remember your password? <Link href="/auth/login">Back to sign in</Link>
+          </p>
+        }
+      >
+        <form className="grid gap-4" onSubmit={submit}>
+          <AuthField
+            id="forgot-email"
+            label="Email"
             type="email"
+            autoComplete="email"
+            inputMode="email"
             required
-            placeholder="Enter your email"
+            placeholder="you@company.com"
+            icon={<Mail className="size-4" />}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <button type="submit" disabled={busy}>
-            {busy ? <Loading label="Sending…" inline size="sm" /> : 'Send reset code'}
-          </button>
-          {message && <p className="success">{message}</p>}
-          {error && <p className="error">{error}</p>}
+          {message ? <AuthMessage tone="success">{message}</AuthMessage> : null}
+          {error ? <AuthMessage tone="error">{error}</AuthMessage> : null}
+          <AuthSubmit busy={busy} busyLabel="Sending…">
+            Send Reset Code
+          </AuthSubmit>
         </form>
-        <div className="login-link">
-          Remember your password? <Link href="/auth/login">Back to login</Link>
-        </div>
-      </div>
+      </AuthCard>
     </AuthShell>
   );
 }
