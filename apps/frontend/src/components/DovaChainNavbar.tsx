@@ -80,7 +80,7 @@ export default function DovaChainNavbar({
             className="inline-flex items-center gap-3 flex-shrink-0 text-[#123226]! no-underline"
             aria-label="DOVA Chain home"
           >
-            <div className="w-[52px] h-[52px] flex-shrink-0 flex items-center justify-center overflow-hidden">
+            <div className="w-[68px] h-[68px] flex-shrink-0 flex items-center justify-center overflow-hidden">
               <img
                 src={logoSrc}
                 alt="DOVA Chain logo"
@@ -194,7 +194,7 @@ export default function DovaChainNavbar({
             className="inline-flex items-center gap-2 flex-shrink-0 text-[#123226]! no-underline"
             onClick={closeMobile}
           >
-            <div className="w-[46px] h-[46px] flex-shrink-0 flex items-center justify-center overflow-hidden">
+            <div className="w-[58px] h-[58px] flex-shrink-0 flex items-center justify-center overflow-hidden">
               <img
                 src={logoSrc}
                 alt="DOVA Chain logo"
