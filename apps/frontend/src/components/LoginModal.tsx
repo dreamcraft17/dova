@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { Lock, Mail, X } from 'lucide-react';
 import { api, configureLoginPersistence } from '../lib/api';
 import { clearTokens, getRememberedEmail, setRememberedEmail } from '../lib/auth-session';
-import { inter, dmSans } from '../lib/fonts';
+import { inter, unbounded } from '../lib/fonts';
 import type { User } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -92,7 +92,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
 
   return (
     // `contents` gives the storefront-hosted modal the dashboard theme tokens without `.admin-app`'s page background.
-    <div className={`admin-app contents ${inter.variable} ${dmSans.variable}`}>
+    <div className={`admin-app contents ${inter.variable} ${unbounded.variable}`}>
       <div
         className="fixed inset-0 z-[1000] grid place-items-center overflow-y-auto bg-[rgba(3,31,23,0.6)] p-4 backdrop-blur-sm"
         onClick={(e) => {

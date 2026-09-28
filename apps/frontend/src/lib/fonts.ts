@@ -1,4 +1,4 @@
-import { Inter, DM_Sans, Plus_Jakarta_Sans, Manrope } from 'next/font/google';
+import { Inter, Unbounded, Plus_Jakarta_Sans, Manrope } from 'next/font/google';
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -6,9 +6,9 @@ export const inter = Inter({
   weight: ['400', '500', '600', '700', '800', '900'],
 });
 
-export const dmSans = DM_Sans({
+export const unbounded = Unbounded({
   subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-unbounded',
   weight: ['400', '500', '700', '900'],
 });
 

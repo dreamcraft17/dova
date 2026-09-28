@@ -29,7 +29,7 @@ import { FeedlogLink } from '../FeedlogLink';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import type { SupplierInfo } from '../../hooks/supplier/useSupplierInfo';
-import { inter, dmSans } from '../../lib/fonts';
+import { inter, unbounded } from '../../lib/fonts';
 import { initialsOf } from './ui';
 
 type NavItem = { href: string; label: string; icon: typeof Home; feedback?: boolean };
@@ -176,7 +176,7 @@ export function SupplierLayout({
   }, []);
 
   return (
-    <SidebarProvider className={`admin-app supplier-app ${inter.variable} ${dmSans.variable}`}>
+    <SidebarProvider className={`admin-app supplier-app ${inter.variable} ${unbounded.variable}`}>
       <SupplierSidebar supplierInfo={supplierInfo} />
       <SidebarInset className="bg-background">
         <SupplierTopbar title={title} subtitle={subtitle} supplierInfo={supplierInfo} />
