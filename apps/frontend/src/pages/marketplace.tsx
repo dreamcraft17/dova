@@ -10,8 +10,7 @@ import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shar
 
 const styles = {
   hero: {
-    minHeight: '720px',
-    padding: '150px 0 86px',
+    padding: '110px 0 60px',
     background: 'radial-gradient(circle at 82% 28%, rgba(11, 166, 111, 0.28), transparent 30%), linear-gradient(135deg, #000, #052A1F 55%, #0B6546)',
     color: '#fff',
     position: 'relative' as const,
@@ -129,59 +128,6 @@ const styles = {
     color: '#F0D878',
     fontSize: '0.9rem',
   },
-
-  // Responsive adjustments
-  heroResponsive: `
-    @media (max-width: 1100px) {
-      .hero-grid {
-        gap: 40px;
-      }
-      .hero-photo {
-        height: 360px;
-      }
-    }
-    @media (max-width: 800px) {
-      .hero {
-        padding: 120px 0 60px;
-      }
-      .hero-grid {
-        grid-template-columns: 1fr;
-      }
-      .hero-photo {
-        height: 300px;
-      }
-      .h1 {
-        font-size: clamp(1.5rem, 3vw, 2.2rem);
-      }
-      .hero-p {
-        font-size: 1rem;
-      }
-    }
-    @media (max-width: 600px) {
-      .hero {
-        padding: 100px 0 40px;
-      }
-      .hero-photo {
-        height: 240px;
-        border-radius: 24px;
-      }
-      .flow-diagram {
-        gap: 6px;
-        padding: 12px;
-      }
-      .flow-item {
-        padding: 8px 10px;
-        font-size: 0.55rem;
-      }
-      .h1 {
-        font-size: clamp(1.3rem, 2.5vw, 1.8rem);
-        margin: 12px 0 18px;
-      }
-      .hero-p {
-        font-size: 0.95rem;
-      }
-    }
-  `,
 };
 
 type CardProduct = Product & { available: boolean };
@@ -279,13 +225,13 @@ export default function Marketplace() {
 
   return (
     <ChainChrome title="Marketplace — DOVA Chain">
-      <section style={styles.hero}>
+      <section className="hero" style={styles.hero}>
         <div style={styles.container}>
-          <div style={styles.heroGrid}>
-            <div style={styles.heroCopy}>
+          <div className="hero-grid" style={styles.heroGrid}>
+            <div className="hero-copy" style={styles.heroCopy}>
               <div style={styles.eyebrow}>DOVA Marketplace</div>
-              <h1 style={styles.h1}>Food products, sourced and delivered with purpose.</h1>
-              <p style={styles.heroP}>
+              <h1 className="h1" style={styles.h1}>Food products, sourced and delivered with purpose.</h1>
+              <p className="hero-p" style={styles.heroP}>
                 Start with Plantain Flour. Discover the products DOVA is currently building, with
                 future categories clearly marked as they develop.
               </p>
@@ -298,8 +244,8 @@ export default function Marketplace() {
                 </Link>
               </div>
             </div>
-            <div style={styles.heroVisual}>
-              <div style={styles.heroPhoto}>
+            <div className="hero-visual" style={styles.heroVisual}>
+              <div className="hero-photo" style={styles.heroPhoto}>
                 <img
                   src="/images/mp-hero.jpeg"
                   alt="DOVA marketplace products"
@@ -307,18 +253,72 @@ export default function Marketplace() {
                 />
                 <div style={{ content: '""', position: 'absolute' as const, inset: 0, background: 'linear-gradient(180deg, rgba(3, 31, 23, 0.02), rgba(3, 31, 23, 0.45))' }} />
               </div>
-              <div style={styles.flowDiagram}>
-                <b style={styles.flowItem}>SOURCE</b>
+              <div className="flow-diagram" style={styles.flowDiagram}>
+                <b className="flow-item" style={styles.flowItem}>SOURCE</b>
                 <span style={styles.flowArrow}>→</span>
-                <b style={styles.flowItem}>PROCESS</b>
+                <b className="flow-item" style={styles.flowItem}>PROCESS</b>
                 <span style={styles.flowArrow}>→</span>
-                <b style={styles.flowItem}>PACKAGE</b>
+                <b className="flow-item" style={styles.flowItem}>PACKAGE</b>
                 <span style={styles.flowArrow}>→</span>
-                <b style={styles.flowItem}>FULFILL</b>
+                <b className="flow-item" style={styles.flowItem}>FULFILL</b>
               </div>
             </div>
           </div>
         </div>
+        <style jsx>{`
+          @media (max-width: 1100px) {
+            .hero-grid {
+              gap: 40px !important;
+            }
+            .hero-photo {
+              height: 360px !important;
+            }
+          }
+          @media (max-width: 800px) {
+            .hero {
+              padding: 120px 0 60px !important;
+            }
+            .hero-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .hero-visual {
+              order: -1 !important;
+            }
+            .hero-photo {
+              height: 300px !important;
+            }
+            .h1 {
+              font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
+            }
+            .hero-p {
+              font-size: 1rem !important;
+            }
+          }
+          @media (max-width: 600px) {
+            .hero {
+              padding: 100px 0 40px !important;
+            }
+            .hero-photo {
+              height: 240px !important;
+              border-radius: 24px !important;
+            }
+            .flow-diagram {
+              gap: 6px !important;
+              padding: 12px !important;
+            }
+            .flow-item {
+              padding: 8px 10px !important;
+              font-size: 0.55rem !important;
+            }
+            .h1 {
+              font-size: clamp(1.3rem, 2.5vw, 1.8rem) !important;
+              margin: 12px 0 18px !important;
+            }
+            .hero-p {
+              font-size: 0.95rem !important;
+            }
+          }
+        `}</style>
       </section>
 
       <section className="section" id="products">

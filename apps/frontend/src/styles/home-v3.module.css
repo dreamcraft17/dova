@@ -304,7 +304,7 @@
 /* Hero */
 .hero {
   min-height: 780px;
-  padding: 150px 0 86px;
+  padding: 110px 0 60px;
   background: radial-gradient(circle at 82% 28%, rgba(11, 166, 111, 0.28), transparent 30%),
     linear-gradient(135deg, var(--black), var(--deep) 55%, var(--forest));
   color: var(--white);
@@ -1605,7 +1605,7 @@
   }
 
   .hero {
-    padding-top: 125px;
+    padding-top: 90px;
   }
 
   .heroGrid,
