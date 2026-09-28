@@ -36,7 +36,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { inter, dmSans } from '../../lib/fonts';
+import { inter, unbounded } from '../../lib/fonts';
 
 const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboard }> = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -192,7 +192,7 @@ export function AdminLayout({
   }, []);
 
   return (
-    <SidebarProvider className={`admin-app ${inter.variable} ${dmSans.variable}`}>
+    <SidebarProvider className={`admin-app ${inter.variable} ${unbounded.variable}`}>
       <AdminSidebar />
       <SidebarInset>
         <AdminTopbar title={title} subtitle={subtitle} />
