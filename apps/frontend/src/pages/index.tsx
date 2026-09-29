@@ -2,6 +2,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ElementType, ReactNode } from 'react';
+import { ArrowRight, Leaf, Wheat } from 'lucide-react';
 import type { Product } from 'dova-shared';
 import { formatPricePerUnit, formatStockInUnit, productUnit } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
@@ -127,6 +128,7 @@ type PreviewProduct = {
   id: string;
   name: string;
   category: string;
+  description: string;
   tags: string[];
   size: string;
   price: string;
@@ -137,11 +139,17 @@ type PreviewProduct = {
   image?: { src: string; alt: string };
 };
 
+const CATEGORY_ICONS: Record<string, ElementType> = {
+  Flour: Wheat,
+  'Farm products': Leaf,
+};
+
 const PREVIEW_PRODUCTS: PreviewProduct[] = [
   {
     id: 'plantain-flour',
     name: 'Plantain Flour',
     category: 'Flour',
+    description: 'Premium plantain flour milled and packaged from trusted farm sources.',
     tags: ['flour'],
     size: 'Pack sizes • See product page',
     price: 'View product',
@@ -154,6 +162,7 @@ const PREVIEW_PRODUCTS: PreviewProduct[] = [
     id: 'cassava-flour',
     name: 'Cassava Flour',
     category: 'Flour',
+    description: 'Smooth, fine cassava flour joining the catalog as the next expansion category.',
     tags: ['flour', 'coming'],
     size: 'Expansion category',
     price: 'Coming soon',
@@ -165,6 +174,7 @@ const PREVIEW_PRODUCTS: PreviewProduct[] = [
     id: 'yam-flour',
     name: 'Yam Flour',
     category: 'Flour',
+    description: 'Traditional yam flour, sourced and processed with the same quality standard.',
     tags: ['flour', 'coming'],
     size: 'Expansion category',
     price: 'Coming soon',
@@ -176,6 +186,7 @@ const PREVIEW_PRODUCTS: PreviewProduct[] = [
     id: 'more-food',
     name: 'More Food Products',
     category: 'Farm products',
+    description: 'More fresh, farm-sourced food products curated onto DOVA as supply grows.',
     tags: ['coming'],
     size: 'Curated as supply grows',
     price: 'Coming soon',
@@ -548,63 +559,61 @@ export default function Home() {
             </div>
 
             <div className={styles.catalogGrid}>
-              {visibleProducts.map((product) => (
-                <Reveal as="article" className={styles.productCard} key={product.id}>
-                  <div className={styles.productImage}>
-                    {product.image ? (
-                      <img src={product.image.src} alt={product.image.alt} loading="lazy" />
-                    ) : (
-                      <div className={styles.miniPack} aria-hidden="true">
-                        <span>
-                          {product.packLines?.map((line, i) => (
-                            <Fragment key={line}>
-                              {i > 0 && <br />}
-                              {line}
-                            </Fragment>
-                          ))}
+              {visibleProducts.map((product) => {
+                const CategoryIcon = CATEGORY_ICONS[product.category] ?? Leaf;
+                return (
+                  <Reveal as="article" className={styles.productCard} key={product.id}>
+                    <div className={styles.productImage}>
+                      {product.image ? (
+                        <img src={product.image.src} alt={product.image.alt} loading="lazy" />
+                      ) : (
+                        <div className={styles.miniPack} aria-hidden="true">
+                          <span>
+                            {product.packLines?.map((line, i) => (
+                              <Fragment key={line}>
+                                {i > 0 && <br />}
+                                {line}
+                              </Fragment>
+                            ))}
+                          </span>
+                        </div>
+                      )}
+                      <span
+                        className={cx(styles.productBadge, product.tone === 'live' && styles.productBadgeSolid)}
+                      >
+                        <CategoryIcon aria-hidden="true" />
+                        {product.category}
+                      </span>
+                    </div>
+                    <div className={styles.productBody}>
+                      <h3 className={styles.productName}>{product.name}</h3>
+                      <p className={styles.productDesc}>{product.description}</p>
+                      <div className={styles.productMeta}>
+                        <span className={styles.productSize}>{product.size}</span>
+                        <span
+                          className={cx(
+                            styles.pill,
+                            product.tone === 'live' ? styles.live : styles.soon,
+                          )}
+                        >
+                          {product.status}
                         </span>
                       </div>
-                    )}
-                    <span
-                      className={cx(
-                        styles.productStatus,
-                        styles.pill,
-                        product.tone === 'live' ? styles.live : styles.soon,
-                      )}
-                    >
-                      {product.status}
-                    </span>
-                  </div>
-                  <div className={styles.productBody}>
-                    <div className={styles.productCat}>{product.category}</div>
-                    <h3 className={styles.productName}>{product.name}</h3>
-                    <div className={styles.productMeta}>
-                      <div>
-                        <div className={styles.productSize}>{product.size}</div>
-                        <div className={styles.productPrice}>{product.price}</div>
-                      </div>
                       {product.href ? (
-                        <Link
-                          href={product.href}
-                          className={styles.addBtn}
-                          aria-label={`View ${product.name}`}
-                        >
-                          +
+                        <Link href={product.href} className={styles.shopBtn}>
+                          Shop {product.name}
+                          <ArrowRight aria-hidden="true" />
                         </Link>
                       ) : (
-                        <button
-                          type="button"
-                          className={styles.addBtn}
-                          aria-label={`${product.name} coming soon`}
-                          disabled
-                        >
-                          +
+                        <button type="button" className={styles.shopBtn} disabled>
+                          Coming Soon
+                          <ArrowRight aria-hidden="true" />
                         </button>
                       )}
                     </div>
-                  </div>
-                </Reveal>
-              ))}
+                  </Reveal>
+                );
+              })}
               {visibleProducts.length === 0 && (
                 <p className={styles.catalogEmpty}>
                   No preview products in this category yet.{' '}

@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type MouseEvent } from 'react';
-import { useRouter } from 'next/router';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
+import { ArrowRight, Leaf, Wheat } from 'lucide-react';
 import { ChainChrome } from '../components/ChainChrome';
 import { Loading } from '../components/Loading';
 import { ProductImage } from '../components/ProductImage';
 import { api } from '../lib/api';
 import type { Category, Product } from 'dova-shared';
 import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shared';
+import cardStyles from '../styles/marketplace-card.module.css';
+
+const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
+
+function categoryIcon(categoryName?: string) {
+  return categoryName?.toLowerCase().includes('flour') ? Wheat : Leaf;
+}
 
 const styles = {
   hero: {
@@ -161,46 +168,47 @@ function useCatalog() {
 }
 
 function ProductCard({ product }: { product: CardProduct }) {
-  const router = useRouter();
+  const CategoryIcon = categoryIcon(product.categoryName);
   return (
     <Link
-      className="card"
+      className={cardStyles.card}
       data-cat={product.categoryId}
       data-name={product.name.toLowerCase()}
       href={`/products/${product.id}`}
     >
-      <div className="visual">
-        <span className="badge">{product.available ? 'Starting Product' : 'Coming Soon'}</span>
-        <div className="pack">
-          <ProductImage name={product.name} imageUrl={product.imageUrl} categoryName={product.categoryName} decorative={false} />
-        </div>
+      <div className={cardStyles.media}>
+        <ProductImage
+          className={cardStyles.mediaImg}
+          name={product.name}
+          imageUrl={product.imageUrl}
+          categoryName={product.categoryName}
+          decorative={false}
+        />
+        {product.categoryName && (
+          <span className={cx(cardStyles.badge, product.available && cardStyles.badgeSolid)}>
+            <CategoryIcon aria-hidden="true" />
+            {product.categoryName}
+          </span>
+        )}
       </div>
-      <div className="body">
-        <div className="row">
-          <div>
-            <h3>{product.name}</h3>
-            <div className="meta">{product.categoryName}</div>
-          </div>
-          <button
-            className="plus"
-            type="button"
-            onClick={(event: MouseEvent<HTMLButtonElement>) => {
-              event.preventDefault();
-              if (product.available) void router.push(`/products/${product.id}`);
-            }}
-          >
-            +
-          </button>
+      <div className={cardStyles.body}>
+        <h3 className={cardStyles.title}>{product.name}</h3>
+        {product.description && <p className={cardStyles.desc}>{product.description}</p>}
+        <div className={cardStyles.meta}>
+          {product.price > 0 && (
+            <span className={cardStyles.price}>
+              ₦ {product.price.toLocaleString('en-NG')} {formatPricePerUnit(productUnit(product.name, product.categoryName))}
+            </span>
+          )}
+          <span className={cx(cardStyles.pill, product.available ? cardStyles.live : cardStyles.soon)}>
+            {product.available
+              ? formatStockAvailable(product.stockQuantity, product.name, product.categoryName)
+              : 'Coming Soon'}
+          </span>
         </div>
-        {product.price > 0 ? (
-          <div className="price">
-            ₦ {product.price.toLocaleString('en-NG')} {formatPricePerUnit(productUnit(product.name, product.categoryName))}
-          </div>
-        ) : null}
-        <span className="status">
-          {product.available
-            ? formatStockAvailable(product.stockQuantity, product.name, product.categoryName)
-            : 'Coming Soon'}
+        <span className={cx(cardStyles.shopBtn, !product.available && cardStyles.shopBtnDisabled)}>
+          {product.available ? `Shop ${product.name}` : 'Coming Soon'}
+          <ArrowRight aria-hidden="true" />
         </span>
       </div>
     </Link>
