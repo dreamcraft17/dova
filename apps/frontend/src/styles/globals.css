@@ -4416,6 +4416,12 @@ form .button {
   border-bottom-right-radius: 4px;
 }
 
+.chat-bubble--user p,
+.chat-bubble--user strong,
+.chat-bubble--user code {
+  color: #fff;
+}
+
 .chat-bubble--assistant {
   background: var(--mint);
   color: var(--ink);
@@ -4622,7 +4628,6 @@ form .button {
   max-width: 84%;
   padding: 11px 14px;
   border-radius: 16px;
-  color: #294238;
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -4633,6 +4638,7 @@ form .button {
   border-color: #d4e4dc;
   border-bottom-left-radius: 5px;
   background: #eaf5ef;
+  color: #294238;
 }
 
 .dova-ai-widget__messages .chat-bubble--user {
@@ -4641,19 +4647,26 @@ form .button {
   color: #fff;
 }
 
+.dova-ai-widget__messages .chat-bubble--user p,
 .dova-ai-widget__messages .chat-bubble--user strong,
 .dova-ai-widget__messages .chat-bubble--user code {
   color: #fff;
 }
 
 .dova-ai-widget__messages .chat-bubble p + p { margin-top: 9px; }
-.dova-ai-widget__messages .chat-bubble strong { color: #165b42; font-weight: 700; }
-.dova-ai-widget__messages .chat-bubble--user strong { color: inherit; }
-.dova-ai-widget__messages .chat-bubble code {
+.dova-ai-widget__messages .chat-bubble--assistant strong { color: #165b42; font-weight: 700; }
+.dova-ai-widget__messages .chat-bubble--assistant code {
   padding: 2px 5px;
   border-radius: 5px;
   background: rgba(15, 107, 67, 0.1);
   color: #0f6b43;
+  font: 600 0.92em ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dova-ai-widget__messages .chat-bubble--user code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.16);
   font: 600 0.92em ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -4703,6 +4716,7 @@ form .button {
 
 .dova-ai-widget__composer {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex: 0 0 auto;
   padding: 12px 14px 14px;
@@ -4723,13 +4737,36 @@ form .button {
 }
 
 .dova-ai-widget__composer input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(15, 107, 67, 0.12); }
-.dova-ai-widget__composer button { width: 42px; height: 42px; border: 0; border-radius: 999px; background: #8dbda9; color: #fff; cursor: pointer; transition: background 160ms ease, transform 160ms ease; }
-.dova-ai-widget__composer button:not(:disabled):hover { background: #087b4f; transform: translateY(-1px); }
+.dova-ai-widget__composer button {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.dova-ai-widget__composer button svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.dova-ai-widget__composer button:not(:disabled):hover {
+  background: var(--green-dark, #087b4f);
+  box-shadow: 0 4px 12px rgba(8, 123, 79, 0.28);
+}
+
 .dova-ai-widget__composer button:disabled {
   background: #c4ddd4;
-  color: #fff;
-  opacity: 1;
+  color: rgba(255, 255, 255, 0.92);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 @media (max-width: 480px) {
