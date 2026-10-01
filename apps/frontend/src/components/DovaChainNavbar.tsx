@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Search, ShoppingCart, User, LogOut } from 'lucide-react';
@@ -52,7 +52,15 @@ export default function DovaChainNavbar({
   onLogout,
 }: DovaChainNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isActive = (item: NavItem) => {
     if (item.href.startsWith('#')) return false;
@@ -69,11 +77,19 @@ export default function DovaChainNavbar({
 
   return (
     <header
-      className={`${fraunces.variable} ${manrope.variable} sticky top-0 z-[1000] w-full bg-[#031f17] border-b border-white/10`}
+      className={`${fraunces.variable} ${manrope.variable} fixed top-0 left-0 right-0 z-[1000] w-full border-b border-white/10 transition-[background-color,box-shadow] duration-300 ${
+        scrolled
+          ? 'bg-[rgba(2,24,16,0.95)] shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+          : 'bg-[rgba(3,31,23,0.90)] backdrop-blur-[18px]'
+      }`}
     >
       <div className="mx-auto w-[min(1280px,calc(100%-40px))]">
         {/* Desktop Layout */}
-        <div className="hidden md:flex h-[72px] items-center gap-[22px]">
+        <div
+          className={`max-[820px]:hidden min-[821px]:flex items-center gap-[22px] transition-[height] duration-300 ${
+            scrolled ? 'h-[62px]' : 'h-[72px]'
+          }`}
+        >
           {/* Brand / Logo */}
           <Link
             href={brandHref}
@@ -104,13 +120,13 @@ export default function DovaChainNavbar({
               <Link
                 key={item.label}
                 href={item.href}
-                className={`relative px-0 py-[30px] text-[13px] font-black font-[family-name:var(--font-manrope)] whitespace-nowrap no-underline transition-colors duration-180 ${
+                className={`relative px-0 py-[30px] text-[0.86rem] font-bold font-[family-name:var(--font-manrope)] whitespace-nowrap no-underline transition-colors duration-180 ${
                   isActive(item) ? 'text-[#f0d878]!' : 'text-white/76! hover:text-[#f0d878]'
                 }`}
               >
                 {item.label}
                 <span
-                  className={`absolute left-0 right-0 bottom-[22px] h-[2px] bg-[#d4af37] transition-transform duration-180 origin-center ${
+                  className={`absolute left-0 right-0 bottom-2 h-[2px] bg-[#d4af37] transition-transform duration-180 origin-center ${
                     isActive(item) ? 'scale-x-100' : 'scale-x-0 hover:scale-x-100'
                   }`}
                 />
@@ -177,7 +193,7 @@ export default function DovaChainNavbar({
             )}
 
             <Link
-              className="min-h-[44px] px-[20px] inline-flex items-center justify-center bg-[#d4af37] text-[#031f17]! no-underline font-[family-name:var(--font-manrope)] text-[12px] font-black tracking-[0.01em] border-0 rounded-full transition-all duration-180 hover:bg-[#f0d878] hover:translate-y-[-1px]"
+              className="relative overflow-hidden min-h-[48px] px-[20px] inline-flex items-center justify-center gap-[9px] text-[#031f17]! no-underline font-[family-name:var(--font-manrope)] text-[0.92rem] font-[850] tracking-[0.01em] border border-transparent rounded-full bg-[linear-gradient(135deg,#F6E39A,#D4AF37_55%,#BE9418)] shadow-[0_14px_34px_-8px_rgba(212,175,55,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition-all duration-200 hover:bg-[linear-gradient(135deg,#FBEDB4,#E2BE47_55%,#C9A01F)] hover:shadow-[0_20px_44px_-8px_rgba(212,175,55,0.7)] hover:translate-y-[-2px]"
               href={canShop ? shopHref : dashboardHref}
             >
               {canShop ? 'Shop DOVA' : 'Dashboard'}
@@ -186,7 +202,7 @@ export default function DovaChainNavbar({
         </div>
 
         {/* Mobile Layout */}
-        <div className="md:hidden flex h-[66px] items-center gap-4 px-2">
+        <div className="min-[821px]:hidden max-[820px]:flex h-[66px] items-center gap-4 px-2">
           <Link
             href={brandHref}
             className="inline-flex items-center gap-[7px] flex-shrink-0 text-white! no-underline tracking-[0.08em]"
@@ -254,7 +270,7 @@ export default function DovaChainNavbar({
 
         {/* Mobile Navigation */}
         {mobileOpen && (
-          <div className="md:hidden flex flex-col gap-0 py-2 px-2 border-t border-white/10">
+          <div className="min-[821px]:hidden max-[820px]:flex flex-col gap-0 py-2 px-2 border-t border-white/10">
             {navItems.map((item) => (
               <Link
                 key={item.label}
@@ -296,7 +312,7 @@ export default function DovaChainNavbar({
                 </Link>
               )}
               <Link
-                className="min-h-[44px] inline-flex items-center justify-center bg-[#d4af37] text-[#031f17]! no-underline font-[family-name:var(--font-manrope)] text-[12px] font-black tracking-[0.01em] border-0 rounded-full transition-all duration-180 hover:bg-[#f0d878] hover:translate-y-[-1px]"
+                className="relative overflow-hidden min-h-[48px] inline-flex items-center justify-center gap-[9px] text-[#031f17]! no-underline font-[family-name:var(--font-manrope)] text-[0.92rem] font-[850] tracking-[0.01em] border border-transparent rounded-full bg-[linear-gradient(135deg,#F6E39A,#D4AF37_55%,#BE9418)] shadow-[0_14px_34px_-8px_rgba(212,175,55,0.55),inset_0_1px_0_rgba(255,255,255,0.5)] transition-all duration-200 hover:bg-[linear-gradient(135deg,#FBEDB4,#E2BE47_55%,#C9A01F)] hover:shadow-[0_20px_44px_-8px_rgba(212,175,55,0.7)] hover:translate-y-[-2px]"
                 href={canShop ? shopHref : dashboardHref}
                 onClick={closeMobile}
               >
