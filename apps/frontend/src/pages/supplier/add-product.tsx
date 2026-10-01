@@ -123,7 +123,7 @@ function AddProductContent() {
                 <Input
                   id="product-name"
                   required
-                  placeholder="e.g. Plantain Flour"
+                  placeholder="e.g. Premium Rice"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className={fieldStyles.control}

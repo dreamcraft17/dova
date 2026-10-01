@@ -240,12 +240,12 @@ export default function Marketplace() {
               <div style={styles.eyebrow}>DOVA Marketplace</div>
               <h1 className="h1" style={styles.h1}>Food products, sourced and delivered with purpose.</h1>
               <p className="hero-p" style={styles.heroP}>
-                Start with Plantain Flour. Discover the products DOVA is currently building, with
-                future categories clearly marked as they develop.
+                Discover food and agricultural products from trusted farmers — staples, grains,
+                flours, fresh produce, farm products and curated bundles.
               </p>
               <div style={styles.heroActions}>
                 <Link style={{ ...styles.btn, ...styles.gold }} href="#products">
-                  Shop Plantain Flour
+                  Shop Products
                 </Link>
                 <Link style={{ ...styles.btn, ...styles.outline }} href="/bundles">
                   Explore Bundles
@@ -339,7 +339,7 @@ export default function Marketplace() {
             <p>Compact product cards keep discovery fast. On mobile, products remain two per row rather than becoming oversized single cards.</p>
           </div>
           <div className="notice">
-            Plantain Flour is the current commercial focus. Products without live inventory are
+            Every product here comes from the live DOVA catalog. Products without live inventory are
             clearly marked instead of showing invented prices or availability.
           </div>
           <div className="toolbar">
@@ -347,7 +347,7 @@ export default function Marketplace() {
               className="search"
               value={search}
               onChange={(event: ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
-              placeholder="Search flour, food products, bundles…"
+              placeholder="Search food products, categories, bundles…"
               aria-label="Search products"
             />
             <select
