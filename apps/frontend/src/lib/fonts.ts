@@ -1,4 +1,4 @@
-import { Inter, Unbounded, Plus_Jakarta_Sans, Manrope } from 'next/font/google';
+import { Inter, Unbounded, Plus_Jakarta_Sans, Manrope, Fraunces } from 'next/font/google';
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -22,4 +22,10 @@ export const manrope = Manrope({
   subsets: ['latin'],
   variable: '--font-manrope',
   weight: ['400', '500', '600', '700', '800'],
+});
+
+export const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  weight: ['600', '700', '800', '900'],
 });

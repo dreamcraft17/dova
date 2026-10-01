@@ -116,7 +116,7 @@ export default function About() {
         <div className="container">
           <div className="panel" style={{ textAlign: 'center' }}>
             <div className="eyebrow">Build with DOVA</div>
-            <h2>Start with Plantain Flour. Scale the catalog with purpose.</h2>
+            <h2>Connecting farm, marketplace and customer.</h2>
             <p style={{ maxWidth: 560, margin: '0 auto 18px' }}>
               From Farm to Table. On Time, Every Time. Whether you grow food, buy it for your
               household or source it for a business.
