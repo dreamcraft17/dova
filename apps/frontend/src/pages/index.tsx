@@ -1,18 +1,72 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { ElementType, ReactNode } from 'react';
-import { ArrowRight, Leaf, Wheat } from 'lucide-react';
-import type { Product } from 'dova-shared';
-import { formatPricePerUnit, formatStockInUnit, productUnit } from 'dova-shared';
+import { ArrowRight, Carrot, Citrus, Leaf, Wheat } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { api } from '../lib/api';
 import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
 import DovaChainNavbar from '../components/DovaChainNavbar';
 import styles from '../styles/home-v3.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
+
+function useScrollProgress() {
+  const [progress, setProgress] = useState(0);
+  const [showToTop, setShowToTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(max > 0 ? (y / max) * 100 : 0);
+      setShowToTop(y > 700);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return { progress, showToTop };
+}
+
+function AnimatedStat({ value, label }: { value: number | string; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [display, setDisplay] = useState<number | string>(typeof value === 'number' ? 0 : value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') return;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setDisplay(value);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        const start = performance.now();
+        const duration = 1200;
+        const tick = (t: number) => {
+          const k = Math.min((t - start) / duration, 1);
+          setDisplay(Math.round(value * (1 - Math.pow(1 - k, 3))));
+          if (k < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return (
+    <div className={styles.stat} ref={ref}>
+      <div className={styles.statNum}>{display}</div>
+      <p>{label}</p>
+    </div>
+  );
+}
 
 function Reveal({
   as = 'div',
@@ -103,11 +157,96 @@ const PROCESS_STEPS = [
 
 const ORDER_STEPS = ['Order', 'Confirm', 'Prepare', 'Fulfill', 'Receive'];
 
-const FEATURE_POINTS = [
-  { title: 'Plantain flour first', text: 'Our flagship launch category.' },
+const MARQUEE_ITEMS = [
+  'Grains',
+  'Fresh Vegetables',
+  'Fresh Fruits',
+  'Tubers & Roots',
+  'Verified Farmers',
+  'Farm to Business',
+  'Processing',
+  'Packaging',
+  'Delivery',
+  'Food Supply Chain',
+];
+
+const STATS: { value: number | string; label: string }[] = [
+  { value: 8, label: 'Connected stages from farm to fulfillment' },
+  { value: 4, label: 'Core product categories at launch' },
+  { value: 1, label: 'Platform for farmers, businesses and customers' },
+  { value: 'Africa', label: 'The scale we are building toward' },
+];
+
+const FAQ_ITEMS = [
   {
-    title: 'Focused catalog',
-    text: 'More categories can be added as supply and operations develop.',
+    q: 'What is DOVA Chain?',
+    a: 'DOVA Chain is a digital farm-to-business marketplace and food supply chain platform connecting verified farmers and food producers with businesses and consumers.',
+  },
+  {
+    q: 'Who can use the marketplace?',
+    a: 'Households buying quality food, businesses sourcing in repeat or bulk volumes, and farmers or producers looking for dependable market access.',
+  },
+  {
+    q: 'How does ordering work?',
+    a: 'Browse the catalog, add products to your cart and complete your order. Product availability always reflects the live DOVA catalog.',
+  },
+  {
+    q: 'How can farmers join the network?',
+    a: 'Farmers and food producers can use the Join the DOVA Network button to get started. DOVA works with verified suppliers to keep quality dependable.',
+  },
+  {
+    q: 'Where does DOVA operate?',
+    a: 'DOVA is based in Nigeria and is building a wider network with the ambition to grow across Africa.',
+  },
+];
+
+const LEGAL_ITEMS = [
+  {
+    id: 'terms',
+    title: 'Terms & Conditions',
+    heading: 'Use of DOVA Chain.',
+    text: "By using this website or placing an order, you agree to use the platform lawfully and provide accurate information. Product descriptions, prices, availability, delivery estimates and promotions may change. Orders are subject to confirmation and availability. Nothing on this website is intended to remove or limit any consumer right that cannot lawfully be excluded under applicable Nigerian law.",
+  },
+  {
+    id: 'privacy',
+    title: 'Privacy Policy',
+    heading: 'Personal information.',
+    text: 'DOVA Chain may collect information needed to provide the service, such as name, phone number, delivery address, account details, order information and support communications. Information should be used for legitimate business purposes such as account management, order fulfilment, customer support, security and service improvement, subject to applicable data-protection requirements.',
+  },
+  {
+    id: 'returns',
+    title: 'Returns & Refunds',
+    heading: 'Order issues.',
+    text: 'If an item arrives damaged, incorrect, incomplete or otherwise does not match the agreed order, contact DOVA promptly with your order details and supporting information. Refunds, replacements or other remedies will depend on the circumstances, the applicable product policy and applicable consumer-protection law.',
+  },
+  {
+    id: 'delivery',
+    title: 'Delivery Policy',
+    heading: 'Delivery.',
+    text: 'Delivery availability, fees and estimated times are shown or communicated for an order where applicable. Estimates are not guarantees and may be affected by location, traffic, weather, supplier availability or other operational circumstances.',
+  },
+  {
+    id: 'cookies',
+    title: 'Cookie Notice',
+    heading: 'Cookies and similar technologies.',
+    text: 'DOVA Chain may use necessary technologies to operate the website, remember preferences, maintain sessions, improve security and understand site usage. Where consent is required, appropriate choices should be provided.',
+  },
+  {
+    id: 'suppliers',
+    title: 'Supplier & Marketplace Notice',
+    heading: 'Marketplace information.',
+    text: 'Product availability and supplier information may change as the network develops. Suppliers are responsible for the accuracy of information they provide and for meeting applicable requirements for the products they offer.',
+  },
+];
+
+const FEATURE_POINTS = [
+  {
+    title: 'Marketplace launch',
+    text: 'A clear starting point for customers, farmers and businesses.',
+  },
+  {
+    title: 'Growing catalog',
+    text: 'Food and agricultural categories can expand as supply develops.',
   },
   {
     title: 'Infrastructure around food',
@@ -115,88 +254,70 @@ const FEATURE_POINTS = [
   },
 ];
 
-const FILTERS = [
-  { id: 'featured', label: 'Featured' },
-  { id: 'flour', label: 'Flour' },
-  { id: 'staples', label: 'Staples' },
-  { id: 'produce', label: 'Fresh Produce' },
-  { id: 'bundles', label: 'Bundles' },
-  { id: 'coming', label: 'Coming Soon' },
+/** Featured products are a fixed set of food categories, not live catalog items. */
+type FeaturedFilter = 'all' | 'staples' | 'produce';
+
+type FeaturedCategory = {
+  id: string;
+  filterGroup: Exclude<FeaturedFilter, 'all'>;
+  badge: string;
+  badgeSolid?: boolean;
+  icon: ElementType;
+  title: string;
+  description: string;
+  image: string;
+  cta: string;
+};
+
+const FEATURED_CATEGORIES: FeaturedCategory[] = [
+  {
+    id: 'grains',
+    filterGroup: 'staples',
+    badge: 'Grains',
+    badgeSolid: true,
+    icon: Wheat,
+    title: 'Grains',
+    description: 'High-quality grains sourced from trusted farmers.',
+    image: '/images/featured/grains.jpg',
+    cta: 'Shop Grains',
+  },
+  {
+    id: 'vegetables',
+    filterGroup: 'produce',
+    badge: 'Vegetables',
+    icon: Leaf,
+    title: 'Fresh Vegetables',
+    description: 'Fresh, nutritious vegetables carefully selected for quality and freshness.',
+    image: '/images/featured/vegetables.jpg',
+    cta: 'Shop Vegetables',
+  },
+  {
+    id: 'fruits',
+    filterGroup: 'produce',
+    badge: 'Fruits',
+    icon: Citrus,
+    title: 'Fresh Fruits',
+    description: 'Naturally fresh fruits delivered with great taste and quality.',
+    image: '/images/featured/fruits.jpg',
+    cta: 'Shop Fruits',
+  },
+  {
+    id: 'tubers',
+    filterGroup: 'staples',
+    badge: 'Root Crops',
+    icon: Carrot,
+    title: 'Tubers & Roots',
+    description: 'Quality yams, potatoes, cassava, and other farm-fresh root crops.',
+    image: '/images/featured/tubers.jpg',
+    cta: 'Shop Tubers',
+  },
 ];
 
-type PreviewProduct = {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  tags: string[];
-  size: string;
-  price: string;
-  status: string;
-  tone: 'live' | 'soon';
-  href?: string;
-  packLines?: string[];
-  image?: { src: string; alt: string };
-};
-
-const CATEGORY_ICONS: Record<string, ElementType> = {
-  Flour: Wheat,
-  'Farm products': Leaf,
-};
-
-const PREVIEW_PRODUCTS: PreviewProduct[] = [
-  {
-    id: 'plantain-flour',
-    name: 'Plantain Flour',
-    category: 'Flour',
-    description: 'Premium plantain flour milled and packaged from trusted farm sources.',
-    tags: ['flour'],
-    size: 'Pack sizes • See product page',
-    price: 'View product',
-    status: 'Starting',
-    tone: 'live',
-    href: '/products',
-    packLines: ['PLANTAIN', 'FLOUR', 'DOVA'],
-  },
-  {
-    id: 'cassava-flour',
-    name: 'Cassava Flour',
-    category: 'Flour',
-    description: 'Smooth, fine cassava flour joining the catalog as the next expansion category.',
-    tags: ['flour', 'coming'],
-    size: 'Expansion category',
-    price: 'Coming soon',
-    status: 'Soon',
-    tone: 'soon',
-    packLines: ['CASSAVA', 'FLOUR'],
-  },
-  {
-    id: 'yam-flour',
-    name: 'Yam Flour',
-    category: 'Flour',
-    description: 'Traditional yam flour, sourced and processed with the same quality standard.',
-    tags: ['flour', 'coming'],
-    size: 'Expansion category',
-    price: 'Coming soon',
-    status: 'Soon',
-    tone: 'soon',
-    packLines: ['YAM', 'FLOUR'],
-  },
-  {
-    id: 'more-food',
-    name: 'More Food Products',
-    category: 'Farm products',
-    description: 'More fresh, farm-sourced food products curated onto DOVA as supply grows.',
-    tags: ['coming'],
-    size: 'Curated as supply grows',
-    price: 'Coming soon',
-    status: 'Expansion',
-    tone: 'soon',
-    image: {
-      src: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=78',
-      alt: 'Plantains prepared for food processing',
-    },
-  },
+const FEATURED_CHIPS: { id: FeaturedFilter; label: string }[] = [
+  { id: 'all', label: 'Featured' },
+  { id: 'all', label: 'Food Products' },
+  { id: 'produce', label: 'Fresh Produce' },
+  { id: 'staples', label: 'Staples' },
 ];
 
 const VALUE_LAYERS = [
@@ -229,9 +350,9 @@ const VALUE_LAYERS = [
 const GLANCE = [
   { label: 'Market', value: 'Nigeria', text: 'Starting locally, with a long-term African network in view.' },
   {
-    label: 'Launch category',
-    value: 'Food Flour',
-    text: 'Plantain Flour is the first commercial product focus.',
+    label: 'Launch',
+    value: 'DOVA Marketplace',
+    text: 'Launching with a broader food and agricultural marketplace focus.',
   },
   {
     label: 'Platform',
@@ -248,14 +369,14 @@ const GLANCE = [
 const ROADMAP = [
   {
     label: 'Now',
-    title: 'Flour launch',
-    text: 'Plantain flour, farmer sourcing, processing, packaging, marketplace and available fulfillment.',
+    title: 'Marketplace launch',
+    text: 'Customers, farmers, products, sourcing, marketplace access and available fulfillment.',
     modifier: undefined,
   },
   {
     label: 'Next',
     title: 'Supply expansion',
-    text: 'More flour categories, more farmers, more food products, aggregation and stronger business supply.',
+    text: 'More farmers, more food categories, aggregation and stronger business supply.',
     modifier: styles.roadNext,
   },
   {
@@ -269,40 +390,14 @@ const ROADMAP = [
 export default function Home() {
   const { user, logout } = useAuth();
   const { count } = useCart();
-  const [filter, setFilter] = useState('featured');
-  const [liveProduct, setLiveProduct] = useState<Product | null>(null);
+  const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all');
   const [aiOpen, setAiOpen] = useState(false);
-
-  useEffect(() => {
-    api<{ data: Product[] }>('/products?search=plantain&limit=1')
-      .then((r) => setLiveProduct(r.data[0] ?? null))
-      .catch(() => setLiveProduct(null));
-  }, []);
+  const { progress, showToTop } = useScrollProgress();
 
   // Admin and supplier accounts don't shop, matching the cart rules in Layout.
   const canShop = !user || user.role === 'customer';
   const dashboard =
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
-
-  const products = useMemo(() => {
-    if (!liveProduct) return PREVIEW_PRODUCTS;
-    const unit = productUnit(liveProduct.name, liveProduct.categoryName);
-    return PREVIEW_PRODUCTS.map((p) =>
-      p.id === 'plantain-flour'
-        ? {
-            ...p,
-            name: liveProduct.name,
-            category: liveProduct.categoryName,
-            size: formatStockInUnit(liveProduct.stockQuantity, unit),
-            price: `₦ ${liveProduct.price.toLocaleString('en-NG')} ${formatPricePerUnit(unit)}`,
-            href: `/products/${liveProduct.id}`,
-          }
-        : p,
-    );
-  }, [liveProduct]);
-
-  const visibleProducts =
-    filter === 'featured' ? products : products.filter((p) => p.tags.includes(filter));
 
   return (
     <div className={styles.page}>
@@ -310,16 +405,26 @@ export default function Home() {
         <title>DOVA Chain — Food Supply Chain &amp; Agricultural Marketplace</title>
         <meta
           name="description"
-          content="DOVA Chain connects trusted farmers, food products and customers through a technology-enabled food supply chain, starting with flour."
+          content="DOVA Chain connects trusted farmers with consumers and businesses through a technology-enabled food supply chain and agricultural marketplace."
         />
         <meta name="theme-color" content="#031F17" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&family=Inter:wght@400;500;700;800;900&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600..900;1,9..144,600..900&family=Manrope:wght@500..800&family=Baloo+2:wght@500;600;700&display=swap"
         />
       </Head>
+
+      <div className={styles.scrollProgress} style={{ width: `${progress}%` }} />
+      <button
+        type="button"
+        className={cx(styles.toTop, showToTop && styles.toTopShow)}
+        aria-label="Back to top"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        ↑
+      </button>
 
       <DovaChainNavbar
         user={user ? { fullName: user.fullName } : null}
@@ -339,10 +444,10 @@ export default function Home() {
               <h1>
                 Building a better <em>food supply chain.</em>
               </h1>
-              <p style={{color: '#ffff'}}>
-                DOVA Chain connects trusted agricultural supply with consumers and businesses through
-                sourcing, processing, quality verification and reliable delivery — starting with food
-                flour.
+              <p style={{ color: '#fff' }}>
+                DOVA Chain connects trusted agricultural supply with consumers and businesses
+                through sourcing, quality verification, marketplace access and reliable
+                fulfillment.
               </p>
               <div className={styles.heroActions}>
                 <Link href="/marketplace" className={cx(styles.btn, styles.gold)}>
@@ -354,27 +459,26 @@ export default function Home() {
               </div>
               <div className={styles.heroNote}>
                 <span className={styles.heroNoteDot} aria-hidden="true" />
-                Now: Plantain Flour · Next: More food categories · Future: Food infrastructure
+                Now launching the DOVA marketplace · Built to grow across food and agriculture
               </div>
             </Reveal>
 
-            <Reveal className={styles.heroVisual} aria-label="Agriculture and plantain flour visual">
+            <Reveal
+              className={styles.heroVisual}
+              aria-label="DOVA Chain agricultural marketplace visual"
+            >
               <div className={styles.heroPhoto}>
                 <img
-                  src="/images/home-hero.jpeg"
+                  src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=82"
                   alt="Fresh agricultural produce at a market"
                 />
               </div>
               <div className={styles.productOrbit}>
                 <div className={styles.orbitPack} aria-hidden="true">
-                  <span className={styles.orbitPackLabel}>
-                    PLANTAIN
-                    <br />
-                    FLOUR
-                  </span>
+                  <img src="/images/logo.svg" alt="" className={styles.orbitPackLogo} />
                 </div>
-                <small>First commercial entry point</small>
-                <strong>Plantain Flour</strong>
+                <small>DOVA Chain Marketplace</small>
+                <strong>Food &amp; Agricultural Products</strong>
               </div>
               <div className={styles.heroBadge}>FARM → PROCESS → PACK → DELIVER</div>
             </Reveal>
@@ -395,6 +499,25 @@ export default function Home() {
                   </div>
                 )}
               </Fragment>
+            ))}
+          </div>
+        </section>
+
+        <div className={styles.marquee} aria-hidden="true">
+          <div className={styles.marqueeTrack}>
+            {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+              <Fragment key={`${item}-${i}`}>
+                <span>{item}</span>
+                <i>✦</i>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+
+        <section className={cx(styles.stats, styles.deep)} aria-label="DOVA at a glance">
+          <div className={cx(styles.container, styles.statsGrid)}>
+            {STATS.map((stat) => (
+              <AnimatedStat key={stat.label} value={stat.value} label={stat.label} />
             ))}
           </div>
         </section>
@@ -480,28 +603,27 @@ export default function Home() {
         </section>
 
         <section className={styles.section}>
-          <div className={cx(styles.container, styles.flourFeature)}>
-            <Reveal className={styles.flourArt} aria-label="Plantain flour launch visual">
-              <div className={styles.flourPack} aria-hidden="true">
-                <div className={styles.packInner}>
-                  <span>FOOD FLOUR</span>
+          <div className={cx(styles.container, styles.platformFeature)}>
+            <Reveal className={styles.platformArt} aria-label="DOVA Chain marketplace visual">
+              <div className={styles.platformPanel} aria-hidden="true">
+                <div className={styles.platformPanelInner}>
+                  <img src="/images/logo.svg" alt="" className={styles.platformPanelLogo} />
                   <strong>
-                    PLANTAIN
+                    DOVA
                     <br />
-                    FLOUR
+                    CHAIN
                   </strong>
-                  <div className={styles.packLeaf}>✦</div>
-                  <span>DOVA CHAIN</span>
+                  <span>AGRICULTURAL MARKETPLACE</span>
                 </div>
               </div>
             </Reveal>
             <Reveal className={styles.featureCopy}>
-              <div className={styles.eyebrow}>Starting With Flour</div>
-              <h2>Starting with Flour. Building for More.</h2>
+              <div className={styles.eyebrow}>DOVA Marketplace</div>
+              <h2>Launching the marketplace. Building for more.</h2>
               <p>
-                Plantain flour is DOVA&apos;s focused first commercial entry point into a larger food
-                supply chain. The strategy is simple: start with a clear product category, learn the
-                operating loop, then expand the network around it.
+                DOVA is launching as a connected agricultural marketplace and supply-chain platform.
+                The goal is to make it easier to discover, source, move and access quality food
+                products while building the infrastructure to support a wider network.
               </p>
               <div className={styles.featureList}>
                 {FEATURE_POINTS.map((point) => (
@@ -528,105 +650,57 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={cx(styles.section, styles.light)} id="marketplace">
+        <section className={styles.fpSection} id="marketplace" aria-labelledby="fp-heading">
           <div className={styles.container}>
-            <Reveal className={cx(styles.sectionHead, styles.sectionHeadRow)}>
-              <div className={styles.copy}>
-                <div className={styles.eyebrow}>Marketplace</div>
-                <h2>Start with Plantain Flour. Scale the catalog with purpose.</h2>
-                <p>
-                  Plantain Flour is the starting commercial product. As DOVA grows, additional food
-                  categories can be introduced without losing a simple, fast shopping experience.
-                </p>
-              </div>
-              <Link href="/marketplace" className={cx(styles.btn, styles.outline, styles.sideLink)}>
-                View Live Products ↗
-              </Link>
-            </Reveal>
-
-            <div className={styles.marketToolbar} role="group" aria-label="Product categories">
-              {FILTERS.map((chip) => (
+            <div className={styles.fpChips} role="group" aria-label="Product categories">
+              {FEATURED_CHIPS.map((chip) => (
                 <button
-                  key={chip.id}
+                  key={chip.label}
                   type="button"
-                  className={cx(styles.filterChip, filter === chip.id && styles.filterChipActive)}
-                  aria-pressed={filter === chip.id}
-                  onClick={() => setFilter(chip.id)}
+                  className={cx(styles.fpChip, featuredFilter === chip.id && styles.fpChipActive)}
+                  aria-pressed={featuredFilter === chip.id}
+                  onClick={() => setFeaturedFilter(chip.id)}
                 >
                   {chip.label}
                 </button>
               ))}
             </div>
 
-            <div className={styles.catalogGrid}>
-              {visibleProducts.map((product) => {
-                const CategoryIcon = CATEGORY_ICONS[product.category] ?? Leaf;
-                return (
-                  <Reveal as="article" className={styles.productCard} key={product.id}>
-                    <div className={styles.productImage}>
-                      {product.image ? (
-                        <img src={product.image.src} alt={product.image.alt} loading="lazy" />
-                      ) : (
-                        <div className={styles.miniPack} aria-hidden="true">
-                          <span>
-                            {product.packLines?.map((line, i) => (
-                              <Fragment key={line}>
-                                {i > 0 && <br />}
-                                {line}
-                              </Fragment>
-                            ))}
-                          </span>
-                        </div>
-                      )}
-                      <span
-                        className={cx(styles.productBadge, product.tone === 'live' && styles.productBadgeSolid)}
-                      >
-                        <CategoryIcon aria-hidden="true" />
-                        {product.category}
-                      </span>
-                    </div>
-                    <div className={styles.productBody}>
-                      <h3 className={styles.productName}>{product.name}</h3>
-                      <p className={styles.productDesc}>{product.description}</p>
-                      <div className={styles.productMeta}>
-                        <span className={styles.productSize}>{product.size}</span>
-                        <span
-                          className={cx(
-                            styles.pill,
-                            product.tone === 'live' ? styles.live : styles.soon,
-                          )}
-                        >
-                          {product.status}
-                        </span>
-                      </div>
-                      {product.href ? (
-                        <Link href={product.href} className={styles.shopBtn}>
-                          Shop {product.name}
-                          <ArrowRight aria-hidden="true" />
-                        </Link>
-                      ) : (
-                        <button type="button" className={styles.shopBtn} disabled>
-                          Coming Soon
-                          <ArrowRight aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-                  </Reveal>
-                );
-              })}
-              {visibleProducts.length === 0 && (
-                <p className={styles.catalogEmpty}>
-                  No preview products in this category yet.{' '}
-                  <Link href="/marketplace">Browse the live catalog</Link>.
-                </p>
-              )}
+            <div className={styles.fpHead}>
+              <div>
+                <h2 id="fp-heading">Featured Products</h2>
+                <p>Fresh food from trusted farmers, delivered to you.</p>
+              </div>
+              <Link href="/marketplace" className={styles.fpAll}>
+                View all products
+              </Link>
             </div>
 
-            <p className={styles.catalogNote}>
-              Only live product data should be displayed here. Plantain Flour is the current
-              commercial focus; future categories remain clearly marked until they are actually
-              launched.
-            </p>
+            <div className={styles.fpGrid}>
+              {FEATURED_CATEGORIES.map((category) => {
+                const CategoryIcon = category.icon;
+                if (featuredFilter !== 'all' && featuredFilter !== category.filterGroup) return null;
+                return (
+                  <article className={styles.fpCard} key={category.id}>
+                    <Link className={styles.fpMedia} href="/marketplace" tabIndex={-1} aria-hidden="true">
+                      <img src={category.image} alt="" />
+                      <span className={cx(styles.fpBadge, category.badgeSolid && styles.fpBadgeSolid)}>
+                        <CategoryIcon aria-hidden="true" />
+                        {category.badge}
+                      </span>
+                    </Link>
+                    <div className={styles.fpBody}>
+                      <h3 className={styles.fpTitle}>{category.title}</h3>
+                      <p className={styles.fpDesc}>{category.description}</p>
+                      <Link href="/marketplace" className={styles.fpBtn}>
+                        {category.cta}
+                        <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -809,7 +883,7 @@ export default function Home() {
           <div className={styles.container}>
             <Reveal className={styles.sectionHead}>
               <div className={styles.eyebrow}>Vision &amp; Roadmap</div>
-              <h2>Start with flour. Build the infrastructure around it.</h2>
+              <h2>Launch the marketplace. Build the infrastructure around it.</h2>
               <p>
                 Current, next and future capabilities are separated so planned infrastructure is not
                 presented as already operational.
@@ -858,11 +932,31 @@ export default function Home() {
           </div>
         </section>
 
+        <section className={cx(styles.section, styles.light)} id="faq">
+          <div className={cx(styles.container, styles.faqWrap)}>
+            <Reveal className={styles.sectionHead}>
+              <div className={styles.eyebrow}>Questions</div>
+              <h2>
+                Everything you need to know about <em>DOVA</em>.
+              </h2>
+              <p>Straight answers about how the marketplace and food supply chain work.</p>
+            </Reveal>
+            <Reveal className={styles.faqList}>
+              {FAQ_ITEMS.map((item, i) => (
+                <details key={item.q} open={i === 0}>
+                  <summary>{item.q}</summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
+            </Reveal>
+          </div>
+        </section>
+
         <section className={styles.cta}>
           <div className={styles.container}>
             <Reveal className={styles.ctaInner}>
               <div className={styles.eyebrow}>Build With DOVA</div>
-              <h2>From Farm to Table. On Time, Every Time.</h2>
+              <h2>Connecting farm, marketplace and customer.</h2>
               <p>
                 Whether you grow food, buy it for your household or source it for a business, DOVA is
                 building a more connected path through the food supply chain.
@@ -892,7 +986,10 @@ export default function Home() {
                 <span className={styles.brandName}>DOVA</span>
                 <span className={styles.brandSuffix}>CHAIN</span>
               </Link>
-              <p>Building a technology-enabled food supply chain, starting with flour.</p>
+              <p>
+                Connecting agricultural supply with real demand through a modern marketplace and
+                food supply chain.
+              </p>
             </div>
             <div>
               <div className={styles.footerTitle}>Platform</div>
@@ -914,7 +1011,7 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <div className={styles.footerTitle}>Contact</div>
+              <div className={styles.footerTitle}>Support</div>
               <div className={styles.footerLinks}>
                 <a href="mailto:officialdovachain@gmail.com">officialdovachain@gmail.com</a>
                 <a href="tel:+2349032696825">+234 903 269 6825</a>
@@ -922,10 +1019,46 @@ export default function Home() {
                 <Link href="/contact">Contact Us</Link>
               </div>
             </div>
+            <div>
+              <div className={styles.footerTitle}>Legal</div>
+              <div className={styles.footerLinks}>
+                <Link href="/terms-of-service">Terms &amp; Conditions</Link>
+                <Link href="/privacy-policy">Privacy Policy</Link>
+                <Link href="/terms-of-service#cancellation-refunds-returns">Returns &amp; Refunds</Link>
+                <Link href="/terms-of-service#delivery">Delivery Policy</Link>
+                <Link href="/privacy-policy#cookies">Cookie Notice</Link>
+              </div>
+            </div>
+          </div>
+          <div className={styles.legalArea} id="legal">
+            <div className={styles.legalTitle}>Legal &amp; Customer Information</div>
+            <div className={styles.legalGrid}>
+              {LEGAL_ITEMS.map((item) => (
+                <details key={item.id} id={item.id}>
+                  <summary>{item.title}</summary>
+                  <div className={styles.legalCopy}>
+                    <strong>{item.heading}</strong> {item.text}
+                  </div>
+                </details>
+              ))}
+            </div>
+            <div className={styles.legalLinks}>
+              {LEGAL_ITEMS.map((item) => (
+                <a href={`#${item.id}`} key={item.id}>
+                  {item.title}
+                </a>
+              ))}
+            </div>
+            <div className={styles.legalNote}>
+              Legal information on this website is provided for general customer information and
+              should be reviewed against DOVA Chain&apos;s actual operating policies and applicable
+              Nigerian requirements before launch. Where a dedicated policy page exists, that page
+              should take precedence over this summary.
+            </div>
           </div>
           <div className={styles.footerBottom}>
             <span>© 2026 DOVA Chain. All rights reserved.</span>
-            <span>From Farm to Table. On Time, Every Time.</span>
+            <span>Connecting farm, marketplace and customer.</span>
           </div>
         </div>
       </footer>

@@ -45,7 +45,7 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
                 DOVA<span style={{ color: 'var(--gold)' }}>CHAIN</span>
               </strong>
               <p>From Farm to Table. On Time, Every Time.</p>
-              <p>Building a technology-enabled food supply chain, starting with Plantain Flour.</p>
+              <p>Connecting trusted farmers with consumers and businesses.</p>
             </div>
             <div>
               <h4>SHOP</h4>
