@@ -19,8 +19,9 @@
   --radius: 24px;
   --max: 1240px;
 
-  --serif: 'Fraunces', 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --sans: 'Manrope', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --serif: var(--font-fraunces), 'Fraunces', 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --sans: var(--font-manrope), 'Manrope', 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', sans-serif;
 
   color: var(--ink);
   background: linear-gradient(180deg, #f7f8f3, #f1f4ec);
@@ -60,7 +61,7 @@
 }
 
 .page h2 {
-  font-size: clamp(2.25rem, 4.5vw, 4.4rem);
+  font-size: clamp(2.25rem, 3.4vw, 4rem);
 }
 
 .page h3 {
@@ -329,10 +330,14 @@
   margin-top: 12px;
 }
 
+.page [id] {
+  scroll-margin-top: 80px;
+}
+
 /* Hero */
 .hero {
   min-height: 780px;
-  padding: 48px 0 60px;
+  padding: 120px 0 60px;
   background: radial-gradient(circle at 82% 28%, rgba(11, 166, 111, 0.28), transparent 30%),
     linear-gradient(135deg, var(--black), var(--deep) 55%, var(--forest));
   color: var(--white);
@@ -941,10 +946,11 @@
 }
 
 .infoIndex {
-  font-size: 2.5rem;
+  font-family: var(--serif);
+  font-size: 3.2rem;
   font-weight: 950;
-  color: var(--forest);
-  opacity: 0.13;
+  color: var(--gold-dark);
+  opacity: 0.2;
   margin-bottom: 20px;
 }
 
@@ -1193,7 +1199,7 @@
 
 /* Featured products — mirrors the template's marketplace section */
 .fpSection {
-  --fp-font: 'Baloo 2', 'Nunito', 'Trebuchet MS', ui-rounded, system-ui, sans-serif;
+  --fp-font: var(--sans);
   --fp-green: #0b3d2c;
   --fp-green-2: #12563f;
   --fp-mint: #eaf5ee;
@@ -1257,10 +1263,10 @@
 }
 
 .fpHead h2 {
-  font: 700 clamp(2.1rem, 5.4vw, 3.3rem)/1.05 var(--fp-font);
-  color: var(--fp-green);
+  font: 800 clamp(2.35rem, 5vw, 4.15rem)/1.05 var(--serif);
+  color: #064c37;
   margin: 0;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.045em;
 }
 
 .fpHead p {
@@ -1362,9 +1368,10 @@
 }
 
 .fpTitle {
-  font: 700 1.6rem/1.1 var(--fp-font);
+  font: 800 1.45rem/1.1 var(--serif);
   margin: 0 0 8px;
-  color: var(--fp-green);
+  color: #064c37;
+  letter-spacing: -0.025em;
 }
 
 .fpDesc {
@@ -2141,7 +2148,7 @@
   }
 
   .hero {
-    padding-top: 40px;
+    padding-top: 106px;
   }
 
   .heroGrid,

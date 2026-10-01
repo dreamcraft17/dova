@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
 import DovaChainNavbar from '../components/DovaChainNavbar';
+import { fraunces, manrope } from '../lib/fonts';
 import styles from '../styles/home-v3.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
@@ -400,7 +401,7 @@ export default function Home() {
     user?.role === 'admin' ? '/admin' : user?.role === 'supplier' ? '/supplier' : '/customer/profile';
 
   return (
-    <div className={styles.page}>
+    <div className={cx(styles.page, fraunces.variable, manrope.variable)}>
       <Head>
         <title>DOVA Chain — Food Supply Chain &amp; Agricultural Marketplace</title>
         <meta
@@ -408,12 +409,6 @@ export default function Home() {
           content="DOVA Chain connects trusted farmers with consumers and businesses through a technology-enabled food supply chain and agricultural marketplace."
         />
         <meta name="theme-color" content="#031F17" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600..900;1,9..144,600..900&family=Manrope:wght@500..800&family=Baloo+2:wght@500;600;700&display=swap"
-        />
       </Head>
 
       <div className={styles.scrollProgress} style={{ width: `${progress}%` }} />
