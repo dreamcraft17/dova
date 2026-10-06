@@ -1,304 +1,187 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChainChrome } from '../components/ChainChrome';
 import { Loading } from '../components/Loading';
+import { LoginModal } from '../components/LoginModal';
 import { ProductImage } from '../components/ProductImage';
 import { api } from '../lib/api';
-import type { BundleSummary } from 'dova-shared';
+import { fraunces, manrope } from '../lib/fonts';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
+import type { BundleDetail, BundleSummary } from 'dova-shared';
+import styles from '../styles/bundles.module.css';
 
-const styles = {
-  hero: {
-    padding: '110px 0 60px',
-    background: 'radial-gradient(circle at 82% 28%, rgba(11, 166, 111, 0.28), transparent 30%), linear-gradient(135deg, #000, #052A1F 55%, #0B6546)',
-    color: '#fff',
-    position: 'relative' as const,
-    overflow: 'hidden' as const,
-  },
-  container: {
-    width: 'min(1280px, calc(100% - 32px))',
-    marginInline: 'auto',
-  },
-  heroGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1.02fr 0.98fr',
-    gap: '64px',
-    alignItems: 'center',
-    position: 'relative' as const,
-    zIndex: 1,
-  },
-  heroCopy: {
-    maxWidth: '720px',
-  },
-  eyebrow: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '0.8125rem',
-    fontWeight: 900,
-    letterSpacing: '0.15em',
-    textTransform: 'uppercase' as const,
-    color: '#B7D63A',
-    marginBottom: '18px',
-  },
-  h1: {
-    fontSize: 'clamp(2rem, 4vw, 3.2rem)',
-    lineHeight: 1.2,
-    letterSpacing: '-0.03em',
-    fontWeight: 900,
-    margin: '18px 0 25px',
-    color: '#fff',
-  },
-  heroP: {
-    fontSize: '1.08rem',
-    lineHeight: 1.6,
-    maxWidth: '660px',
-    margin: '0 0 30px',
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  heroActions: {
-    display: 'flex',
-    gap: '11px',
-    flexWrap: 'wrap' as const,
-  },
-  btn: {
-    minHeight: '48px',
-    padding: '0 20px',
-    borderRadius: '999px',
-    border: '1px solid transparent',
-    background: 'transparent',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '9px',
-    fontWeight: 850,
-    fontSize: '0.92rem',
-    transition: 'transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    color: 'inherit',
-  },
-  gold: {
-    background: '#D4AF37',
-    color: '#000',
-    boxShadow: '0 10px 30px rgba(212, 175, 55, 0.18)',
-  },
-  outline: {
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    color: '#fff',
-  },
-  heroVisual: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '18px',
-    position: 'relative' as const,
-    zIndex: 1,
-  },
-  heroPhoto: {
-    position: 'relative' as const,
-    height: '420px',
-    borderRadius: '34px',
-    overflow: 'hidden' as const,
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    boxShadow: '0 30px 90px rgba(0, 0, 0, 0.34)',
-    background: '#0b2d22',
-  },
-  flowDiagram: {
-    display: 'flex',
-    gap: '9px',
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-    justifyContent: 'center',
-    padding: '16px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.09)',
-    borderRadius: '18px',
-  },
-  flowItem: {
-    padding: '11px 13px',
-    borderRadius: '12px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.09)',
-    fontSize: '0.62rem',
-    fontWeight: 900,
-    color: '#fff',
-  },
-  flowArrow: {
-    color: '#F0D878',
-    fontSize: '0.9rem',
-  },
-};
+const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
+const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
-function BundleCard({ bundle }: { bundle: BundleSummary }) {
-  const out = bundle.computed.isOutOfStock;
+type BundleView = BundleSummary & { contents?: BundleDetail['contents'] };
+
+function BundleCard({ bundle, busy, onOrder }: { bundle: BundleView; busy: boolean; onOrder: (b: BundleView) => void }) {
+  const out = bundle.status !== 'active' || bundle.computed.isOutOfStock;
+  const hasSavings = bundle.computed.savingsAmount > 0;
+  const contents = [...(bundle.contents ?? [])].sort((a, b) => a.position - b.position);
+
   return (
-    <Link className="card" href={`/bundles/${bundle.id}`}>
-      <div className="visual">
-        <span className="badge">{bundle.status === 'active' && !out ? 'Bundle' : 'Coming Soon'}</span>
-        <div className="pack">
-          <ProductImage name={bundle.name} imageUrl={bundle.imageUrl} categoryName={bundle.categoryName} decorative={false} />
-        </div>
+    <article className={styles.card}>
+      <Link className={styles.image} href={`/bundles/${bundle.id}`} aria-label={bundle.name}>
+        <ProductImage name={bundle.name} imageUrl={bundle.imageUrl} categoryName={bundle.categoryName} decorative={false} />
+      </Link>
+      <div className={styles.top}>
+        <span className={cx(styles.pill, styles.soon)}>{bundle.categoryName || 'Bundle'}</span>
+        <span className={cx(styles.pill, out ? styles.out : styles.live)}>{out ? 'Unavailable' : 'Available'}</span>
       </div>
-      <div className="body">
-        <h3>{bundle.name}</h3>
-        <div className="meta">{bundle.categoryName || 'Bundle contents from backend'}</div>
-        <div className="price">
-          {bundle.bundlePrice > 0 ? `₦ ${bundle.bundlePrice.toLocaleString('en-NG')}` : '₦ —'}
+      <h3>
+        <Link className={styles.titleLink} href={`/bundles/${bundle.id}`}>{bundle.name}</Link>
+      </h3>
+      <ul className={styles.items}>
+        {contents.map((c) => (
+          <li key={c.productId}>
+            {c.product?.name ?? 'Item'}
+            <span>× {c.quantity}</span>
+          </li>
+        ))}
+      </ul>
+      <div className={styles.foot}>
+        <div className={styles.price}>
+          <small>Bundle price</small>
+          {bundle.bundlePrice > 0 ? naira(bundle.bundlePrice) : 'Price on request'}
+          {hasSavings && <span className={styles.oldPrice}>{naira(bundle.computed.individualTotal)}</span>}
         </div>
-        <span className="status">
-          {out ? 'Out of Stock' : bundle.computed.savingsPercentage > 0 ? `Save ${bundle.computed.savingsPercentage}%` : 'Available'}
-        </span>
+        <button className={styles.addBtn} type="button" disabled={out || busy} onClick={() => onOrder(bundle)}>
+          {busy ? 'Adding…' : 'Order'}
+        </button>
       </div>
-    </Link>
+    </article>
   );
 }
 
 export default function Bundles() {
-  const [bundles, setBundles] = useState<BundleSummary[]>([]);
+  const { user } = useAuth();
+  const { refresh: refreshCart } = useCart();
+  const { showToast } = useToast();
+  const [bundles, setBundles] = useState<BundleView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState('all');
+  const [busyId, setBusyId] = useState<string>();
+  const [pending, setPending] = useState<BundleView>();
 
   useEffect(() => {
     api<{ data: BundleSummary[] }>('/bundles?page=1&limit=24')
-      .then((r) => setBundles(r.data))
+      .then(async (r) => {
+        setBundles(r.data);
+        // The list endpoint has no contents; load each bundle's detail to show its items.
+        const details = await Promise.all(
+          r.data.map((b) => api<BundleDetail>(`/bundles/${b.id}`).catch(() => undefined)),
+        );
+        setBundles(r.data.map((b, i) => ({ ...b, contents: details[i]?.contents })));
+      })
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
 
+  const categories = useMemo(
+    () => Array.from(new Set(bundles.map((b) => b.categoryName).filter((c): c is string => Boolean(c)))),
+    [bundles],
+  );
+  const visible = bundles.filter((b) => category === 'all' || b.categoryName === category);
+
+  const addToCart = async (bundle: BundleView) => {
+    setBusyId(bundle.id);
+    try {
+      await api('/cart/add-bundle', {
+        method: 'POST',
+        body: JSON.stringify({ bundleId: bundle.id, quantity: 1, deliverySlot: 'morning' }),
+      });
+      await refreshCart();
+      showToast(`${bundle.name} added to cart`, 'success');
+    } catch (e) {
+      showToast((e as Error).message, 'error');
+    } finally {
+      setBusyId(undefined);
+    }
+  };
+
+  const order = (bundle: BundleView) => {
+    if (!user) { setPending(bundle); return; }
+    if (user.role !== 'customer') { showToast('Only customer accounts can add items to the cart.', 'error'); return; }
+    void addToCart(bundle);
+  };
+
   return (
-    <ChainChrome title="Bundles — DOVA Chain">
-      <section className="hero" style={styles.hero}>
-        <div style={styles.container}>
-          <div className="hero-grid" style={styles.heroGrid}>
-            <div className="hero-copy" style={styles.heroCopy}>
-              <div style={styles.eyebrow}>DOVA Bundles</div>
-              <h1 className="h1" style={styles.h1}>Curated food combinations, built for simpler buying.</h1>
-              <p className="hero-p" style={styles.heroP}>
-                Bundles combine complementary products from the DOVA supply chain. Contents, prices
-                and availability come straight from the bundle backend.
-              </p>
-              <div style={styles.heroActions}>
-                <Link style={{ ...styles.btn, ...styles.gold }} href="#bundles">
-                  Explore Bundles
-                </Link>
-                <Link style={{ ...styles.btn, ...styles.outline }} href="/marketplace">
-                  Shop Marketplace
-                </Link>
-              </div>
-            </div>
-            <div className="hero-visual" style={styles.heroVisual}>
-              <div className="hero-photo" style={styles.heroPhoto}>
-                <img
-                  src="/images/bundles-hero.jpeg"
-                  alt="DOVA bundle products"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.9) contrast(1.02)' }}
-                />
-                <div style={{ content: '""', position: 'absolute' as const, inset: 0, background: 'linear-gradient(180deg, rgba(3, 31, 23, 0.02), rgba(3, 31, 23, 0.45))' }} />
-              </div>
-              <div className="flow-diagram" style={styles.flowDiagram}>
-                <b className="flow-item" style={styles.flowItem}>SELECT</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>COMBINE</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>SAVE</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>DELIVER</b>
-              </div>
+    <ChainChrome title="Bundles | DOVA Chain">
+      <div className={cx(styles.page, fraunces.variable, manrope.variable)}>
+        <section className={styles.intro}>
+          <div className={styles.container}>
+            <div className={styles.eyebrow}>DOVA Bundles</div>
+            <h1>Product <em>bundles</em></h1>
+            <p>Grouped food and produce selections for households, families and businesses.</p>
+          </div>
+        </section>
+
+        <div className={styles.stickyBar}>
+          <div className={styles.container}>
+            <div className={styles.chips}>
+              {['all', ...categories].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={cx(styles.chip, category === c && styles.chipActive)}
+                  onClick={() => setCategory(c)}
+                >
+                  {c === 'all' ? 'All' : c}
+                </button>
+              ))}
             </div>
           </div>
         </div>
-        <style jsx>{`
-          @media (max-width: 1100px) {
-            .hero-grid {
-              gap: 40px !important;
-            }
-            .hero-photo {
-              height: 360px !important;
-            }
-          }
-          @media (max-width: 800px) {
-            .hero {
-              padding: 120px 0 60px !important;
-            }
-            .hero-grid {
-              grid-template-columns: 1fr !important;
-            }
-            .hero-visual {
-              order: -1 !important;
-            }
-            .hero-photo {
-              height: 300px !important;
-            }
-            .h1 {
-              font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
-            }
-            .hero-p {
-              font-size: 1rem !important;
-            }
-          }
-          @media (max-width: 600px) {
-            .hero {
-              padding: 100px 0 40px !important;
-            }
-            .hero-photo {
-              height: 240px !important;
-              border-radius: 24px !important;
-            }
-            .flow-diagram {
-              gap: 6px !important;
-              padding: 12px !important;
-            }
-            .flow-item {
-              padding: 8px 10px !important;
-              font-size: 0.55rem !important;
-            }
-            .h1 {
-              font-size: clamp(1.3rem, 2.5vw, 1.8rem) !important;
-              margin: 12px 0 18px !important;
-            }
-            .hero-p {
-              font-size: 0.95rem !important;
-            }
-          }
-        `}</style>
-      </section>
 
-      <section className="section" id="bundles">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <div className="eyebrow">Bundles</div>
-              <h2>Shop DOVA bundles</h2>
+        <section className={styles.section}>
+          <div className={styles.container}>
+            <div className={styles.resultLine}>
+              <span>
+                {bundles.length ? `${visible.length} bundle${visible.length === 1 ? '' : 's'}` : 'Bundles'}
+              </span>
             </div>
-            <p style={{ fontSize: '13px' }}>Bundle cards use the same compact two-column mobile system as the marketplace.</p>
-          </div>
-          <div className="notice" style={{ fontSize: '13px' }}>
-            Bundle contents, prices, savings and availability come from the bundle API. Unavailable
-            bundles are clearly marked instead of showing invented offers.
-          </div>
-          <div className="grid2">
             {loading ? (
               <Loading label="Loading bundles…" block />
             ) : bundles.length === 0 ? (
-              <div className="panel" style={{ gridColumn: '1 / -1' }}>
-                <strong>No bundles available.</strong>
+              <div className={styles.empty}>
+                <h3>No bundles available.</h3>
                 <p>New bundles are being prepared. Check back soon.</p>
               </div>
             ) : (
-              bundles.map((b) => <BundleCard key={b.id} bundle={b} />)
+              <div className={styles.grid}>
+                {visible.map((b) => (
+                  <BundleCard key={b.id} bundle={b} busy={busyId === b.id} onOrder={order} />
+                ))}
+              </div>
             )}
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <div className="container">
-          <div className="steps">
-            <div className="step"><b>01 · Choose</b><span>Select a bundle.</span></div>
-            <div className="step"><b>02 · Confirm</b><span>Review contents and price.</span></div>
-            <div className="step"><b>03 · Fulfill</b><span>DOVA prepares the order.</span></div>
-            <div className="step"><b>04 · Receive</b><span>Get your food products.</span></div>
+        <section className={cx(styles.section, styles.deep)}>
+          <div className={styles.container}>
+            <div className={styles.steps}>
+              <div className={styles.step}><b>01</b><h3>Choose</h3><p>Pick a bundle that fits your need.</p></div>
+              <div className={styles.step}><b>02</b><h3>Confirm</h3><p>Review contents and price.</p></div>
+              <div className={styles.step}><b>03</b><h3>Fulfil</h3><p>DOVA prepares the order.</p></div>
+              <div className={styles.step}><b>04</b><h3>Receive</h3><p>Get your food products.</p></div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
+
+      <LoginModal
+        open={Boolean(pending)}
+        onClose={() => setPending(undefined)}
+        onSuccess={() => {
+          const b = pending;
+          setPending(undefined);
+          // `user` in this closure is stale right after login, so add directly.
+          if (b) void addToCart(b);
+        }}
+      />
     </ChainChrome>
   );
 }
