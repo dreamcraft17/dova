@@ -2,7 +2,15 @@ import { ServiceUnavailableException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { DatabaseService } from './database.service';
 
-function makeDatabase() { return { enabled: false, listOrders: jest.fn().mockResolvedValue(undefined), getCart: jest.fn().mockResolvedValue(undefined) } as unknown as DatabaseService; }
+function makeDatabase() {
+  return {
+    enabled: false,
+    listOrders: jest.fn().mockResolvedValue(undefined),
+    getCart: jest.fn().mockResolvedValue(undefined),
+    chatSaveQuestion: jest.fn().mockResolvedValue(undefined),
+    chatListAdminQuestions: jest.fn().mockResolvedValue([]),
+  } as unknown as DatabaseService;
+}
 function makeCatalog() {
   return { listProducts: jest.fn().mockResolvedValue({ data: [], pagination: { page: 1, limit: 40, total: 0 } }) } as any;
 }
@@ -150,5 +158,22 @@ describe('ChatService', () => {
     );
     const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendGuestMessage('Tell me about your products');
     expect(result.messages[0].text).toContain('Plantain Flour');
+  });
+
+  it('records guest and signed-in questions for the admin question list', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockImplementation(async () =>
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Answer' }] } }] }),
+    );
+    const service = new ChatService(makeDatabase(), makeCatalog(), makeBundles());
+
+    await service.sendGuestMessage('What products do you have?');
+    await service.sendMessage(customer, 'Where is my order?');
+
+    const questions = await service.adminQuestions();
+    expect(questions).toHaveLength(2);
+    expect(questions.map((question) => question.text)).toEqual(['Where is my order?', 'What products do you have?']);
+    expect(questions[0].userId).toBe('u1');
+    expect(questions[1].userId).toBeUndefined();
   });
 });
