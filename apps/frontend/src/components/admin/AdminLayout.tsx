@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Activity,
   BarChart3,
@@ -70,6 +70,42 @@ function initials(fullName: string | undefined) {
   return chars.join('').toUpperCase();
 }
 
+const SIDEBAR_CLOCKS = [
+  { label: 'Nigeria', timezone: 'Africa/Lagos', flag: '🇳🇬' },
+  { label: 'South Africa', timezone: 'Africa/Johannesburg', flag: '🇿🇦' },
+  { label: 'Indonesia', timezone: 'Asia/Jakarta', flag: '🇮🇩' },
+];
+
+function SidebarClocks() {
+  const [now, setNow] = useState<Date>();
+
+  useEffect(() => {
+    const update = () => setNow(new Date());
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="mx-2 mb-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#b9cec5]">World clocks</div>
+      <div className="space-y-2">
+        {SIDEBAR_CLOCKS.map((clock) => (
+          <div key={clock.timezone} className="flex items-center justify-between gap-3 text-xs">
+            <span className="flex min-w-0 items-center gap-2 text-[#edf6f2]">
+              <span aria-hidden="true">{clock.flag}</span>
+              <span className="truncate">{clock.label}</span>
+            </span>
+            <time className="shrink-0 font-mono font-bold tabular-nums text-[#f3d975]" dateTime={now?.toISOString()}>
+              {now ? new Intl.DateTimeFormat('en-GB', { timeZone: clock.timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now) : '--:--:--'}
+            </time>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AdminSidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -118,6 +154,7 @@ function AdminSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
+      <SidebarClocks />
       <SidebarFooter className="border-t border-sidebar-border p-4 text-white">
         <p className="text-sm font-bold">{user?.fullName ?? 'Administrator'}</p>
         <Button
