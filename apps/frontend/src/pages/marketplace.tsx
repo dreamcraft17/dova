@@ -1,148 +1,32 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Leaf, Wheat } from 'lucide-react';
+import { useRouter } from 'next/router';
 import { ChainChrome } from '../components/ChainChrome';
 import { Loading } from '../components/Loading';
+import { LoginModal } from '../components/LoginModal';
 import { ProductImage } from '../components/ProductImage';
 import { api } from '../lib/api';
+import { fraunces, manrope } from '../lib/fonts';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import type { Category, Product } from 'dova-shared';
-import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shared';
-import cardStyles from '../styles/marketplace-card.module.css';
+import { productUnit } from 'dova-shared';
+import styles from '../styles/marketplace.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
+const naira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
+const PAGE_SIZE = 24;
+const LOW_STOCK = 10;
 
-function categoryIcon(categoryName?: string) {
-  return categoryName?.toLowerCase().includes('flour') ? Wheat : Leaf;
-}
+type Sort = 'featured' | 'low' | 'high' | 'az';
+type Filters = { category: string; q: string; pmin: number | null; pmax: number | null; inStock: boolean };
+const EMPTY: Filters = { category: 'all', q: '', pmin: null, pmax: null, inStock: false };
 
-const styles = {
-  hero: {
-    padding: '110px 0 60px',
-    background: 'radial-gradient(circle at 82% 28%, rgba(11, 166, 111, 0.28), transparent 30%), linear-gradient(135deg, #000, #052A1F 55%, #0B6546)',
-    color: '#fff',
-    position: 'relative' as const,
-    overflow: 'hidden' as const,
-  },
-  container: {
-    width: 'min(1280px, calc(100% - 32px))',
-    marginInline: 'auto',
-  },
-  heroGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1.02fr 0.98fr',
-    gap: '64px',
-    alignItems: 'center',
-    position: 'relative' as const,
-    zIndex: 1,
-  },
-  heroCopy: {
-    maxWidth: '720px',
-  },
-  eyebrow: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '0.8125rem',
-    fontWeight: 900,
-    letterSpacing: '0.15em',
-    textTransform: 'uppercase' as const,
-    color: '#B7D63A',
-    marginBottom: '18px',
-  },
-  h1: {
-    fontSize: 'clamp(2rem, 4vw, 3.2rem)',
-    lineHeight: 1.2,
-    letterSpacing: '-0.03em',
-    fontWeight: 900,
-    margin: '18px 0 25px',
-    color: '#fff',
-  },
-  heroP: {
-    fontSize: '1.08rem',
-    lineHeight: 1.6,
-    maxWidth: '660px',
-    margin: '0 0 30px',
-    color: 'rgba(255, 255, 255, 0.85)',
-  },
-  heroActions: {
-    display: 'flex',
-    gap: '11px',
-    flexWrap: 'wrap' as const,
-  },
-  btn: {
-    minHeight: '48px',
-    padding: '0 20px',
-    borderRadius: '999px',
-    border: '1px solid transparent',
-    background: 'transparent',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '9px',
-    fontWeight: 850,
-    fontSize: '0.92rem',
-    transition: 'transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    color: 'inherit',
-  },
-  gold: {
-    background: '#D4AF37',
-    color: '#000',
-    boxShadow: '0 10px 30px rgba(212, 175, 55, 0.18)',
-  },
-  outline: {
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    color: '#fff',
-  },
-  heroVisual: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '18px',
-    position: 'relative' as const,
-    zIndex: 1,
-  },
-  heroPhoto: {
-    position: 'relative' as const,
-    height: '420px',
-    borderRadius: '34px',
-    overflow: 'hidden' as const,
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    boxShadow: '0 30px 90px rgba(0, 0, 0, 0.34)',
-    background: '#0b2d22',
-  },
-  flowDiagram: {
-    display: 'flex',
-    gap: '9px',
-    alignItems: 'center',
-    flexWrap: 'wrap' as const,
-    justifyContent: 'center',
-    padding: '16px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.09)',
-    borderRadius: '18px',
-  },
-  flowItem: {
-    padding: '11px 13px',
-    borderRadius: '12px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.09)',
-    fontSize: '0.62rem',
-    fontWeight: 900,
-    color: '#fff',
-  },
-  flowArrow: {
-    color: '#F0D878',
-    fontSize: '0.9rem',
-  },
-};
-
-type CardProduct = Product & { available: boolean };
-
-let catalogCache: { at: number; products: CardProduct[]; categories: Category[] } | null = null;
+let catalogCache: { at: number; products: Product[]; categories: Category[] } | null = null;
 
 function useCatalog() {
-  const [products, setProducts] = useState<CardProduct[]>(() => catalogCache?.products ?? []);
+  const [products, setProducts] = useState<Product[]>(() => catalogCache?.products ?? []);
   const [categories, setCategories] = useState<Category[]>(() => catalogCache?.categories ?? []);
   const [loading, setLoading] = useState(!catalogCache);
 
@@ -153,13 +37,12 @@ function useCatalog() {
     }
     Promise.all([
       api<Category[]>('/categories').catch(() => []),
-      api<{ data: Product[] }>('/products?page=1&limit=24').catch(() => ({ data: [] })),
+      api<{ data: Product[] }>('/products?page=1&limit=200').catch(() => ({ data: [] })),
     ])
       .then(([cats, prods]) => {
-        const mapped = prods.data.map((p) => ({ ...p, available: p.stockQuantity > 0 }));
-        catalogCache = { at: Date.now(), products: mapped, categories: cats };
+        catalogCache = { at: Date.now(), products: prods.data, categories: cats };
         setCategories(cats);
-        setProducts(mapped);
+        setProducts(prods.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -167,238 +50,299 @@ function useCatalog() {
   return { products, categories, loading };
 }
 
-function ProductCard({ product }: { product: CardProduct }) {
-  const CategoryIcon = categoryIcon(product.categoryName);
+function ProductCard({ product, busy, onAdd }: { product: Product; busy: boolean; onAdd: (p: Product) => void }) {
+  const unit = productUnit(product.name, product.categoryName);
+  const out = product.stockQuantity <= 0;
+  const low = !out && product.stockQuantity <= LOW_STOCK;
+  const href = `/products/${product.id}`;
+
   return (
-    <Link
-      className={cardStyles.card}
-      data-cat={product.categoryId}
-      data-name={product.name.toLowerCase()}
-      href={`/products/${product.id}`}
-    >
-      <div className={cardStyles.media}>
-        <ProductImage
-          className={cardStyles.mediaImg}
-          name={product.name}
-          imageUrl={product.imageUrl}
-          categoryName={product.categoryName}
-          decorative={false}
-        />
-        {product.categoryName && (
-          <span className={cx(cardStyles.badge, product.available && cardStyles.badgeSolid)}>
-            <CategoryIcon aria-hidden="true" />
-            {product.categoryName}
-          </span>
-        )}
-      </div>
-      <div className={cardStyles.body}>
-        <h3 className={cardStyles.title}>{product.name}</h3>
-        {product.description && <p className={cardStyles.desc}>{product.description}</p>}
-        <div className={cardStyles.meta}>
-          {product.price > 0 && (
-            <span className={cardStyles.price}>
-              ₦ {product.price.toLocaleString('en-NG')} {formatPricePerUnit(productUnit(product.name, product.categoryName))}
-            </span>
-          )}
-          <span className={cx(cardStyles.pill, product.available ? cardStyles.live : cardStyles.soon)}>
-            {product.available
-              ? formatStockAvailable(product.stockQuantity, product.name, product.categoryName)
-              : 'Coming Soon'}
-          </span>
+    <article className={styles.pcard}>
+      <Link className={styles.pimg} href={href}>
+        <ProductImage name={product.name} imageUrl={product.imageUrl} categoryName={product.categoryName} decorative={false} />
+      </Link>
+      <div className={styles.pbody}>
+        <Link className={styles.pname} href={href}>{product.name}</Link>
+        <div className={styles.pprice}>{product.price > 0 ? naira(product.price) : 'Price on request'}</div>
+        <div className={styles.punit}>
+          Per {unit}
+          {product.categoryName ? ` · ${product.categoryName}` : ''}
         </div>
-        <span className={cx(cardStyles.shopBtn, !product.available && cardStyles.shopBtnDisabled)}>
-          {product.available ? `Shop ${product.name}` : 'Coming Soon'}
-          <ArrowRight aria-hidden="true" />
-        </span>
+        {low && <div className={styles.pstock}>Only {product.stockQuantity} {unit} left</div>}
+        {out && <div className={styles.pstock}>Out of stock</div>}
+        <div className={styles.pcta}>
+          <button type="button" disabled={out || busy} onClick={() => onAdd(product)}>
+            {busy ? 'Adding…' : 'Add to cart'}
+          </button>
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
 export default function Marketplace() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { refresh: refreshCart } = useCart();
+  const { showToast } = useToast();
   const { products, categories, loading } = useCatalog();
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
-  const [sort, setSort] = useState('featured');
 
-  const visibleProducts = useMemo(() => {
-    const filtered = products.filter((product) => {
-      const matchesCategory = category === 'all' || product.categoryId === category;
-      const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase());
-      return matchesCategory && matchesSearch;
+  const [f, setF] = useState<Filters>(EMPTY);
+  const [priceInput, setPriceInput] = useState({ min: '', max: '' });
+  const [sort, setSort] = useState<Sort>('featured');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [page, setPage] = useState(1);
+  const [drawer, setDrawer] = useState(false);
+  const [busyId, setBusyId] = useState<string>();
+  const [pending, setPending] = useState<Product>();
+
+  // Deep links like /marketplace?category=<id> preselect a category.
+  useEffect(() => {
+    const c = router.query.category;
+    if (typeof c === 'string' && c) setF((prev) => ({ ...prev, category: c }));
+  }, [router.query.category]);
+
+  const update = (patch: Partial<Filters>) => {
+    setF((prev) => ({ ...prev, ...patch }));
+    setPage(1);
+  };
+  const setCategory = (category: string) => {
+    update({ category });
+    setDrawer(false);
+  };
+  const categoryName = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Products';
+
+  const filtered = useMemo(() => {
+    const q = f.q.toLowerCase();
+    const list = products.filter(
+      (p) =>
+        (f.category === 'all' || p.categoryId === f.category) &&
+        (!q || `${p.name} ${p.categoryName ?? ''}`.toLowerCase().includes(q)) &&
+        (f.pmin == null || p.price >= f.pmin) &&
+        (f.pmax == null || p.price <= f.pmax) &&
+        (!f.inStock || p.stockQuantity > 0),
+    );
+    if (sort === 'az') return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'low') return [...list].sort((a, b) => a.price - b.price);
+    if (sort === 'high') return [...list].sort((a, b) => b.price - a.price);
+    return list;
+  }, [products, f, sort]);
+  const shown = filtered.slice(0, page * PAGE_SIZE);
+
+  const chips: [keyof Filters | 'price', string][] = [];
+  if (f.category !== 'all') chips.push(['category', categoryName(f.category)]);
+  if (f.q) chips.push(['q', `“${f.q}”`]);
+  if (f.pmin != null || f.pmax != null) chips.push(['price', `₦${f.pmin ?? 0} – ${f.pmax != null ? `₦${f.pmax}` : 'any'}`]);
+  if (f.inStock) chips.push(['inStock', 'In stock']);
+
+  const removeChip = (key: keyof Filters | 'price') => {
+    if (key === 'category') update({ category: 'all' });
+    if (key === 'q') update({ q: '' });
+    if (key === 'price') {
+      update({ pmin: null, pmax: null });
+      setPriceInput({ min: '', max: '' });
+    }
+    if (key === 'inStock') update({ inStock: false });
+  };
+
+  const applyPrice = () => {
+    update({
+      pmin: priceInput.min === '' ? null : Number(priceInput.min),
+      pmax: priceInput.max === '' ? null : Number(priceInput.max),
     });
-    if (sort === 'name') return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    return filtered;
-  }, [search, category, sort, products]);
+    setDrawer(false);
+  };
+
+  const clearAll = () => {
+    update(EMPTY);
+    setPriceInput({ min: '', max: '' });
+  };
+
+  const addToCart = async (product: Product) => {
+    setBusyId(product.id);
+    try {
+      await api('/cart/add', {
+        method: 'POST',
+        body: JSON.stringify({ productId: product.id, quantity: 1, deliverySlot: 'morning' }),
+      });
+      await refreshCart();
+      showToast(`${product.name} added to cart`, 'success');
+    } catch (e) {
+      showToast((e as Error).message, 'error');
+    } finally {
+      setBusyId(undefined);
+    }
+  };
+
+  const onAdd = (product: Product) => {
+    if (!user) { setPending(product); return; }
+    if (user.role !== 'customer') { showToast('Only customer accounts can add items to the cart.', 'error'); return; }
+    void addToCart(product);
+  };
 
   return (
-    <ChainChrome title="Marketplace — DOVA Chain">
-      <section className="hero" style={styles.hero}>
-        <div style={styles.container}>
-          <div className="hero-grid" style={styles.heroGrid}>
-            <div className="hero-copy" style={styles.heroCopy}>
-              <div style={styles.eyebrow}>DOVA Marketplace</div>
-              <h1 className="h1" style={styles.h1}>Food products, sourced and delivered with purpose.</h1>
-              <p className="hero-p" style={styles.heroP}>
-                Discover food and agricultural products from trusted farmers — staples, grains,
-                flours, fresh produce, farm products and curated bundles.
-              </p>
-              <div style={styles.heroActions}>
-                <Link style={{ ...styles.btn, ...styles.gold }} href="#products">
-                  Shop Products
-                </Link>
-                <Link style={{ ...styles.btn, ...styles.outline }} href="/bundles">
-                  Explore Bundles
-                </Link>
-              </div>
-            </div>
-            <div className="hero-visual" style={styles.heroVisual}>
-              <div className="hero-photo" style={styles.heroPhoto}>
-                <img
-                  src="/images/mp-hero.jpeg"
-                  alt="DOVA marketplace products"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.9) contrast(1.02)' }}
+    <ChainChrome title="Products | DOVA Chain">
+      <div className={cx(styles.page, fraunces.variable, manrope.variable)}>
+        <section className={styles.intro}>
+          <div className={styles.container}>
+            <div className={styles.crumbs}><Link href="/">Home</Link> / Products</div>
+            <h1>DOVA <em>Marketplace</em></h1>
+            <p>Fresh and agricultural produce, ordered in a few taps.</p>
+            <div className={styles.shopBar}>
+              <div className={styles.search}>
+                <input
+                  type="search"
+                  value={f.q}
+                  onChange={(e) => update({ q: e.target.value.trimStart() })}
+                  placeholder="Search fish, vegetables, grains, fruits and more"
+                  aria-label="Search products"
                 />
-                <div style={{ content: '""', position: 'absolute' as const, inset: 0, background: 'linear-gradient(180deg, rgba(3, 31, 23, 0.02), rgba(3, 31, 23, 0.45))' }} />
               </div>
-              <div className="flow-diagram" style={styles.flowDiagram}>
-                <b className="flow-item" style={styles.flowItem}>SOURCE</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>PROCESS</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>PACKAGE</b>
-                <span style={styles.flowArrow}>→</span>
-                <b className="flow-item" style={styles.flowItem}>FULFILL</b>
-              </div>
-            </div>
-          </div>
-        </div>
-        <style jsx>{`
-          @media (max-width: 1100px) {
-            .hero-grid {
-              gap: 40px !important;
-            }
-            .hero-photo {
-              height: 360px !important;
-            }
-          }
-          @media (max-width: 800px) {
-            .hero {
-              padding: 120px 0 60px !important;
-            }
-            .hero-grid {
-              grid-template-columns: 1fr !important;
-            }
-            .hero-visual {
-              order: -1 !important;
-            }
-            .hero-photo {
-              height: 300px !important;
-            }
-            .h1 {
-              font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
-            }
-            .hero-p {
-              font-size: 1rem !important;
-            }
-          }
-          @media (max-width: 600px) {
-            .hero {
-              padding: 100px 0 40px !important;
-            }
-            .hero-photo {
-              height: 240px !important;
-              border-radius: 24px !important;
-            }
-            .flow-diagram {
-              gap: 6px !important;
-              padding: 12px !important;
-            }
-            .flow-item {
-              padding: 8px 10px !important;
-              font-size: 0.55rem !important;
-            }
-            .h1 {
-              font-size: clamp(1.3rem, 2.5vw, 1.8rem) !important;
-              margin: 12px 0 18px !important;
-            }
-            .hero-p {
-              font-size: 0.95rem !important;
-            }
-          }
-        `}</style>
-      </section>
-
-      <section className="section" id="products">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <div className="eyebrow">Marketplace</div>
-              <h2>Explore DOVA products</h2>
-            </div>
-            <p>Compact product cards keep discovery fast. On mobile, products remain two per row rather than becoming oversized single cards.</p>
-          </div>
-          <div className="notice">
-            Every product here comes from the live DOVA catalog. Products without live inventory are
-            clearly marked instead of showing invented prices or availability.
-          </div>
-          <div className="toolbar">
-            <input
-              className="search"
-              value={search}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
-              placeholder="Search food products, categories, bundles…"
-              aria-label="Search products"
-            />
-            <select
-              className="select"
-              value={category}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => setCategory(event.target.value)}
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select"
-              value={sort}
-              onChange={(event: ChangeEvent<HTMLSelectElement>) => setSort(event.target.value)}
-            >
-              <option value="featured">Featured</option>
-              <option value="name">Name</option>
-            </select>
-          </div>
-          <div className="pills">
-            <button
-              type="button"
-              className={`pill ${category === 'all' ? 'active' : ''}`}
-              onClick={() => setCategory('all')}
-            >
-              All
-            </button>
-            {categories.map((c) => (
               <button
-                key={c.id}
+                className={cx(styles.btn, styles.gold)}
                 type="button"
-                className={`pill ${category === c.id ? 'active' : ''}`}
-                onClick={() => setCategory(c.id)}
+                onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                {c.name}
+                Search
               </button>
-            ))}
+            </div>
+            <div className={styles.catStrip} aria-label="Categories">
+              {[{ id: 'all', name: 'All' }, ...categories].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={cx(styles.chip, f.category === c.id && styles.chipActive)}
+                  onClick={() => setCategory(c.id)}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid2" id="productGrid" style={{ marginTop: '14px' }}>
-            {loading ? (
-              <Loading label="Loading products…" block />
-            ) : (
-              visibleProducts.map((product) => <ProductCard key={product.id} product={product} />)
+        </section>
+
+        <div className={cx(styles.container, styles.shop)}>
+          <aside className={cx(styles.sidebar, drawer && styles.sidebarOpen)} aria-label="Filters">
+            <div className={styles.sbHead}>
+              <b>Filters</b>
+              <button className={styles.sbClear} type="button" onClick={clearAll}>Clear all</button>
+            </div>
+            <div className={styles.sbSec}>
+              <div className={styles.sbTitle}>Category</div>
+              <div className={styles.sbList}>
+                {[{ id: 'all', name: 'All products' }, ...categories].map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={cx(styles.sbItem, f.category === c.id && styles.sbItemActive)}
+                    onClick={() => setCategory(c.id)}
+                  >
+                    <i />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={styles.sbSec}>
+              <div className={styles.sbTitle}>Price (₦)</div>
+              <div className={styles.priceRow}>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Min"
+                  inputMode="numeric"
+                  value={priceInput.min}
+                  onChange={(e) => setPriceInput((p) => ({ ...p, min: e.target.value }))}
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Max"
+                  inputMode="numeric"
+                  value={priceInput.max}
+                  onChange={(e) => setPriceInput((p) => ({ ...p, max: e.target.value }))}
+                />
+              </div>
+              <button className={cx(styles.btn, styles.green, styles.sm, styles.block, styles.applyBtn)} type="button" onClick={applyPrice}>
+                Apply
+              </button>
+            </div>
+            <div className={styles.sbSec}>
+              <div className={styles.sbTitle}>Availability</div>
+              <label className={styles.sbCheck}>
+                <input type="checkbox" checked={f.inStock} onChange={(e) => update({ inStock: e.target.checked })} /> In stock only
+              </label>
+            </div>
+          </aside>
+          <div className={cx(styles.drawerBg, drawer && styles.drawerBgOpen)} onClick={() => setDrawer(false)} />
+
+          <section className={styles.results} id="products">
+            <div className={styles.resHead}>
+              <div>
+                <h2>{f.category === 'all' ? 'All Products' : categoryName(f.category)}</h2>
+                <small>
+                  {loading
+                    ? 'Loading products…'
+                    : `${filtered.length} product${filtered.length === 1 ? '' : 's'} found`}
+                </small>
+              </div>
+              <div className={styles.resTools}>
+                <button className={styles.fBtn} type="button" onClick={() => setDrawer(true)}>☰ Filters</button>
+                <select className={styles.select} value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by">
+                  <option value="featured">Sort: Featured</option>
+                  <option value="low">Price: Low to High</option>
+                  <option value="high">Price: High to Low</option>
+                  <option value="az">Name: A to Z</option>
+                </select>
+                <div className={styles.vt}>
+                  <button type="button" className={cx(view === 'grid' && styles.vtOn)} onClick={() => setView('grid')} aria-label="Grid view">▦</button>
+                  <button type="button" className={cx(view === 'list' && styles.vtOn)} onClick={() => setView('list')} aria-label="List view">☰</button>
+                </div>
+              </div>
+            </div>
+
+            {chips.length > 0 && (
+              <div className={styles.activeF}>
+                {chips.map(([key, label]) => (
+                  <span key={key} className={styles.af}>
+                    {label}
+                    <button type="button" onClick={() => removeChip(key)} aria-label="Remove filter">×</button>
+                  </span>
+                ))}
+              </div>
             )}
-          </div>
+
+            <div className={cx(styles.grid, view === 'list' && styles.gridList)}>
+              {loading ? (
+                <div className={styles.loadingCell}><Loading label="Loading products…" block /></div>
+              ) : shown.length ? (
+                shown.map((p) => <ProductCard key={p.id} product={p} busy={busyId === p.id} onAdd={onAdd} />)
+              ) : (
+                <p className={styles.notice}>No products match these filters.</p>
+              )}
+            </div>
+
+            {filtered.length > shown.length && (
+              <div className={styles.more}>
+                <button className={cx(styles.btn, styles.outline)} type="button" onClick={() => setPage((n) => n + 1)}>
+                  Show more products
+                </button>
+              </div>
+            )}
+          </section>
         </div>
-      </section>
+      </div>
+
+      <LoginModal
+        open={Boolean(pending)}
+        onClose={() => setPending(undefined)}
+        onSuccess={() => {
+          const p = pending;
+          setPending(undefined);
+          // `user` in this closure is stale right after login, so add directly.
+          if (p) void addToCart(p);
+        }}
+      />
     </ChainChrome>
   );
 }
