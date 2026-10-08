@@ -23,6 +23,7 @@ import {
   shouldRefreshCatalogImage,
   SEED_PRODUCT_CATALOG,
 } from 'dova-shared';
+import type { AuditLog } from './audit.service';
 
 export type StoredUser = User & {
   passwordHash: string;
@@ -49,6 +50,14 @@ export type ChatRecord = {
   id: string;
   userId: string;
   role: 'user' | 'assistant';
+  text: string;
+  createdAt: string;
+};
+export type ChatQuestion = {
+  id: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
   text: string;
   createdAt: string;
 };
@@ -1138,5 +1147,77 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       'INSERT INTO chat_messages (id,user_id,role,text,created_at) VALUES ($1,$2,$3,$4,$5)',
       [message.id, message.userId, message.role, message.text, message.createdAt],
     );
+  }
+
+  async chatSaveQuestion(question: Pick<ChatQuestion, 'id' | 'userId' | 'text' | 'createdAt'>) {
+    if (!this.pool) return;
+    await this.pool.query(
+      'INSERT INTO chat_questions (id,user_id,text,created_at) VALUES ($1,$2,$3,$4)',
+      [question.id, question.userId ?? null, question.text, question.createdAt],
+    );
+  }
+
+  async chatListAdminQuestions(search = ''): Promise<ChatQuestion[]> {
+    if (!this.pool) return [];
+    const query = `%${search.trim()}%`;
+    const result = await this.pool.query(
+      `SELECT q.id, q.user_id, q.text, q.created_at, u.full_name, u.email
+       FROM chat_questions q
+       LEFT JOIN users u ON u.id = q.user_id
+       WHERE ($1 = '%%' OR q.text ILIKE $1 OR u.full_name ILIKE $1 OR u.email ILIKE $1)
+       ORDER BY q.created_at DESC
+       LIMIT 500`,
+      [query],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id || undefined,
+      userName: row.full_name || undefined,
+      userEmail: row.email || undefined,
+      text: row.text,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+
+  async auditSaveLog(log: AuditLog, ipAddress?: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `INSERT INTO audit_logs
+       (id,actor_user_id,actor_role,action,category,method,path,resource_id,status_code,details,ip_address,created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [log.id, log.actorUserId ?? null, log.actorRole ?? null, log.action, log.category, log.method, log.path, log.resourceId ?? null, log.statusCode, log.details, ipAddress ?? null, log.createdAt],
+    );
+  }
+
+  async auditListLogs(search = '', category = ''): Promise<AuditLog[]> {
+    if (!this.pool) return [];
+    const query = `%${search.trim()}%`;
+    const categoryFilter = category.trim();
+    const result = await this.pool.query(
+      `SELECT a.id, a.actor_user_id, a.actor_role, a.action, a.category, a.method, a.path,
+              a.resource_id, a.status_code, a.details, a.created_at, u.full_name, u.email
+       FROM audit_logs a
+       LEFT JOIN users u ON u.id = a.actor_user_id
+       WHERE ($1 = '%%' OR a.action ILIKE $1 OR a.path ILIKE $1 OR a.resource_id ILIKE $1 OR u.full_name ILIKE $1 OR u.email ILIKE $1)
+         AND ($2 = '' OR a.category = $2)
+       ORDER BY a.created_at DESC
+       LIMIT 500`,
+      [query, categoryFilter],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      actorUserId: row.actor_user_id || undefined,
+      actorName: row.full_name || undefined,
+      actorEmail: row.email || undefined,
+      actorRole: row.actor_role || undefined,
+      action: row.action,
+      category: row.category,
+      method: row.method,
+      path: row.path,
+      resourceId: row.resource_id || undefined,
+      statusCode: Number(row.status_code),
+      details: row.details || {},
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
   }
 }

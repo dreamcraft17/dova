@@ -10,6 +10,7 @@ import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } 
 import { FeedbackService } from './feedback.service';
 import { SendChatMessageDto } from './chat.dto';
 import { ChatService } from './chat.service';
+import { AuditService } from './audit.service';
 import { CurrentUser, OptionalAuth, Public, RequireIntegration, Roles, SkipIntegration } from './auth.decorators';
 import { AuthenticatedRequest } from './auth.types';
 import { StoredUser } from './database.service';
@@ -30,6 +31,7 @@ export class AppController {
     private readonly service: AppService,
     private readonly feedback: FeedbackService,
     private readonly chat: ChatService,
+    private readonly audit: AuditService,
     private readonly uploads: UploadStorageService,
     private readonly bundles: BundleService,
   ) {}
@@ -407,6 +409,16 @@ export class AppController {
 
   @Roles('admin')
   @Get('admin/contacts') adminContacts() { return this.service.listContacts(); }
+
+  @Roles('admin')
+  @Get('admin/ai-questions') adminAiQuestions(@Query('search') search = '') {
+    return this.chat.adminQuestions(search);
+  }
+
+  @Roles('admin')
+  @Get('admin/audit-logs') adminAuditLogs(@Query('search') search = '', @Query('category') category = '') {
+    return this.audit.list(search, category);
+  }
 
   @Public()
   @Post('contact') contact(@Body() body: ContactDto) { return this.service.submitContact(body); }

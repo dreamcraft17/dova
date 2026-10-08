@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, ServiceUnavailableException } from '@n
 import { BundleDetail, ChatMessage } from 'dova-shared';
 import { AppService } from './app.service';
 import { BundleService } from './bundle.service';
-import { ChatRecord, DatabaseService, StoredUser } from './database.service';
+import { ChatQuestion, ChatRecord, DatabaseService, StoredUser } from './database.service';
 import { DOVA_SITE_CONTEXT } from './site-context';
 
 const REQUEST_TIMEOUT_MS = 20_000;
@@ -35,6 +35,7 @@ type GeminiRequest = {
 @Injectable()
 export class ChatService {
   private readonly histories = new Map<string, ChatRecord[]>();
+  private readonly questions: ChatQuestion[] = [];
 
   constructor(
     private readonly database: DatabaseService,
@@ -156,6 +157,29 @@ ${accountContext}
     this.histories.set(message.userId, history.slice(-MAX_STORED_MESSAGES));
   }
 
+  private async recordQuestion(text: string, userId?: string) {
+    const question: ChatQuestion = {
+      id: `question-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      userId,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    this.questions.unshift(question);
+    if (this.questions.length > 500) this.questions.length = 500;
+    try {
+      await this.database.chatSaveQuestion(question);
+    } catch (error) {
+      console.warn('[Chat] Could not record admin question history:', (error as Error).message);
+    }
+  }
+
+  async adminQuestions(search = ''): Promise<ChatQuestion[]> {
+    const stored = await this.database.chatListAdminQuestions(search);
+    if (this.database.enabled) return stored;
+    const query = search.trim().toLowerCase();
+    return this.questions.filter((question) => !query || question.text.toLowerCase().includes(query));
+  }
+
   private isProgrammingRequest(text: string) {
     return PROGRAMMING_PATTERNS.test(text);
   }
@@ -249,6 +273,7 @@ ${accountContext}
 
   async sendMessage(user: StoredUser, text: string): Promise<{ conversationId: null; messages: ChatMessage[] }> {
     const normalizedText = this.normalizeMessage(text);
+    await this.recordQuestion(normalizedText, user.id);
     const history = await this.getHistory(user.id);
     const userMessage: ChatRecord = { id: `user-${Date.now()}`, userId: user.id, role: 'user', text: normalizedText, createdAt: new Date().toISOString() };
     await this.saveMessage(userMessage);
@@ -266,6 +291,7 @@ ${accountContext}
 
   async sendGuestMessage(text: string): Promise<{ conversationId: null; messages: ChatMessage[] }> {
     const normalizedText = this.normalizeMessage(text);
+    await this.recordQuestion(normalizedText);
     if (this.isPromptInjection(normalizedText)) {
       return { conversationId: null, messages: [{ id: `guest-refusal-${Date.now()}`, role: 'assistant', text: INJECTION_REFUSAL, createdAt: new Date().toISOString() }] };
     }

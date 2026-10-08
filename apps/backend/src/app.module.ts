@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -15,6 +15,8 @@ import { BundleService } from './bundle.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IntegrationKeyGuard } from './integration-key.guard';
 import { RolesGuard } from './roles.guard';
+import { AuditService } from './audit.service';
+import { AuditInterceptor } from './audit.interceptor';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { RolesGuard } from './roles.guard';
     PaystackService,
     UploadStorageService,
     BundleService,
+    AuditService,
+    AuditInterceptor,
     JwtAuthGuard,
     RolesGuard,
     IntegrationKeyGuard,
@@ -42,6 +46,7 @@ import { RolesGuard } from './roles.guard';
     { provide: APP_GUARD, useClass: IntegrationKeyGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}
