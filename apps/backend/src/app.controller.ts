@@ -468,10 +468,12 @@ export class AppController {
     return { enabled: true, native: true, features: ['board', 'votes', 'comments', 'roadmap', 'changelog', 'admin'] };
   }
 
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Get('chat/history') chatHistory(@CurrentUser() user: StoredUser) {
     return this.chat.history(user);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('chat/messages') sendChatMessage(@CurrentUser() user: StoredUser, @Body() body: SendChatMessageDto) {
     return this.chat.sendMessage(user, body.text);
   }
