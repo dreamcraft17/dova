@@ -408,6 +408,12 @@ export class AppController {
   }
 
   @Roles('admin')
+  @Get('admin/analytics') adminAnalytics(@Query('days') days = '30') {
+    const parsed = Number(days);
+    return this.service.adminAnalytics(Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 365) : 30);
+  }
+
+  @Roles('admin')
   @Get('admin/contacts') adminContacts() { return this.service.listContacts(); }
 
   @Roles('admin')
