@@ -5,6 +5,7 @@ import { PaystackService } from './paystack.service';
 export function makeDatabaseDoubles(overrides: Record<string, unknown> = {}) {
   return {
     enabled: false,
+    healthCheck: jest.fn().mockResolvedValue({ configured: false, ok: true, reason: 'in-memory mode' }),
     insertUser: jest.fn(),
     updatePendingUser: jest.fn(),
     saveUserOtp: jest.fn(),
@@ -83,7 +84,7 @@ export function makeAppService(overrides?: {
   notifications?: Partial<ReturnType<typeof makeNotificationDoubles>>;
 }) {
   const database = makeDatabaseDoubles(overrides?.database);
-  const redis = { enabled: false, set: jest.fn(), get: jest.fn(), del: jest.fn() };
+  const redis = { enabled: false, healthCheck: jest.fn().mockResolvedValue({ configured: false, ok: true, reason: 'cache disabled' }), set: jest.fn(), get: jest.fn(), del: jest.fn() };
   const notifications = { ...makeNotificationDoubles(), ...overrides?.notifications };
   const service = new AppService(
     new JwtService({ secret: 'unit-test-secret' }),

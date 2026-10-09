@@ -12,6 +12,9 @@ export class AdminController {
   @Get('admin/dashboard') admin() { return this.service.adminDashboard(); }
 
   @Roles('admin')
+  @Get('admin/system-health') systemHealth() { return this.service.adminSystemHealth(); }
+
+  @Roles('admin')
   @Get('admin/suppliers/pending') pendingSuppliers() { return this.service.pendingSuppliers(); }
 
   @Roles('admin')

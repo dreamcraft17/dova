@@ -71,6 +71,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   constructor() { if (this.enabled) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10 }); }
   async onModuleInit() { if (!this.pool) return; await this.pool.query('SELECT 1'); await this.bootstrap(); }
   async onModuleDestroy() { await this.pool?.end(); }
+  async healthCheck(): Promise<{ configured: boolean; ok: boolean; latencyMs?: number; reason?: string }> {
+    if (!this.pool) return { configured: false, ok: true, reason: 'in-memory mode' };
+    const started = Date.now();
+    try {
+      await Promise.race([
+        this.pool.query('SELECT 1'),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('database health check timed out')), 2_000)),
+      ]);
+      return { configured: true, ok: true, latencyMs: Date.now() - started };
+    } catch (error) {
+      return { configured: true, ok: false, latencyMs: Date.now() - started, reason: 'database unavailable' };
+    }
+  }
   private mapUser(row: any): StoredUser {
     return {
       id: row.id,
