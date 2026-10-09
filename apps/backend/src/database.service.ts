@@ -871,6 +871,43 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async setProductActive(productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, productId]); }
   async bulkSetProductsActive(productIds: string[], active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=ANY($2::uuid[])', [active, productIds]); }
   async adminOrders(status = '', search = '') { if (!this.pool) return undefined; const values: unknown[] = []; const filters: string[] = []; if (status) { values.push(status); filters.push(`o.status=$${values.length}`); } if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`(LOWER(o.order_number) LIKE $${values.length} OR LOWER(u.full_name) LIKE $${values.length})`); } const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''; const result = await this.pool.query(`SELECT o.*,u.full_name AS customer_name FROM orders o JOIN users u ON u.id=o.customer_id ${where} ORDER BY o.created_at DESC`, values); return result.rows.map(row => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, status: row.status, totalAmount: Number(row.total_amount), createdAt: new Date(row.created_at).toISOString() })); }
+  async adminAnalytics(since: Date) {
+    if (!this.pool) return undefined;
+    const [summary, trend, byStatus, byCategory, bySupplier] = await Promise.all([
+      this.pool.query(
+        "SELECT COUNT(*)::int AS orders, COALESCE(SUM(total_amount),0)::numeric AS sales, COUNT(*) FILTER (WHERE status='delivered')::int AS delivered FROM orders WHERE created_at >= $1",
+        [since],
+      ),
+      this.pool.query(
+        "SELECT date_trunc('day', created_at) AS day, COUNT(*)::int AS orders, COALESCE(SUM(total_amount),0)::numeric AS sales FROM orders WHERE created_at >= $1 GROUP BY day ORDER BY day",
+        [since],
+      ),
+      this.pool.query('SELECT status, COUNT(*)::int AS count FROM orders WHERE created_at >= $1 GROUP BY status', [since]),
+      this.pool.query(
+        'SELECT c.name AS category, COUNT(DISTINCT oi.order_id)::int AS orders, COALESCE(SUM(oi.subtotal),0)::numeric AS sales FROM order_items oi JOIN products p ON p.id=oi.product_id JOIN categories c ON c.id=p.category_id JOIN orders o ON o.id=oi.order_id WHERE o.created_at >= $1 GROUP BY c.name ORDER BY sales DESC LIMIT 10',
+        [since],
+      ),
+      this.pool.query(
+        'SELECT s.business_name AS supplier, COUNT(DISTINCT oi.order_id)::int AS orders, COALESCE(SUM(oi.subtotal),0)::numeric AS sales FROM order_items oi JOIN supplier_profiles s ON s.id=oi.supplier_id JOIN orders o ON o.id=oi.order_id WHERE o.created_at >= $1 GROUP BY s.business_name ORDER BY sales DESC LIMIT 10',
+        [since],
+      ),
+    ]);
+    const row = summary.rows[0];
+    const orders = row.orders;
+    const sales = Number(row.sales);
+    return {
+      summary: {
+        orders,
+        sales,
+        averageOrderValue: orders ? sales / orders : 0,
+        completionRate: orders ? row.delivered / orders : 0,
+      },
+      trend: trend.rows.map((r) => ({ date: new Date(r.day).toISOString().slice(0, 10), orders: r.orders, sales: Number(r.sales) })),
+      byStatus: byStatus.rows.map((r) => ({ status: r.status, count: r.count })),
+      byCategory: byCategory.rows.map((r) => ({ category: r.category, orders: r.orders, sales: Number(r.sales) })),
+      bySupplier: bySupplier.rows.map((r) => ({ supplier: r.supplier, orders: r.orders, sales: Number(r.sales) })),
+    };
+  }
   async insertContactSubmission(body: { name: string; email: string; message: string }) {
     if (!this.pool) return undefined;
     const result = await this.pool.query(

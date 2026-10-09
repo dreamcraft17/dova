@@ -910,6 +910,55 @@ export class AppService {
     if (!order) return undefined;
     return { ...order, customerName: this.users.find(u => u.id === order.customerId)?.fullName };
   }
+  async adminAnalytics(days: number) {
+    const since = new Date(Date.now() - days * 86_400_000);
+    const stored = await this.database.adminAnalytics(since);
+    if (stored) return stored;
+    const orders = this.orders.filter((o) => new Date(o.createdAt) >= since);
+    const sales = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const delivered = orders.filter((o) => o.status === 'delivered').length;
+    const trendMap = new Map<string, { orders: number; sales: number }>();
+    for (const o of orders) {
+      const day = o.createdAt.slice(0, 10);
+      const entry = trendMap.get(day) ?? { orders: 0, sales: 0 };
+      entry.orders += 1;
+      entry.sales += o.totalAmount;
+      trendMap.set(day, entry);
+    }
+    const statusMap = new Map<string, number>();
+    for (const o of orders) statusMap.set(o.status, (statusMap.get(o.status) ?? 0) + 1);
+    const categoryMap = new Map<string, { orders: Set<string>; sales: number }>();
+    const supplierMap = new Map<string, { orders: Set<string>; sales: number }>();
+    for (const o of orders) {
+      for (const item of o.items) {
+        const cat = categoryMap.get(item.product.categoryName) ?? { orders: new Set(), sales: 0 };
+        cat.orders.add(o.id);
+        cat.sales += item.subtotal;
+        categoryMap.set(item.product.categoryName, cat);
+        const sup = supplierMap.get(item.product.supplierName) ?? { orders: new Set(), sales: 0 };
+        sup.orders.add(o.id);
+        sup.sales += item.subtotal;
+        supplierMap.set(item.product.supplierName, sup);
+      }
+    }
+    const topBySales = (map: Map<string, { orders: Set<string>; sales: number }>, key: 'category' | 'supplier') =>
+      [...map.entries()]
+        .map(([name, v]) => ({ [key]: name, orders: v.orders.size, sales: v.sales }))
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 10);
+    return {
+      summary: {
+        orders: orders.length,
+        sales,
+        averageOrderValue: orders.length ? sales / orders.length : 0,
+        completionRate: orders.length ? delivered / orders.length : 0,
+      },
+      trend: [...trendMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v })),
+      byStatus: [...statusMap.entries()].map(([status, count]) => ({ status, count })),
+      byCategory: topBySales(categoryMap, 'category'),
+      bySupplier: topBySales(supplierMap, 'supplier'),
+    };
+  }
   async makeSupplierUser(body: any) {
     if (!body.businessName || !body.email || !body.password || body.password.length < 8) throw new BadRequestException('Invalid supplier data');
     const normalizedEmail = body.email.toLowerCase();
