@@ -68,16 +68,28 @@ describe('mail.util', () => {
       );
     });
 
-    it('prefers SMTP over Resend when both are set', async () => {
+    it('prefers Resend over legacy SMTP when both are set', async () => {
       process.env.EMAIL_FROM = 'DOVA <officialdovachain@gmail.com>';
       process.env.SMTP_HOST = 'smtp.gmail.com';
       process.env.SMTP_USER = 'officialdovachain@gmail.com';
       process.env.SMTP_PASS = 'app-password';
       process.env.RESEND_API_KEY = 're_test';
       const fetchSpy = jest.spyOn(global, 'fetch');
+      fetchSpy.mockResolvedValue(new Response('{}', { status: 200 }));
+      await mailUtil.sendEmail({ to: 'jane@example.com', subject: 'Hi', text: 'Body' });
+      expect(sendMail).not.toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalled();
+    });
+
+    it('allows explicit SMTP fallback when EMAIL_PROVIDER=smtp', async () => {
+      process.env.EMAIL_PROVIDER = 'smtp';
+      process.env.EMAIL_FROM = 'DOVA <officialdovachain@gmail.com>';
+      process.env.SMTP_HOST = 'smtp.gmail.com';
+      process.env.SMTP_USER = 'officialdovachain@gmail.com';
+      process.env.SMTP_PASS = 'app-password';
+      process.env.RESEND_API_KEY = 're_test';
       await mailUtil.sendEmail({ to: 'jane@example.com', subject: 'Hi', text: 'Body' });
       expect(sendMail).toHaveBeenCalled();
-      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('sends via Resend when SMTP is not configured', async () => {
@@ -101,6 +113,16 @@ describe('mail.util', () => {
       sendMail.mockRejectedValue(new Error('auth failed'));
       const result = await mailUtil.sendEmail({ to: 'jane@example.com', subject: 'Hi', text: 'Body' });
       expect(result).toEqual({ sent: false, reason: 'provider-error' });
+    });
+
+    it('returns provider-error when Resend request fails', async () => {
+      process.env.EMAIL_FROM = 'DOVA <noreply@dova.local>';
+      process.env.RESEND_API_KEY = 're_test_key';
+      jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const result = await mailUtil.sendEmail({ to: 'jane@example.com', subject: 'Verify', text: '123456' });
+      expect(result).toEqual({ sent: false, reason: 'provider-error' });
+      expect(warn).toHaveBeenCalledWith('[Mail] Resend API request failed:', 'network down');
     });
   });
 });
