@@ -73,6 +73,18 @@ External catalog reads (`GET /api/v1/products`, `/categories`, `/openapi.json`) 
 
 See **[operations/RUNBOOK.md](https://github.com/dreamcraft17/dova-com-wiki/blob/main/operations/RUNBOOK.md)** and **[operations/ENV-SETUP.md](https://github.com/dreamcraft17/dova-com-wiki/blob/main/operations/ENV-SETUP.md)** in the wiki.
 
+### Transactional email (Resend HTTP)
+
+Email verification and password-reset OTPs use Resend's HTTPS API by default. Configure these on the backend/VPS only:
+
+```env
+EMAIL_PROVIDER=resend
+EMAIL_FROM="DOVA <no-reply@your-verified-domain.com>"
+RESEND_API_KEY=re_...
+```
+
+Verify the sending domain and configure SPF/DKIM (and DMARC where appropriate) in Resend. Do not put `RESEND_API_KEY` in frontend env or `NEXT_PUBLIC_*`. If old `SMTP_*` variables remain on the server, Resend still wins; SMTP is only used when explicitly setting `EMAIL_PROVIDER=smtp`.
+
 ```bash
 git pull && npm ci && npm run db:migrate && npm run build
 pm2 restart dova-backend dova-frontend --update-env
