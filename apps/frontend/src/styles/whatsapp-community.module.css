@@ -10,7 +10,7 @@
   padding: 8px 16px 8px 8px;
   border-radius: 999px;
   background: #031f17;
-  color: #fff;
+  color: #ffffff !important;
   border: 1px solid rgba(212, 175, 55, 0.55);
   box-shadow: 0 14px 34px rgba(3, 31, 23, 0.28);
   text-decoration: none;
@@ -36,14 +36,16 @@
   place-items: center;
   border-radius: 50%;
   background: #25d366;
-  color: #fff;
+  color: #ffffff !important;
 }
 
 .label {
+  color: #ffffff !important;
   font-size: 0.84rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
 }
 
 @media (max-width: 640px) {
