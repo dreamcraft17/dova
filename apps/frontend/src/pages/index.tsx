@@ -6,6 +6,7 @@ import { ArrowRight, Carrot, Citrus, Leaf, Wheat } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
+import { WhatsAppCommunity } from '../components/WhatsAppCommunity';
 import DovaChainNavbar from '../components/DovaChainNavbar';
 import { fraunces, manrope } from '../lib/fonts';
 import styles from '../styles/home-v3.module.css';
@@ -1058,6 +1059,7 @@ export default function Home() {
         </div>
       </footer>
       <DovaAiHelpWidget open={aiOpen} onClose={() => setAiOpen(false)} />
+      <WhatsAppCommunity />
     </div>
   );
 }

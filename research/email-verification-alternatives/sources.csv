@@ -1,0 +1,8 @@
+id,title,type,url,credibility,recency,bias
+01,DOVA current mail adapter,primary local code,,high,current,internal
+02,Resend API and pricing,primary,https://resend.com/pricing,high,current,provider
+03,Brevo transactional API,primary,https://developers.brevo.com/reference/send-transac-email,high,current,provider
+04,AWS SES API and quotas,primary,https://docs.aws.amazon.com/en_en/ses/latest/dg/quotas.html,high,current,provider
+05,Postmark Email API,primary,https://postmarkapp.com/developer/api/email-api,high,current,provider
+06,Twilio Verify channels,primary,https://www.twilio.com/docs/verify/api,high,current,provider
+07,Gmail sending limits,primary,https://support.google.com/mail/answer/22839?hl=en,high,current,provider

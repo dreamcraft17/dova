@@ -1,0 +1,71 @@
+.fab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 16px 8px 8px;
+  border-radius: 999px;
+  background: #031f17;
+  color: #fff;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  box-shadow: 0 14px 34px rgba(3, 31, 23, 0.28);
+  text-decoration: none;
+  line-height: 1.15;
+}
+
+.fab:hover {
+  background: #063b2a;
+  border-color: #f0d878;
+  transform: translateY(-2px);
+}
+
+.fab:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 3px;
+}
+
+.icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+}
+
+.label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .fab {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+  }
+
+  .icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .label {
+    font-size: 0.75rem;
+  }
+}

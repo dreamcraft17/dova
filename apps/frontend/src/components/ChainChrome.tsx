@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import DovaChainNavbar from './DovaChainNavbar';
+import { WhatsAppCommunity } from './WhatsAppCommunity';
 
 const NAV_ITEMS = [
   { label: 'How It Works', href: '/#how' },
@@ -72,6 +73,7 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
           </div>
         </div>
       </footer>
+      <WhatsAppCommunity />
     </div>
   );
 }
