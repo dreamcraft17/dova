@@ -50,7 +50,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboa
   { href: '/admin/inventory', label: 'Inventory', icon: Warehouse },
   { href: '/admin/finance', label: 'Finance & Payouts', icon: Wallet },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/admin/monitoring', label: 'System Monitoring', icon: Activity },
+  { href: '/admin/monitoring', label: 'System Health', icon: Activity },
   { href: '/admin/contacts', label: 'Contacts', icon: Mail },
   { href: '/admin/ai-questions', label: 'AI Questions', icon: MessagesSquare },
   { href: '/admin/feedback', label: 'Feedback', icon: MessageSquare },

@@ -20,6 +20,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.active && Boolean(this.client?.isOpen);
   }
 
+  async healthCheck(): Promise<{ configured: boolean; ok: boolean; latencyMs?: number; reason?: string }> {
+    if (!this.active || !this.client) return { configured: false, ok: true, reason: 'cache disabled' };
+    if (!this.client.isOpen) return { configured: true, ok: false, reason: 'not connected' };
+    const started = Date.now();
+    try {
+      await this.client.ping();
+      return { configured: true, ok: true, latencyMs: Date.now() - started };
+    } catch (error) {
+      return { configured: true, ok: false, latencyMs: Date.now() - started, reason: 'cache unavailable' };
+    }
+  }
+
   async onModuleInit() {
     if (!this.client || this.client.isOpen) return;
     try {

@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException, ForbiddenException, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
+import { access } from 'fs/promises';
 import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
@@ -7,7 +8,7 @@ import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMes
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
-import { isEmailProviderConfigured } from './mail.util';
+import { isEmailProviderConfigured, usesResend, usesSmtp } from './mail.util';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
 import { isValidOtpFormat } from 'dova-shared';
@@ -779,6 +780,92 @@ export class AppService {
   async supplierOrders(userId: string) { const s = await this.supplierFor(userId); const stored = await this.database.supplierOrders(s.id); if (stored) return stored; return this.orders.flatMap(order => order.items.filter(item => item.product.supplierId === s.id).map(item => ({ orderId: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName || order.deliveryName, deliveryName: order.deliveryName, deliveryAddress: order.deliveryAddress, createdAt: order.createdAt, itemId: item.id, productName: item.product.name, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.subtotal, status: item.supplierOrderStatus }))); }
   async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
   async adminDashboard() { return (await this.database.adminDashboard()) ?? { users: this.users.length, suppliers: this.suppliers.length, products: this.products.length, orders: this.orders.length, pendingSuppliers: this.suppliers.filter(s => s.status === 'pending').length }; }
+
+  async adminSystemHealth() {
+    const checkedAt = new Date().toISOString();
+    const check = async (
+      key: string,
+      label: string,
+      run: () => Promise<{ configured: boolean; ok: boolean; latencyMs?: number; reason?: string }>,
+    ) => {
+      try {
+        const result = await run();
+        return {
+          key,
+          label,
+          status: !result.configured ? 'not_configured' : result.ok ? 'healthy' : 'down',
+          latencyMs: result.latencyMs,
+          detail: result.reason,
+        };
+      } catch (error) {
+        return { key, label, status: 'down', detail: 'Health check failed' };
+      }
+    };
+
+    const [database, redis, storage] = await Promise.all([
+      check('database', 'PostgreSQL', () => this.database.healthCheck()),
+      check('redis', 'Redis cache', () => this.redis.healthCheck()),
+      check('storage', 'Upload storage', async () => {
+        const root = process.env.UPLOAD_DIR || `${process.cwd()}/uploads`;
+        try {
+          await access(root);
+          return { configured: true, ok: true };
+        } catch {
+          return { configured: true, ok: false, reason: 'upload directory unavailable' };
+        }
+      }),
+    ]);
+
+    const emailConfigured = isEmailProviderConfigured();
+    const email = {
+      key: 'email',
+      label: 'Email provider',
+      status: emailConfigured ? 'healthy' : 'not_configured',
+      detail: emailConfigured
+        ? usesResend()
+          ? 'Resend HTTP API'
+          : usesSmtp()
+            ? 'SMTP'
+            : 'Configured'
+        : 'Set EMAIL_PROVIDER, EMAIL_FROM, and provider credentials',
+    };
+    const payments = {
+      key: 'payments',
+      label: 'Paystack payments',
+      status: this.paystack.enabled() ? 'healthy' : 'degraded',
+      detail: this.paystack.enabled() ? (this.paystack.isTestMode() ? 'Test mode' : 'Live mode') : 'Mock payment mode',
+    };
+    const ai = {
+      key: 'ai',
+      label: 'DOVA AI',
+      status: process.env.GEMINI_API_KEY ? 'healthy' : 'not_configured',
+      detail: process.env.GEMINI_API_KEY
+        ? `Configured (${process.env.GEMINI_MODEL || 'default model'})`
+        : 'GEMINI_API_KEY is not set',
+    };
+    const checks = [
+      { key: 'api', label: 'DOVA API', status: 'healthy', detail: 'Process is running' },
+      database,
+      redis,
+      email,
+      payments,
+      ai,
+      storage,
+    ];
+    const status = checks.some((item) => item.status === 'down')
+      ? 'down'
+      : checks.some((item) => item.status === 'degraded' || item.status === 'not_configured')
+        ? 'degraded'
+        : 'healthy';
+    return {
+      status,
+      checkedAt,
+      uptimeSeconds: Math.round(process.uptime()),
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.APP_VERSION || 'unknown',
+      checks,
+    };
+  }
   async pendingSuppliers() { return (await this.database.pendingSuppliers()) ?? this.suppliers.filter(s => s.status === 'pending').map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName })); }
   async adminSuppliers() { return (await this.database.adminSuppliers()) ?? this.suppliers.map(s => ({ ...s, email: this.users.find(u => u.id === s.userId)?.email, contactName: this.users.find(u => u.id === s.userId)?.fullName, productsCount: this.products.filter(p => p.supplierId === s.id).length })); }
   async approveSupplier(id: string) { const s = this.suppliers.find(x => x.id === id) ?? await this.database.findSupplierById(id); if (!s) throw new NotFoundException('Supplier not found'); await this.database.setSupplierStatus(s.id, 'approved'); const local = this.suppliers.find(x => x.id === s.id); if (local) local.status = 'approved'; const user = this.users.find(u => u.id === s.userId); if (user) user.isActive = true; await this.notifySafely(this.notifications?.supplierStatus(user?.email, s.businessName, 'approved')); return { id: s.id, status: 'approved' }; }

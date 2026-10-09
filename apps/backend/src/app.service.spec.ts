@@ -758,6 +758,22 @@ describe('AppService', () => {
       expect(stats.pendingSuppliers).toBeGreaterThanOrEqual(1);
     });
 
+    it('returns safe service health details without exposing secrets', async () => {
+      const { service } = makeService();
+      const health = await service.adminSystemHealth();
+      expect(health).toEqual(expect.objectContaining({
+        status: expect.any(String),
+        checkedAt: expect.any(String),
+        uptimeSeconds: expect.any(Number),
+        checks: expect.arrayContaining([
+          expect.objectContaining({ key: 'api', status: 'healthy' }),
+          expect.objectContaining({ key: 'database' }),
+          expect.objectContaining({ key: 'email' }),
+        ]),
+      }));
+      expect(JSON.stringify(health)).not.toContain(process.env.JWT_SECRET ?? 'change-me-in-development');
+    });
+
     it('lists admin users without password hashes', async () => {
       const { service } = makeService();
       const users = await service.adminUsers();
