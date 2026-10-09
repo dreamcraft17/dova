@@ -82,7 +82,11 @@ function SalesTrendChart({ trend, loading }: { trend: AdminAnalyticsTrendPoint[]
           <Tooltip
             cursor={{ stroke: 'var(--emerald)', strokeWidth: 1 }}
             labelFormatter={(value) => formatDateLabel(String(value))}
-            formatter={(value: number, name) => [name === 'sales' ? formatNaira(value) : value, name === 'sales' ? 'Sales' : 'Orders']}
+            formatter={(value, name) => {
+              const n = typeof value === 'number' ? value : Number(value ?? 0);
+              const key = String(name ?? '');
+              return [key === 'sales' ? formatNaira(n) : n, key === 'sales' ? 'Sales' : 'Orders'];
+            }}
           />
           <Area type="monotone" dataKey="sales" stroke="var(--emerald)" strokeWidth={2} fill="url(#adminSalesArea)" />
         </AreaChart>
@@ -107,7 +111,14 @@ function OrdersTrendChart({ trend, loading }: { trend: AdminAnalyticsTrendPoint[
             tick={{ fill: 'var(--admin-muted-ink)' }}
             minTickGap={24}
           />
-          <Tooltip cursor={{ fill: 'rgba(8,127,91,0.06)' }} labelFormatter={(value) => formatDateLabel(String(value))} formatter={(value: number) => [value, 'Orders']} />
+          <Tooltip
+            cursor={{ fill: 'rgba(8,127,91,0.06)' }}
+            labelFormatter={(value) => formatDateLabel(String(value))}
+            formatter={(value) => {
+              const n = typeof value === 'number' ? value : Number(value ?? 0);
+              return [n, 'Orders'];
+            }}
+          />
           <Bar dataKey="orders" fill="var(--bright)" radius={[6, 6, 2, 2]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>
