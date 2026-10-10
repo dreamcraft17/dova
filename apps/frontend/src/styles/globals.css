@@ -4575,6 +4575,10 @@ form .button {
 }
 
 .dova-ai-floating .dova-ai-help-trigger {
+  /* Fixed width so the home back-to-top button can sit beside it on mobile. */
+  width: 120px;
+  justify-content: center;
+  white-space: nowrap;
   border-color: rgba(3, 31, 23, 0.2);
   box-shadow: 0 14px 34px rgba(3, 31, 23, 0.22);
 }
