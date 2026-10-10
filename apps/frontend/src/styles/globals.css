@@ -16,6 +16,25 @@
   --pad-x: clamp(16px, 4vw, 80px);
   --header-h: 64px;
   --touch: 44px;
+
+  /* Fixed bottom-right stack: WhatsApp → DovaAI → back-to-top (home). */
+  --dova-float-gap: 10px;
+  --dova-float-wa-bottom: max(18px, env(safe-area-inset-bottom));
+  --dova-float-wa-height: 52px;
+  --dova-float-ai-height: 44px;
+  --dova-float-ai-bottom: calc(
+    var(--dova-float-wa-bottom) + var(--dova-float-wa-height) + var(--dova-float-gap)
+  );
+  --dova-float-to-top-bottom: calc(
+    var(--dova-float-ai-bottom) + var(--dova-float-ai-height) + var(--dova-float-gap)
+  );
+}
+
+@media (max-width: 640px) {
+  :root {
+    --dova-float-wa-bottom: max(14px, env(safe-area-inset-bottom));
+    --dova-float-wa-height: 44px;
+  }
 }
 
 * {
@@ -4551,7 +4570,7 @@ form .button {
 .dova-ai-floating {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+  bottom: var(--dova-float-ai-bottom);
   z-index: 940;
 }
 
@@ -4563,7 +4582,7 @@ form .button {
 .dova-ai-widget {
   position: fixed;
   right: clamp(16px, 4vw, 28px);
-  bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+  bottom: var(--dova-float-ai-bottom);
   z-index: 60;
   width: min(calc(100vw - 32px), 400px);
   height: min(640px, calc(100dvh - 32px));
@@ -4784,7 +4803,6 @@ form .button {
 @media (max-width: 480px) {
   .dova-ai-floating {
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
   }
 
   .dova-ai-floating .dova-ai-help-trigger {
@@ -4793,7 +4811,6 @@ form .button {
 
   .dova-ai-widget {
     right: 12px;
-    bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
     width: calc(100vw - 24px);
     height: min(640px, calc(100dvh - 24px));
     min-height: 0;
