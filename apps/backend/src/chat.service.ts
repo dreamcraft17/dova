@@ -265,6 +265,15 @@ ${accountContext}
     return { conversationId: null, messages: messages.map(({ id, role, text, createdAt }) => ({ id, role, text, createdAt })) };
   }
 
+  async clearHistory(user: StoredUser) {
+    if (this.database.enabled) {
+      await this.database.chatClearMessages(user.id);
+    } else {
+      this.histories.delete(user.id);
+    }
+    return { cleared: true };
+  }
+
   private async refusal(userId: string, replyText: string) {
     const refusal: ChatRecord = { id: `assistant-${Date.now()}`, userId, role: 'assistant', text: replyText, createdAt: new Date().toISOString() };
     await this.saveMessage(refusal);

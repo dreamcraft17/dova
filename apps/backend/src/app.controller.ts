@@ -494,6 +494,11 @@ export class AppController {
     return this.chat.history(user);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Delete('chat/history') clearChatHistory(@CurrentUser() user: StoredUser) {
+    return this.chat.clearHistory(user);
+  }
+
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('chat/messages') sendChatMessage(@CurrentUser() user: StoredUser, @Body() body: SendChatMessageDto) {
     return this.chat.sendMessage(user, body.text);

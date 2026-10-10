@@ -27,6 +27,7 @@ export function makeDatabaseDoubles(overrides: Record<string, unknown> = {}) {
     getCart: jest.fn().mockResolvedValue(undefined),
     saveCart: jest.fn(),
     createOrderFromCart: jest.fn().mockResolvedValue(undefined),
+    cancelPendingOrderAndRestoreCart: jest.fn().mockResolvedValue(false),
     recordPurchaseStock: jest.fn(),
     listOrders: jest.fn().mockResolvedValue(undefined),
     findOrder: jest.fn().mockResolvedValue(undefined),
