@@ -551,6 +551,37 @@ describe('AppService', () => {
       }
     });
 
+    it('restores the cart and stock when Paystack reports an abandoned payment', async () => {
+      const previousKey = process.env.PAYSTACK_SECRET_KEY;
+      process.env.PAYSTACK_SECRET_KEY = 'sk_test_cancelled';
+      let fetchSpy: jest.SpyInstance | undefined;
+      try {
+        const { service } = makeService();
+        const customerId = 'cancelled-payment-customer';
+        const product = service.products[0];
+        const originalStock = product.stockQuantity;
+        await addToCart(service, customerId, product.id, 2);
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const reference = 'DOVA-CANCELLED-001';
+        service.payments.set(reference, { orderId: order.id, status: 'pending' });
+        order.paymentReference = reference;
+        fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+          new Response(JSON.stringify({
+            status: true,
+            data: { status: 'abandoned', reference, amount: Math.round(order.totalAmount * 100), currency: 'NGN' },
+          }), { status: 200 }),
+        );
+
+        await expect(service.verifyPayment(customerId, reference)).rejects.toThrow('Payment was not completed.');
+        await expect(service.cart(customerId)).resolves.toMatchObject({ items: [expect.objectContaining({ quantity: 2 })] });
+        expect(product.stockQuantity).toBe(originalStock);
+        expect(order.status).toBe('cancelled');
+      } finally {
+        fetchSpy?.mockRestore();
+        if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previousKey;
+      }
+    });
+
     it('is idempotent when verifying an already paid order', async () => {
       const previousKey = process.env.PAYSTACK_SECRET_KEY;
       delete process.env.PAYSTACK_SECRET_KEY;

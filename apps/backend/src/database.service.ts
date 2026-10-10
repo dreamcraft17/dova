@@ -723,6 +723,80 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       client.release();
     }
   }
+
+  async cancelPendingOrderAndRestoreCart(userId: string, orderId: string): Promise<boolean> {
+    if (!this.pool) return false;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const orderResult = await client.query(
+        "SELECT id FROM orders WHERE id=$1 AND customer_id=$2 AND status='pending' FOR UPDATE",
+        [orderId, userId],
+      );
+      if (!orderResult.rowCount) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+
+      const items = await client.query(
+        `SELECT oi.product_id,oi.supplier_id,oi.quantity,oi.bundle_id,oi.bundle_quantity,
+                p.*,s.business_name,c.name AS category_name
+         FROM order_items oi
+         JOIN products p ON p.id=oi.product_id
+         JOIN supplier_profiles s ON s.id=oi.supplier_id
+         JOIN categories c ON c.id=p.category_id
+         WHERE oi.order_id=$1
+         ORDER BY oi.created_at`,
+        [orderId],
+      );
+
+      for (const item of items.rows) {
+        const stock = await client.query(
+          'UPDATE products SET stock_quantity=stock_quantity+$1,updated_at=NOW() WHERE id=$2 RETURNING stock_quantity',
+          [item.quantity, item.product_id],
+        );
+        await client.query(
+          "INSERT INTO stock_adjustments (order_id,product_id,supplier_id,quantity,reason,stock_after) VALUES ($1,$2,$3,$4,'payment_cancelled',$5)",
+          [orderId, item.product_id, item.supplier_id, item.quantity, stock.rows[0].stock_quantity],
+        );
+      }
+
+      const cartResult = await client.query(
+        'INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at=NOW() RETURNING id',
+        [userId],
+      );
+      const cartId = cartResult.rows[0].id;
+      await client.query('DELETE FROM cart_items WHERE cart_id=$1', [cartId]);
+
+      const bundleQuantities = new Map<string, number>();
+      for (const item of items.rows) {
+        if (item.bundle_id) {
+          bundleQuantities.set(item.bundle_id, Number(item.bundle_quantity || 1));
+          continue;
+        }
+        await client.query(
+          "INSERT INTO cart_items (id,cart_id,product_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,'morning')",
+          [randomUUID(), cartId, item.product_id, item.quantity],
+        );
+      }
+      for (const [bundleId, quantity] of bundleQuantities) {
+        await client.query(
+          "INSERT INTO cart_items (id,cart_id,bundle_id,quantity,delivery_slot) VALUES ($1,$2,$3,$4,'morning')",
+          [randomUUID(), cartId, bundleId, quantity],
+        );
+      }
+
+      await client.query("UPDATE orders SET status='cancelled',updated_at=NOW() WHERE id=$1", [orderId]);
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async recordPurchaseStock(orderId: string) { if (this.pool) await this.pool.query("INSERT INTO stock_adjustments (order_id,product_id,supplier_id,quantity,reason,stock_after) SELECT $1,oi.product_id,oi.supplier_id,-oi.quantity,'purchase',p.stock_quantity FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=$1 AND NOT EXISTS (SELECT 1 FROM stock_adjustments sa WHERE sa.order_id=$1 AND sa.product_id=oi.product_id AND sa.reason='purchase')", [orderId]); }
   async listOrders(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM orders WHERE customer_id=$1 ORDER BY created_at DESC', [userId]); const orders: Order[] = []; for (const row of result.rows) { const itemResult = await this.pool.query('SELECT oi.*,p.*,s.business_name,c.name AS category_name FROM order_items oi JOIN products p ON p.id=oi.product_id JOIN supplier_profiles s ON s.id=oi.supplier_id JOIN categories c ON c.id=p.category_id WHERE oi.order_id=$1 ORDER BY oi.created_at', [row.id]); orders.push({ id: row.id, orderNumber: row.order_number, customerId: row.customer_id, status: row.status, totalAmount: Number(row.total_amount), deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, deliveryPhone: row.delivery_phone, fulfillmentType: row.fulfillment_type || 'delivery', paymentReference: row.payment_reference || undefined, paymentVerifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined, items: itemResult.rows.map(item => ({ id: item.id, product: this.mapProduct(item), quantity: Number(item.quantity), unitPrice: Number(item.unit_price), subtotal: Number(item.subtotal), supplierOrderStatus: item.supplier_order_status })), createdAt: new Date(row.created_at).toISOString() }); } return orders; }
   async findOrder(userId: string, orderId: string) { const orders = await this.listOrders(userId); return orders?.find(order => order.id === orderId); }
@@ -1189,6 +1263,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       id: row.id, userId: row.user_id, role: row.role, text: row.text,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  async chatClearMessages(userId: string) {
+    if (!this.pool) return;
+    await this.pool.query('DELETE FROM chat_messages WHERE user_id=$1', [userId]);
   }
 
   async chatSaveMessage(message: ChatRecord) {

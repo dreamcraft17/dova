@@ -4,6 +4,7 @@ import type { ChatMessage } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api, ApiError } from '../lib/api';
+import { resetChatHistoryOnReload } from '../lib/chat-session';
 
 type HelpMessage = ChatMessage & { local?: boolean };
 
@@ -64,6 +65,8 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
+      const reset = await resetChatHistoryOnReload();
+      if (reset || cancelled) return;
       try {
         const history = await api<{ messages: ChatMessage[] }>('/chat/history');
         if (!cancelled && history.messages.length) setMessages([WELCOME, ...history.messages]);

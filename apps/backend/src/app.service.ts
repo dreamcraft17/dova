@@ -709,7 +709,55 @@ export class AppService {
       ? this.paystack.failedStatusMessage(verified.data)
       : 'Payment verification failed';
     await this.database.logPayment(order.id, reference, order.totalAmount, 'failed', response);
+    if (verified.ok && verified.data && this.paystack.isFailedStatus(verified.data.status)) {
+      await this.cancelPendingPayment(userId, order, reference, payment);
+    }
     throw new BadRequestException(failureMessage);
+  }
+
+  private async cancelPendingPayment(
+    userId: string,
+    order: Order,
+    reference: string,
+    payment: { orderId: string; status: string; authorization_url?: string } | undefined,
+  ) {
+    if (order.status !== 'pending') return;
+    if (this.database.enabled) {
+      await this.database.cancelPendingOrderAndRestoreCart(userId, order.id);
+    } else {
+      const cart = await this.cart(userId);
+      for (const item of order.items) {
+        const existing = cart.items.find((cartItem) => cartItem.bundleId === item.bundleId && cartItem.product.id === item.product.id);
+        if (existing) existing.quantity += item.quantity;
+        else cart.items.push({
+          id: randomUUID(),
+          product: item.product,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          deliverySlot: 'morning',
+          bundleId: item.bundleId,
+        });
+        const product = this.products.find((candidate) => candidate.id === item.product.id);
+        if (product) {
+          product.stockQuantity += item.quantity;
+          this.stockAdjustments.unshift({
+            id: randomUUID(),
+            orderId: order.id,
+            productId: product.id,
+            supplierId: product.supplierId,
+            quantity: item.quantity,
+            reason: 'payment_cancelled',
+            stockAfter: product.stockQuantity,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+      this.recalculate(cart);
+      await this.saveCart(userId, cart);
+      order.status = 'cancelled';
+    }
+    if (payment) payment.status = 'cancelled';
+    await this.database.logPayment(order.id, reference, order.totalAmount, 'cancelled');
   }
 
   private async fulfillPaidOrder(

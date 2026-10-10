@@ -6,6 +6,7 @@ import { Loading } from '../components/Loading';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api, ApiError } from '../lib/api';
+import { resetChatHistoryOnReload } from '../lib/chat-session';
 import type { ChatMessage } from 'dova-shared';
 
 const WELCOME: ChatMessage = {
@@ -37,6 +38,11 @@ function ChatPage() {
     }
     let cancelled = false;
     (async () => {
+      const reset = await resetChatHistoryOnReload();
+      if (reset || cancelled) {
+        if (!cancelled) setLoadingHistory(false);
+        return;
+      }
       try {
         const history = await api<{ conversationId: string | null; messages: ChatMessage[] }>('/chat/history');
         if (!cancelled && history.messages.length) {
