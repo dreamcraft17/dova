@@ -1,7 +1,7 @@
 .fab {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
+  bottom: var(--dova-float-wa-bottom);
   z-index: 950;
   display: inline-flex;
   align-items: center;
@@ -51,7 +51,7 @@
 @media (max-width: 640px) {
   .fab {
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(14px, env(safe-area-inset-bottom));
+    bottom: var(--dova-float-wa-bottom);
     gap: 8px;
     padding: 6px 12px 6px 6px;
   }

@@ -686,8 +686,7 @@
 .toTop {
   position: fixed;
   right: 16px;
-  /* Keep the back-to-top control above the DovaAI and WhatsApp stack. */
-  bottom: 144px;
+  bottom: var(--dova-float-to-top-bottom);
   z-index: 1100;
   width: 46px;
   height: 46px;
@@ -709,7 +708,6 @@
 @media (max-width: 900px) {
   .toTop {
     right: 12px;
-    bottom: 188px;
   }
 }
 
@@ -2384,8 +2382,6 @@
 
   .toTop {
     right: 12px;
-    /* Above WhatsApp pill + DovaAI floating trigger (see globals .dova-ai-floating). */
-    bottom: max(188px, calc(env(safe-area-inset-bottom) + 172px));
   }
 
   .legalGrid {
