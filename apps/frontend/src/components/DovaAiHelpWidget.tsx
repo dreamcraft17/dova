@@ -172,5 +172,5 @@ export function DovaAiHelpWidget({ open, onClose }: { open: boolean; onClose: ()
 }
 
 export function DovaAiHelpTrigger({ onClick }: { onClick: () => void }) {
-  return <button type="button" className="dova-ai-help-trigger" onClick={onClick}><MessageCircle size={17} aria-hidden="true" /> Explore DOVA AI</button>;
+  return <button type="button" className="dova-ai-help-trigger" onClick={onClick}><MessageCircle size={17} aria-hidden="true" /> DovaAI</button>;
 }
