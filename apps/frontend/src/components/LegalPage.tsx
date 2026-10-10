@@ -80,7 +80,7 @@ export function LegalPage({
               <h3>Questions about this policy?</h3>
               <p>
                 Email <a href="mailto:privacy@dova.com">privacy@dova.com</a> for privacy matters, or{' '}
-                <a href="mailto:support@dova.com">support@dova.com</a> for anything else — we usually reply
+                <a href="mailto:support@dovachain.com">support@dovachain.com</a> for anything else — we usually reply
                 within a few business days.
               </p>
             </div>

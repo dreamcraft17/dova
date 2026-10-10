@@ -51,7 +51,7 @@ const sections: LegalSection[] = [
       <p>
         You are responsible for maintaining the confidentiality of your account credentials and for all
         activity that occurs under your account. Notify us immediately at{' '}
-        <a href="mailto:support@dova.com">support@dova.com</a> if you suspect unauthorized access to your
+        <a href="mailto:support@dovachain.com">support@dovachain.com</a> if you suspect unauthorized access to your
         account.
       </p>
     ),
@@ -175,7 +175,7 @@ const sections: LegalSection[] = [
       <>
         <p>
           You may cancel an order before it is dispatched by contacting{' '}
-          <a href="mailto:support@dova.com">support@dova.com</a>. Once dispatched, cancellation may no
+          <a href="mailto:support@dovachain.com">support@dovachain.com</a>. Once dispatched, cancellation may no
           longer be possible.
         </p>
         <p>
@@ -194,7 +194,7 @@ const sections: LegalSection[] = [
     body: (
       <p>
         If you have a complaint about an order, a supplier, or the platform, contact{' '}
-        <a href="mailto:support@dova.com">support@dova.com</a> with your order details. We aim to
+        <a href="mailto:support@dovachain.com">support@dovachain.com</a> with your order details. We aim to
         acknowledge complaints promptly and work with the relevant supplier to resolve them. Unresolved
         consumer complaints may also be escalated to the Federal Competition and Consumer Protection
         Commission (FCCPC).
@@ -285,7 +285,7 @@ const sections: LegalSection[] = [
       <p>
         DOVA may suspend or terminate an account that breaches these Terms, engages in fraudulent or
         unlawful activity, or poses a risk to other users or the platform. You may close your account at
-        any time by contacting <a href="mailto:support@dova.com">support@dova.com</a>. Sections of these
+        any time by contacting <a href="mailto:support@dovachain.com">support@dovachain.com</a>. Sections of these
         Terms that by their nature should survive termination (such as liability and dispute resolution)
         will continue to apply.
       </p>
@@ -298,7 +298,7 @@ const sections: LegalSection[] = [
       <p>
         These Terms are governed by the laws of the Federal Republic of Nigeria. Before pursuing formal
         proceedings, we encourage you to first raise any dispute with{' '}
-        <a href="mailto:support@dova.com">support@dova.com</a> so we can attempt to resolve it directly.
+        <a href="mailto:support@dovachain.com">support@dovachain.com</a> so we can attempt to resolve it directly.
         Nothing in this section removes your statutory right to escalate an unresolved consumer complaint
         to the FCCPC or to pursue a claim before a competent Nigerian court.
       </p>
@@ -320,7 +320,7 @@ const sections: LegalSection[] = [
     title: 'Contact Information',
     body: (
       <p>
-        For questions about these Terms, email <a href="mailto:support@dova.com">support@dova.com</a> or
+        For questions about these Terms, email <a href="mailto:support@dovachain.com">support@dovachain.com</a> or
         call <a href="tel:+2349032696825">+234 903 269 6825</a>.
       </p>
     ),
