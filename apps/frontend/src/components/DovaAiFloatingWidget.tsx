@@ -7,7 +7,7 @@ export function DovaAiFloatingWidget() {
   return (
     <>
       <div className="dova-ai-floating">
-        <DovaAiHelpTrigger onClick={() => setOpen(true)} />
+        {!open ? <DovaAiHelpTrigger onClick={() => setOpen(true)} /> : null}
       </div>
       <DovaAiHelpWidget open={open} onClose={() => setOpen(false)} />
     </>
