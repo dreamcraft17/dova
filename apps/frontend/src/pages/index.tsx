@@ -5,7 +5,7 @@ import type { ElementType, ReactNode } from 'react';
 import { ArrowRight, Carrot, Citrus, Leaf, Wheat } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { DovaAiHelpTrigger, DovaAiHelpWidget } from '../components/DovaAiHelpWidget';
+import { DovaAiFloatingWidget } from '../components/DovaAiFloatingWidget';
 import { WhatsAppCommunity } from '../components/WhatsAppCommunity';
 import DovaChainNavbar from '../components/DovaChainNavbar';
 import { fraunces, manrope } from '../lib/fonts';
@@ -393,7 +393,6 @@ export default function Home() {
   const { user, logout } = useAuth();
   const { count } = useCart();
   const [featuredFilter, setFeaturedFilter] = useState<FeaturedFilter>('all');
-  const [aiOpen, setAiOpen] = useState(false);
   const { progress, showToTop } = useScrollProgress();
 
   // Admin and supplier accounts don't shop, matching the cart rules in Layout.
@@ -784,7 +783,6 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <DovaAiHelpTrigger onClick={() => setAiOpen(true)} />
             </Reveal>
             <Reveal className={styles.aiDemo}>
               <div className={styles.aiScreen}>
@@ -1058,7 +1056,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
-      <DovaAiHelpWidget open={aiOpen} onClose={() => setAiOpen(false)} />
+      <DovaAiFloatingWidget />
       <WhatsAppCommunity />
     </div>
   );

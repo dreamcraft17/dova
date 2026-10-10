@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import DovaChainNavbar from './DovaChainNavbar';
 import { WhatsAppCommunity } from './WhatsAppCommunity';
+import { DovaAiFloatingWidget } from './DovaAiFloatingWidget';
 
 const NAV_ITEMS = [
   { label: 'How It Works', href: '/#how' },
@@ -73,6 +74,7 @@ export function ChainChrome({ title, children }: { title: string; children: Reac
           </div>
         </div>
       </footer>
+      <DovaAiFloatingWidget />
       <WhatsAppCommunity />
     </div>
   );

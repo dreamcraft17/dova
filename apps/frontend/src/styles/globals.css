@@ -4548,10 +4548,22 @@ form .button {
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
 }
 
+.dova-ai-floating {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+  z-index: 940;
+}
+
+.dova-ai-floating .dova-ai-help-trigger {
+  border-color: rgba(3, 31, 23, 0.2);
+  box-shadow: 0 14px 34px rgba(3, 31, 23, 0.22);
+}
+
 .dova-ai-widget {
   position: fixed;
   right: clamp(16px, 4vw, 28px);
-  bottom: clamp(16px, 4vw, 28px);
+  bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
   z-index: 60;
   width: min(calc(100vw - 32px), 400px);
   height: min(640px, calc(100dvh - 32px));
@@ -4770,9 +4782,18 @@ form .button {
 }
 
 @media (max-width: 480px) {
+  .dova-ai-floating {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
+  }
+
+  .dova-ai-floating .dova-ai-help-trigger {
+    padding: 12px 14px;
+  }
+
   .dova-ai-widget {
     right: 12px;
-    bottom: max(12px, env(safe-area-inset-bottom));
+    bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
     width: calc(100vw - 24px);
     height: min(640px, calc(100dvh - 24px));
     min-height: 0;
