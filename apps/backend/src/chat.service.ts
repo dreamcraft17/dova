@@ -7,6 +7,7 @@ import { createHash } from 'crypto';
 import { DOVA_SITE_CONTEXT } from './site-context';
 
 const REQUEST_TIMEOUT_MS = 12_000;
+const WEB_SEARCH_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_MAX_ATTEMPTS = 1;
 const CATALOG_CACHE_TTL_MS = 30_000;
 const GEMINI_MAX_OUTPUT_TOKENS = 700;
@@ -73,6 +74,12 @@ export class ChatService {
       : DEFAULT_GEMINI_MAX_ATTEMPTS;
   }
 
+  private requestTimeoutMs(useWebSearch: boolean) {
+    const configured = Number(process.env.GEMINI_WEB_TIMEOUT_MS);
+    if (useWebSearch && Number.isFinite(configured) && configured >= 15_000 && configured <= 60_000) return configured;
+    return useWebSearch ? WEB_SEARCH_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  }
+
   private async generate(contents: GeminiContent[], catalogContext: string, languageInstruction: string, accountContext: string, useWebSearch = false): Promise<GeneratedAnswer> {
     const apiKey = this.apiKey();
     const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
@@ -127,7 +134,10 @@ ${accountContext}
             { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
           ],
           } satisfies GeminiRequest),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          // Google Search grounding needs more time than a normal catalog
+          // answer. Keep ordinary chat fast while allowing research requests
+          // enough time to receive grounded results.
+          signal: AbortSignal.timeout(this.requestTimeoutMs(useWebSearch)),
           });
         } catch (error) {
           console.warn(`[Chat] Gemini request failed for ${model}:`, (error as Error).message);

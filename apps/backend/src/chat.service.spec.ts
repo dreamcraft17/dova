@@ -203,6 +203,18 @@ describe('ChatService', () => {
     expect(database.chatSaveKnowledge).not.toHaveBeenCalled();
   });
 
+  it('uses a longer timeout budget for web-grounded questions', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Grounded answer.' }] } }], groundingMetadata: { groundingChunks: [{ web: { uri: 'https://dovachain.com' } }] } }),
+    );
+
+    await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendGuestMessage('What is DOVA Chain mission today?');
+
+    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
+  });
+
   it('refuses programming questions without calling Gemini', async () => {
     const fetchMock = jest.spyOn(global, 'fetch');
     const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendMessage(customer, 'Can you help me write Python code?');
