@@ -2380,11 +2380,22 @@
     padding: 0 16px 18px;
   }
 
+  /* Same row as the DovaAI trigger (120px wide, see globals .dova-ai-floating), to its left. */
   .toTop {
-    right: 12px;
+    right: calc(max(16px, env(safe-area-inset-right)) + 120px + 10px);
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 72px));
+    width: 44px;
+    height: 44px;
   }
 
   .legalGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .toTop {
+    right: calc(max(12px, env(safe-area-inset-right)) + 120px + 10px);
+    bottom: max(68px, calc(env(safe-area-inset-bottom) + 62px));
   }
 }
