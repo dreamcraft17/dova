@@ -686,7 +686,8 @@
 .toTop {
   position: fixed;
   right: 16px;
-  bottom: 86px;
+  /* Keep the back-to-top control above the DovaAI and WhatsApp stack. */
+  bottom: 144px;
   z-index: 1100;
   width: 46px;
   height: 46px;
@@ -703,6 +704,13 @@
   pointer-events: none;
   transition: 0.3s ease;
   backdrop-filter: blur(10px);
+}
+
+@media (max-width: 480px) {
+  .toTop {
+    right: 12px;
+    bottom: 132px;
+  }
 }
 
 .toTopShow {
