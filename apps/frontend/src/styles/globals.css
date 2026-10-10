@@ -28,6 +28,7 @@
   --dova-float-to-top-bottom: calc(
     var(--dova-float-ai-bottom) + var(--dova-float-ai-height) + var(--dova-float-gap)
   );
+  --dova-nav-offset: 72px;
 }
 
 @media (max-width: 640px) {
@@ -4587,10 +4588,13 @@ form .button {
   position: fixed;
   right: clamp(16px, 4vw, 28px);
   bottom: var(--dova-float-ai-bottom);
-  z-index: 60;
+  z-index: 1100;
   width: min(calc(100vw - 32px), 400px);
-  height: min(640px, calc(100dvh - 32px));
-  min-height: 420px;
+  height: min(
+    640px,
+    calc(100dvh - var(--dova-float-ai-bottom) - var(--dova-nav-offset) - env(safe-area-inset-top))
+  );
+  min-height: 280px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4634,12 +4638,13 @@ form .button {
 .dova-ai-widget__close {
   display: inline-grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   margin-left: auto;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 999px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
   cursor: pointer;
 }
@@ -4804,6 +4809,20 @@ form .button {
   box-shadow: none;
 }
 
+@media (max-width: 820px) {
+  .dova-ai-widget {
+    top: calc(env(safe-area-inset-top) + var(--dova-nav-offset));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(var(--dova-float-wa-bottom) + var(--dova-float-wa-height) + 10px);
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    border-radius: 20px;
+  }
+}
+
 @media (max-width: 480px) {
   .dova-ai-floating {
     right: max(12px, env(safe-area-inset-right));
@@ -4811,14 +4830,6 @@ form .button {
 
   .dova-ai-floating .dova-ai-help-trigger {
     padding: 12px 14px;
-  }
-
-  .dova-ai-widget {
-    right: 12px;
-    width: calc(100vw - 24px);
-    height: min(640px, calc(100dvh - 24px));
-    min-height: 0;
-    border-radius: 20px;
   }
 
   .dova-ai-widget__messages { padding-inline: 12px; }
