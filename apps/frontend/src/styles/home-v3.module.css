@@ -2384,7 +2384,8 @@
 
   .toTop {
     right: 12px;
-    bottom: 78px;
+    /* Above WhatsApp pill + DovaAI floating trigger (see globals .dova-ai-floating). */
+    bottom: max(188px, calc(env(safe-area-inset-bottom) + 172px));
   }
 
   .legalGrid {
