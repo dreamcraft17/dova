@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG } from 'dova-shared';
+import { Cart, Category, DELIVERY_FEE, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -535,7 +535,7 @@ export class AppService {
       orderNumber: `DOVA-${Date.now().toString(36).toUpperCase()}`,
       customerId: userId,
       status: 'pending',
-      totalAmount: cart.total,
+      totalAmount: cart.total + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0),
       deliveryName: body.deliveryName,
       deliveryAddress,
       deliveryPhone: body.deliveryPhone,

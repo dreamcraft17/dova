@@ -706,10 +706,10 @@
   backdrop-filter: blur(10px);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 900px) {
   .toTop {
     right: 12px;
-    bottom: 132px;
+    bottom: 188px;
   }
 }
 

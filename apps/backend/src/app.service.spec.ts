@@ -8,6 +8,7 @@ import * as bcrypt from 'bcryptjs';
 import { AppService } from './app.service';
 import { hashOtp } from './otp.util';
 import { makeAppService } from './app.service.test-doubles';
+import { DELIVERY_FEE } from 'dova-shared';
 
 jest.mock('./otp.util', () => ({
   ...jest.requireActual('./otp.util'),
@@ -433,6 +434,7 @@ describe('AppService', () => {
       expect(order.status).toBe('pending');
       expect(order.fulfillmentType).toBe('delivery');
       expect(order.items[0].quantity).toBe(2);
+      expect(order.totalAmount).toBe(product.price * 2 + DELIVERY_FEE);
       await expect(service.cart(customerId)).resolves.toEqual({ items: [], total: 0 });
       expect(product.stockQuantity).toBe(18);
       expect(service.stockAdjustments).toEqual(expect.arrayContaining([expect.objectContaining({ productId: product.id, quantity: -2, reason: 'purchase', orderId: order.id })]));

@@ -17,6 +17,7 @@ import {
   Product,
   Role,
   User,
+  DELIVERY_FEE,
   minOrderMessage,
   productImageUrl,
   publicCatalogImageUrl,
@@ -655,11 +656,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      const total =
+      const subtotal =
         productItems.reduce((sum, item) => sum + item.subtotal, 0) +
         bundleGroups.reduce((sum, group) => sum + group.subtotal, 0);
-      const shortfallMsg = minOrderMessage(total, fulfillmentType);
+      const shortfallMsg = minOrderMessage(subtotal, fulfillmentType);
       if (shortfallMsg) throw new Error(shortfallMsg);
+      const total = subtotal + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0);
 
       const orderResult = await client.query(
         'INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',

@@ -56,6 +56,7 @@ export const ORDER_STATUSES: OrderStatus[] = ['pending', 'paid', 'processing', '
 /** Minimum basket (NGN) by fulfillment type — stakeholder confirmed amounts. */
 export const MIN_ORDER_PICKUP = 3000;
 export const MIN_ORDER_DELIVERY = 5000;
+export const DELIVERY_FEE = 1500;
 
 export const minOrderFor = (fulfillment: FulfillmentType) =>
   fulfillment === 'pickup' ? MIN_ORDER_PICKUP : MIN_ORDER_DELIVERY;
@@ -68,7 +69,7 @@ export const minOrderShortfall = (total: number, fulfillment: FulfillmentType) =
 export const minOrderMessage = (total: number, fulfillment: FulfillmentType) => {
   const shortfall = minOrderShortfall(total, fulfillment);
   if (shortfall <= 0) return undefined;
-  return `Add ₦${shortfall.toLocaleString('en-NG')} more to qualify for checkout.`;
+  return `Add ₦${shortfall.toLocaleString('en-NG')} more to reach the minimum order value for this fulfillment option.`;
 };
 
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

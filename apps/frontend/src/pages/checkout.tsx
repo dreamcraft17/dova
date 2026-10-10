@@ -5,7 +5,7 @@ import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
 import { paymentProviderLabel, startOrderPayment, type PaymentConfig } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
-import { minOrderFor, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
+import { DELIVERY_FEE, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -48,7 +48,7 @@ export default function Checkout() {
       });
   }, [user]);
 
-  const minRequired = minOrderFor(fulfillmentType);
+  const deliveryFee = fulfillmentType === 'delivery' ? DELIVERY_FEE : 0;
   const shortfallMessage = useMemo(
     () => (cart ? minOrderMessage(cart.total, fulfillmentType) : undefined),
     [cart, fulfillmentType],
@@ -102,7 +102,7 @@ export default function Checkout() {
                       checked={fulfillmentType === 'pickup'}
                       onChange={() => setFulfillmentType('pickup')}
                     />
-                    Pickup (min ₦{MIN_PICKUP})
+                    Pickup
                   </label>
                   <label className="fulfillment-option">
                     <input
@@ -111,9 +111,10 @@ export default function Checkout() {
                       checked={fulfillmentType === 'delivery'}
                       onChange={() => setFulfillmentType('delivery')}
                     />
-                    Home delivery (min ₦{MIN_DELIVERY})
+                    Home delivery
                   </label>
                 </div>
+                <p className="form-hint">Home delivery includes a ₦{DELIVERY_FEE.toLocaleString('en-NG')} delivery fee.</p>
 
                 <label>Full Name</label>
                 <input
@@ -202,12 +203,12 @@ export default function Checkout() {
               ))}
               <hr />
               <div className="summary-item">
-                <span>Minimum ({fulfillmentType})</span>
-                <span>₦ {minRequired.toLocaleString('en-NG')}</span>
+                <span>Delivery fee</span>
+                <span>{deliveryFee ? `₦ ${deliveryFee.toLocaleString('en-NG')}` : '₦ 0'}</span>
               </div>
               <div className="summary-item">
                 <strong>Total</strong>
-                <strong>₦ {cart.total.toLocaleString('en-NG')}</strong>
+                <strong>₦ {(cart.total + deliveryFee).toLocaleString('en-NG')}</strong>
               </div>
             </div>
           </div>
@@ -223,6 +224,3 @@ export default function Checkout() {
     </Layout>
   );
 }
-
-const MIN_PICKUP = '3,000';
-const MIN_DELIVERY = '5,000';
