@@ -62,6 +62,13 @@ export type ChatQuestion = {
   text: string;
   createdAt: string;
 };
+export type AiKnowledgeCache = {
+  questionHash: string;
+  normalizedQuestion: string;
+  answer: string;
+  sources: Array<{ title?: string; uri?: string }>;
+  expiresAt: string;
+};
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -1307,6 +1314,42 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       text: row.text,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  async chatGetKnowledge(questionHash: string): Promise<AiKnowledgeCache | undefined> {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `UPDATE ai_knowledge_cache
+       SET hit_count = hit_count + 1, last_used_at = NOW(), updated_at = NOW()
+       WHERE question_hash = $1 AND expires_at > NOW()
+       RETURNING question_hash, normalized_question, answer, sources, expires_at`,
+      [questionHash],
+    );
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      questionHash: row.question_hash,
+      normalizedQuestion: row.normalized_question,
+      answer: row.answer,
+      sources: Array.isArray(row.sources) ? row.sources : [],
+      expiresAt: new Date(row.expires_at).toISOString(),
+    };
+  }
+
+  async chatSaveKnowledge(input: Omit<AiKnowledgeCache, 'expiresAt'> & { expiresAt: string }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `INSERT INTO ai_knowledge_cache
+       (question_hash, normalized_question, answer, sources, expires_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4::jsonb, $5, NOW(), NOW())
+       ON CONFLICT (question_hash) DO UPDATE SET
+         normalized_question = EXCLUDED.normalized_question,
+         answer = EXCLUDED.answer,
+         sources = EXCLUDED.sources,
+         expires_at = EXCLUDED.expires_at,
+         updated_at = NOW()`,
+      [input.questionHash, input.normalizedQuestion, input.answer, JSON.stringify(input.sources), input.expiresAt],
+    );
   }
 
   async auditSaveLog(log: AuditLog, ipAddress?: string) {
