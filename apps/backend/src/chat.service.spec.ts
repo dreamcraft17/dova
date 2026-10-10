@@ -9,6 +9,8 @@ function makeDatabase() {
     getCart: jest.fn().mockResolvedValue(undefined),
     chatSaveQuestion: jest.fn().mockResolvedValue(undefined),
     chatListAdminQuestions: jest.fn().mockResolvedValue([]),
+    chatGetKnowledge: jest.fn().mockResolvedValue(undefined),
+    chatSaveKnowledge: jest.fn().mockResolvedValue(undefined),
   } as unknown as DatabaseService;
 }
 function makeCatalog() {
@@ -143,6 +145,43 @@ describe('ChatService', () => {
 
     expect(catalog.listProducts).toHaveBeenCalledTimes(1);
     expect(bundles.listCustomerBundles).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses web grounding for relevant public research and stores a reusable answer', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'DOVA connects farmers, products, and customers.' }] } }],
+        groundingMetadata: { groundingChunks: [{ web: { title: 'DOVA Chain', uri: 'https://dovachain.com/about' } }] },
+      }),
+    );
+    const database = makeDatabase();
+    const service = new ChatService(database, makeCatalog(), makeBundles());
+
+    const first = await service.sendGuestMessage('What is DOVA Chain and what is its mission?');
+    const second = await service.sendGuestMessage('What is DOVA Chain and what is its mission?');
+
+    expect(first.messages[0].text).toContain('DOVA connects');
+    expect(second.messages[0].text).toContain('DOVA connects');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string).tools).toEqual([{ google_search: {} }]);
+    expect(database.chatSaveKnowledge).toHaveBeenCalledTimes(1);
+    const saveKnowledgeMock = database.chatSaveKnowledge as jest.Mock;
+    expect(saveKnowledgeMock.mock.calls[0][0].sources[0].uri).toBe('https://dovachain.com/about');
+  });
+
+  it('serves a stored public answer without calling Gemini', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch');
+    const database = makeDatabase();
+    jest.spyOn(database, 'chatGetKnowledge').mockResolvedValue({
+      questionHash: 'cached', normalizedQuestion: 'what is dova chain?', answer: 'Cached DOVA answer.', sources: [],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const result = await new ChatService(database, makeCatalog(), makeBundles()).sendGuestMessage('What is DOVA Chain?');
+
+    expect(result.messages[0].text).toBe('Cached DOVA answer.');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('refuses programming questions without calling Gemini', async () => {
