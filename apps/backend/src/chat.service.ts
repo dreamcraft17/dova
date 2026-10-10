@@ -5,9 +5,10 @@ import { BundleService } from './bundle.service';
 import { ChatQuestion, ChatRecord, DatabaseService, StoredUser } from './database.service';
 import { DOVA_SITE_CONTEXT } from './site-context';
 
-const REQUEST_TIMEOUT_MS = 20_000;
-const GEMINI_MAX_ATTEMPTS = 2;
-const GEMINI_MAX_OUTPUT_TOKENS = 900;
+const REQUEST_TIMEOUT_MS = 12_000;
+const DEFAULT_GEMINI_MAX_ATTEMPTS = 1;
+const CATALOG_CACHE_TTL_MS = 30_000;
+const GEMINI_MAX_OUTPUT_TOKENS = 700;
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_STORED_MESSAGES = 100;
 const MAX_USER_MESSAGE_CHARS = 2000;
@@ -36,6 +37,8 @@ type GeminiRequest = {
 export class ChatService {
   private readonly histories = new Map<string, ChatRecord[]>();
   private readonly questions: ChatQuestion[] = [];
+  private catalogCache?: { value: string; expiresAt: number };
+  private catalogContextInFlight?: Promise<string>;
 
   constructor(
     private readonly database: DatabaseService,
@@ -54,6 +57,13 @@ export class ChatService {
     return `${base}/models/${model}:generateContent`;
   }
 
+  private maxGeminiAttempts() {
+    const configured = Number(process.env.GEMINI_MAX_ATTEMPTS);
+    return Number.isInteger(configured) && configured >= 1 && configured <= 2
+      ? configured
+      : DEFAULT_GEMINI_MAX_ATTEMPTS;
+  }
+
   private async generate(contents: GeminiContent[], catalogContext: string, languageInstruction: string, accountContext: string): Promise<string> {
     const apiKey = this.apiKey();
     const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
@@ -63,7 +73,7 @@ export class ChatService {
 
     for (const model of models) {
       let response: Response | undefined;
-      for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt += 1) {
+      for (let attempt = 1; attempt <= this.maxGeminiAttempts(); attempt += 1) {
         try {
           response = await fetch(this.apiUrl(model), {
           method: 'POST',
@@ -110,7 +120,7 @@ ${accountContext}
           });
         } catch (error) {
           console.warn(`[Chat] Gemini request failed for ${model}:`, (error as Error).message);
-          if (attempt < GEMINI_MAX_ATTEMPTS) {
+          if (attempt < this.maxGeminiAttempts()) {
             await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
             continue;
           }
@@ -120,7 +130,7 @@ ${accountContext}
         if (!response) break;
         lastStatus = response.status;
         const retryable = [429, 500, 502, 503, 504].includes(response.status);
-        if (response.ok || !retryable || attempt === GEMINI_MAX_ATTEMPTS) break;
+        if (response.ok || !retryable || attempt === this.maxGeminiAttempts()) break;
         await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
       }
 
@@ -210,6 +220,21 @@ ${accountContext}
   }
 
   private async catalogContext(): Promise<string> {
+    const now = Date.now();
+    if (this.catalogCache && this.catalogCache.expiresAt > now) return this.catalogCache.value;
+    if (this.catalogContextInFlight) return this.catalogContextInFlight;
+
+    this.catalogContextInFlight = this.loadCatalogContext();
+    try {
+      const value = await this.catalogContextInFlight;
+      this.catalogCache = { value, expiresAt: Date.now() + CATALOG_CACHE_TTL_MS };
+      return value;
+    } finally {
+      this.catalogContextInFlight = undefined;
+    }
+  }
+
+  private async loadCatalogContext(): Promise<string> {
     try {
       const [products, bundleList] = await Promise.all([
         this.catalog.listProducts('', '', 1, 40),

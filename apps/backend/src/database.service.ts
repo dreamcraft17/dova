@@ -367,10 +367,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
        WHERE ${where} ORDER BY b.is_featured DESC, b.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values,
     );
-    const data = [];
-    for (const row of result.rows) {
-      data.push(this.toBundleSummary(row, await this.getBundleContents(this.pool, row.id)));
-    }
+    const data = await Promise.all(
+      result.rows.map(async (row: any) => this.toBundleSummary(row, await this.getBundleContents(this.pool!, row.id))),
+    );
     return { data, pagination: { page, limit, total: totalResult.rows[0].total } };
   }
 

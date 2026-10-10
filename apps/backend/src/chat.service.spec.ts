@@ -26,7 +26,12 @@ const customer = {
 function jsonResponse(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status }); }
 
 describe('ChatService', () => {
-  afterEach(() => { delete process.env.GEMINI_API_KEY; delete process.env.GEMINI_FALLBACK_MODEL; jest.restoreAllMocks(); });
+  afterEach(() => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_FALLBACK_MODEL;
+    delete process.env.GEMINI_MAX_ATTEMPTS;
+    jest.restoreAllMocks();
+  });
 
   it('reports the assistant as unconfigured when GEMINI_API_KEY is missing', async () => {
     await expect(new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendMessage(customer, 'hello')).rejects.toThrow(ServiceUnavailableException);
@@ -61,7 +66,7 @@ describe('ChatService', () => {
     expect(request.systemInstruction.parts[0].text).toContain('Products (/marketplace)');
     expect(request.systemInstruction.parts[0].text).toContain('Orders (/customer/history)');
     expect(request.systemInstruction.parts[0].text).toContain('only authoritative product/site facts');
-    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 900 });
+    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 700 });
     expect(request.safetySettings).toEqual(expect.arrayContaining([
       expect.objectContaining({ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }),
     ]));
@@ -98,6 +103,7 @@ describe('ChatService', () => {
 
   it('retries a transient Gemini 503 and returns the recovered response', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
+    process.env.GEMINI_MAX_ATTEMPTS = '2';
     const fetchMock = jest.spyOn(global, 'fetch')
       .mockResolvedValueOnce(jsonResponse({ error: 'temporarily unavailable' }, 503))
       .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'Recovered response.' }] } }] }));
@@ -111,6 +117,7 @@ describe('ChatService', () => {
   it('uses the configured fallback model after repeated transient failures', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     process.env.GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash';
+    process.env.GEMINI_MAX_ATTEMPTS = '2';
     const fetchMock = jest.spyOn(global, 'fetch')
       .mockResolvedValueOnce(jsonResponse({}, 503))
       .mockResolvedValueOnce(jsonResponse({}, 503))
@@ -120,6 +127,22 @@ describe('ChatService', () => {
 
     expect(result.messages[0].text).toBe('Fallback response.');
     expect(fetchMock.mock.calls[2][0]).toContain('/models/gemini-2.5-flash:generateContent');
+  });
+
+  it('reuses the catalog context briefly across messages', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockImplementation(async () =>
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Answer' }] } }] }),
+    );
+    const catalog = makeCatalog();
+    const bundles = makeBundles();
+    const service = new ChatService(makeDatabase(), catalog, bundles);
+
+    await service.sendGuestMessage('What products do you have?');
+    await service.sendGuestMessage('What bundles do you have?');
+
+    expect(catalog.listProducts).toHaveBeenCalledTimes(1);
+    expect(bundles.listCustomerBundles).toHaveBeenCalledTimes(1);
   });
 
   it('refuses programming questions without calling Gemini', async () => {
