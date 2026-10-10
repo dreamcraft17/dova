@@ -2004,6 +2004,17 @@
   padding: 56px 0 22px;
 }
 
+/* Keep the footer full-bleed while the inner content uses only a small gutter. */
+.footer > .container {
+  width: calc(100% - 64px);
+  max-width: none;
+}
+
+/* Legal links are already listed in the footer grid above. */
+.legalArea {
+  display: none;
+}
+
 .footerGrid {
   display: grid;
   grid-template-columns: 1.5fr repeat(3, 1fr);
@@ -2232,6 +2243,10 @@
 @media (max-width: 560px) {
   .container {
     width: min(var(--max), calc(100% - 24px));
+  }
+
+  .footer > .container {
+    width: calc(100% - 24px);
   }
 
   .section {
