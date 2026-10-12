@@ -104,6 +104,7 @@ export default function Checkout() {
         fulfillmentType,
         deliveryAddress:
           fulfillmentType === 'pickup' ? form.deliveryAddress || 'Pickup at DOVA hub' : form.deliveryAddress,
+        deliveryZone: fulfillmentType === 'delivery' ? form.deliveryZone || undefined : undefined,
       };
       const order = await api<Order>('/orders', { method: 'POST', body: JSON.stringify(payload) });
       await refresh();

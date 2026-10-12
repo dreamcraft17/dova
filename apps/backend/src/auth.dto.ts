@@ -84,7 +84,10 @@ export class CreateOrderDto {
   @IsOptional() @IsIn(['pickup', 'delivery']) fulfillmentType?: 'pickup' | 'delivery';
   @IsString() @MinLength(2) deliveryState!: string;
   /** Required for delivery; drives the zone-based delivery fee. Ignored for pickup. */
-  @IsOptional() @IsIn(['yenagoa', 'outside_yenagoa']) deliveryZone?: 'yenagoa' | 'outside_yenagoa';
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsIn(['yenagoa', 'outside_yenagoa'])
+  deliveryZone?: 'yenagoa' | 'outside_yenagoa';
 }
 
 export class ContactDto {
