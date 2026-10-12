@@ -21,7 +21,6 @@ export default function ProductPage() {
   const [p, setP] = useState<Product>();
   const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pack, setPack] = useState('500g');
   const [quantity, setQuantity] = useState(1);
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening'>('morning');
   const [busy, setBusy] = useState(false);
@@ -61,7 +60,7 @@ export default function ProductPage() {
         body: JSON.stringify({ productId: p.id, quantity, deliverySlot }),
       });
       await refreshCart();
-      setMessage(`${p.name} (${pack}, ${deliverySlot}) selected, quantity ${quantity}. Connect this action to the live DOVA cart/API.`);
+      setMessage(`${p.name} (${deliverySlot}) selected, quantity ${quantity}. Connect this action to the live DOVA cart/API.`);
     } catch (e) {
       showToast((e as Error).message, 'error');
     } finally {
@@ -104,12 +103,6 @@ export default function ProductPage() {
               <div className="rating"><b>★★★★★</b><small>No ratings yet · <a href="#reviews">Be the first to rate</a></small></div>
               <div className="pricebig">{p.price > 0 ? `₦ ${p.price.toLocaleString('en-NG')} ${formatPricePerUnit(unit)}` : '₦ —'}</div>
               <small style={{ color: 'var(--muted)', fontSize: '.61rem' }}>Live price should be returned by the product backend.</small>
-              <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Pack size</h4>
-              <div className="variants">
-                {['500g', '1kg', '2kg'].map((size) => (
-                  <button key={size} type="button" className={`variant ${pack === size ? 'active' : ''}`} onClick={() => setPack(size)}>{size}</button>
-                ))}
-              </div>
               <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Delivery Slot</h4>
               <div className="variants">
                 <button type="button" className={`variant ${deliverySlot === 'morning' ? 'active' : ''}`} onClick={() => setDeliverySlot('morning')}>Morning</button>
