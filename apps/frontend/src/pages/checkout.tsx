@@ -13,6 +13,7 @@ import {
   NIGERIA_STATES,
   isAllowedDeliveryState,
   deliveryStateRestrictionMessage,
+  estimatePaystackFee,
 } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -65,6 +66,9 @@ export default function Checkout() {
   }, [user]);
 
   const deliveryFee = deliveryFeeFor(fulfillmentType, form.deliveryZone || undefined);
+  const orderTotal = (cart?.total ?? 0) + deliveryFee;
+  const isPaystack = paymentConfig?.provider === 'paystack';
+  const paystackFee = isPaystack ? estimatePaystackFee(orderTotal) : 0;
   const shortfallMessage = useMemo(
     () => (cart ? minOrderMessage(cart.total, fulfillmentType) : undefined),
     [cart, fulfillmentType],
@@ -218,6 +222,12 @@ export default function Checkout() {
                     <p className="form-hint">
                       Choose your preferred option on the next Paystack page after you confirm the order.
                     </p>
+                    {isPaystack && paystackFee > 0 ? (
+                      <p className="form-hint">
+                        Card/bank payments include a Paystack processing fee of ~₦{paystackFee.toLocaleString('en-NG')}.
+                        You&apos;ll be asked to pay ₦{(orderTotal + paystackFee).toLocaleString('en-NG')} on the Paystack page.
+                      </p>
+                    ) : null}
                   </>
                 ) : (
                   <p className="form-hint">Loading payment options…</p>
@@ -270,8 +280,20 @@ export default function Checkout() {
               </div>
               <div className="summary-item">
                 <strong>Total</strong>
-                <strong>₦ {(cart.total + deliveryFee).toLocaleString('en-NG')}</strong>
+                <strong>₦ {orderTotal.toLocaleString('en-NG')}</strong>
               </div>
+              {isPaystack && paystackFee > 0 ? (
+                <>
+                  <div className="summary-item">
+                    <span>Est. Paystack processing fee</span>
+                    <span>₦ {paystackFee.toLocaleString('en-NG')}</span>
+                  </div>
+                  <div className="summary-item">
+                    <strong>Payable on Paystack</strong>
+                    <strong>₦ {(orderTotal + paystackFee).toLocaleString('en-NG')}</strong>
+                  </div>
+                </>
+              ) : null}
             </div>
           </div>
         ) : (
