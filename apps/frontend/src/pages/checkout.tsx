@@ -4,9 +4,10 @@ import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
 import { paymentProviderLabel, startOrderPayment, type PaymentConfig } from '../lib/payment';
-import type { Cart, FulfillmentType, Order } from 'dova-shared';
+import type { Cart, DeliveryZone, FulfillmentType, Order } from 'dova-shared';
 import {
-  DELIVERY_FEE,
+  DELIVERY_ZONES,
+  deliveryFeeFor,
   minOrderMessage,
   formatQuantityWithUnit,
   NIGERIA_STATES,
@@ -22,11 +23,18 @@ export default function Checkout() {
   const [cart, setCart] = useState<Cart>();
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfig>();
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery');
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    deliveryName: string;
+    deliveryAddress: string;
+    deliveryPhone: string;
+    deliveryState: string;
+    deliveryZone: DeliveryZone | '';
+  }>({
     deliveryName: '',
     deliveryAddress: '',
     deliveryPhone: '',
     deliveryState: '',
+    deliveryZone: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -56,7 +64,7 @@ export default function Checkout() {
       });
   }, [user]);
 
-  const deliveryFee = fulfillmentType === 'delivery' ? DELIVERY_FEE : 0;
+  const deliveryFee = deliveryFeeFor(fulfillmentType, form.deliveryZone || undefined);
   const shortfallMessage = useMemo(
     () => (cart ? minOrderMessage(cart.total, fulfillmentType) : undefined),
     [cart, fulfillmentType],
@@ -78,6 +86,10 @@ export default function Checkout() {
     }
     if (stateRestrictionMessage) {
       setError(stateRestrictionMessage);
+      return;
+    }
+    if (fulfillmentType === 'delivery' && !form.deliveryZone) {
+      setError('Select your delivery zone.');
       return;
     }
     setBusy(true);
@@ -134,7 +146,10 @@ export default function Checkout() {
                     Home delivery
                   </label>
                 </div>
-                <p className="form-hint">Home delivery includes a ₦{DELIVERY_FEE.toLocaleString('en-NG')} delivery fee.</p>
+                <p className="form-hint">
+                  Home delivery fee depends on your zone:{' '}
+                  {DELIVERY_ZONES.map((z) => `${z.label} ₦${deliveryFeeFor('delivery', z.value).toLocaleString('en-NG')}`).join(', ')}.
+                </p>
 
                 <label>Full Name</label>
                 <input
@@ -166,6 +181,19 @@ export default function Checkout() {
                 {stateRestrictionMessage && <p className="error">{stateRestrictionMessage}</p>}
                 {fulfillmentType === 'delivery' ? (
                   <>
+                    <label>Delivery Zone</label>
+                    <select
+                      required
+                      value={form.deliveryZone}
+                      onChange={(e) => setForm({ ...form, deliveryZone: e.target.value as DeliveryZone })}
+                    >
+                      <option value="">Select your delivery zone</option>
+                      {DELIVERY_ZONES.map((zone) => (
+                        <option key={zone.value} value={zone.value}>
+                          {zone.label} — ₦{deliveryFeeFor('delivery', zone.value).toLocaleString('en-NG')}
+                        </option>
+                      ))}
+                    </select>
                     <label>Shipping Address</label>
                     <textarea
                       required

@@ -56,7 +56,22 @@ export const ORDER_STATUSES: OrderStatus[] = ['pending', 'paid', 'processing', '
 /** Minimum basket (NGN) by fulfillment type — stakeholder confirmed amounts. */
 export const MIN_ORDER_PICKUP = 3000;
 export const MIN_ORDER_DELIVERY = 5000;
-export const DELIVERY_FEE = 1500;
+
+export type DeliveryZone = 'yenagoa' | 'outside_yenagoa';
+
+export const DELIVERY_ZONES: { value: DeliveryZone; label: string }[] = [
+  { value: 'yenagoa', label: 'Within Yenagoa' },
+  { value: 'outside_yenagoa', label: 'Outside Yenagoa' },
+];
+
+/** Delivery fee (NGN) by zone — ops-confirmed pricing, Mbiama hub as reference point. */
+export const DELIVERY_FEE_BY_ZONE: Record<DeliveryZone, number> = {
+  yenagoa: 1200,
+  outside_yenagoa: 1600,
+};
+
+export const deliveryFeeFor = (fulfillment: FulfillmentType, zone?: DeliveryZone) =>
+  fulfillment === 'pickup' ? 0 : DELIVERY_FEE_BY_ZONE[zone ?? 'outside_yenagoa'];
 
 export const minOrderFor = (fulfillment: FulfillmentType) =>
   fulfillment === 'pickup' ? MIN_ORDER_PICKUP : MIN_ORDER_DELIVERY;

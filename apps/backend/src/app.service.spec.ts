@@ -8,7 +8,7 @@ import * as bcrypt from 'bcryptjs';
 import { AppService } from './app.service';
 import { hashOtp } from './otp.util';
 import { makeAppService } from './app.service.test-doubles';
-import { DELIVERY_FEE } from 'dova-shared';
+import { deliveryFeeFor } from 'dova-shared';
 
 jest.mock('./otp.util', () => ({
   ...jest.requireActual('./otp.util'),
@@ -185,7 +185,7 @@ describe('AppService', () => {
         service.createOrder(legacy.id, {
           deliveryName: 'Jane',
           deliveryAddress: 'Lagos',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
           fulfillmentType: 'delivery',
         }),
       ).rejects.toEqual(
@@ -429,12 +429,12 @@ describe('AppService', () => {
       const customerId = 'customer-id';
       const product = service.products[0];
       await addToCart(service, customerId, product.id, 2);
-      const order = await service.createOrder(customerId, { deliveryName: 'Jane Doe', deliveryAddress: 'Jakarta', deliveryPhone: '+62000000000', fulfillmentType: 'delivery' });
+      const order = await service.createOrder(customerId, { deliveryName: 'Jane Doe', deliveryAddress: 'Jakarta', deliveryPhone: '+62000000000', deliveryState: 'Bayelsa', fulfillmentType: 'delivery', deliveryZone: 'yenagoa' });
 
       expect(order.status).toBe('pending');
       expect(order.fulfillmentType).toBe('delivery');
       expect(order.items[0].quantity).toBe(2);
-      expect(order.totalAmount).toBe(product.price * 2 + DELIVERY_FEE);
+      expect(order.totalAmount).toBe(product.price * 2 + deliveryFeeFor('delivery', 'yenagoa'));
       await expect(service.cart(customerId)).resolves.toEqual({ items: [], total: 0 });
       expect(product.stockQuantity).toBe(18);
       expect(service.stockAdjustments).toEqual(expect.arrayContaining([expect.objectContaining({ productId: product.id, quantity: -2, reason: 'purchase', orderId: order.id })]));
@@ -449,7 +449,7 @@ describe('AppService', () => {
         service.createOrder(customerId, {
           deliveryName: 'Jane',
           deliveryAddress: 'Lagos',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
           fulfillmentType: 'delivery',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -462,7 +462,7 @@ describe('AppService', () => {
       await addToCart(service, customerId, service.products[0].id, 1);
       const order = await service.createOrder(customerId, {
         deliveryName: 'Jane',
-        deliveryPhone: '0812345678',
+        deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
         fulfillmentType: 'pickup',
       });
       expect(order.fulfillmentType).toBe('pickup');
@@ -473,7 +473,7 @@ describe('AppService', () => {
       await expect(
         service.createOrder('pickup-below-min', {
           deliveryName: 'Jane',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
           fulfillmentType: 'pickup',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -510,7 +510,7 @@ describe('AppService', () => {
         const { service } = makeService();
         const customerId = 'payment-customer';
         await addToCart(service, customerId, service.products[0].id, 1);
-        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
         const payment = await service.initializePayment(customerId, order.id, order.totalAmount);
         expect(payment.mode).toBe('mock');
         const verified = await service.verifyPayment(customerId, payment.reference);
@@ -528,7 +528,7 @@ describe('AppService', () => {
         const { service } = makeService();
         const customerId = 'pending-payment-customer';
         await addToCart(service, customerId, service.products[0].id, 1);
-        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
         const reference = 'DOVA-PENDING-001';
         service.payments.set(reference, { orderId: order.id, status: 'pending' });
         order.paymentReference = reference;
@@ -563,7 +563,7 @@ describe('AppService', () => {
         const product = service.products[0];
         const originalStock = product.stockQuantity;
         await addToCart(service, customerId, product.id, 2);
-        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
         const reference = 'DOVA-CANCELLED-001';
         service.payments.set(reference, { orderId: order.id, status: 'pending' });
         order.paymentReference = reference;
@@ -591,7 +591,7 @@ describe('AppService', () => {
         const { service } = makeService();
         const customerId = 'paid-twice-customer';
         await addToCart(service, customerId, service.products[0].id, 1);
-        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678' });
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Lagos', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
         const payment = await service.initializePayment(customerId, order.id, order.totalAmount);
         await service.verifyPayment(customerId, payment.reference);
         const again = await service.verifyPayment(customerId, payment.reference);
@@ -608,7 +608,7 @@ describe('AppService', () => {
         const { service } = makeService();
         const customerId = 'idempotent-payment-customer';
         await addToCart(service, customerId, service.products[0].id, 1);
-        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
+        const order = await service.createOrder(customerId, { deliveryName: 'Jane', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
         const first = await service.initializePayment(customerId, order.id, order.totalAmount);
         const second = await service.initializePayment(customerId, order.id, order.totalAmount);
         expect(second.reference).toBe(first.reference);
@@ -686,7 +686,7 @@ describe('AppService', () => {
       const customer = service.users.find(user => user.role === 'admin')!;
       const product = service.products[0];
       await addToCart(service, customer.id, product.id, 1);
-      const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678' });
+      const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
       const item = order.items[0];
       await expect(service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped')).rejects.toThrow('Invalid status transition');
       await service.updateSupplierOrderStatus(supplier.id, item.id, 'processing');
@@ -766,7 +766,7 @@ describe('AppService', () => {
         service.createOrder('empty-cart-customer', {
           deliveryName: 'Jane',
           deliveryAddress: 'Lagos',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
         }),
       ).rejects.toThrow('Cart is empty');
     });
@@ -776,7 +776,7 @@ describe('AppService', () => {
       const customerId = 'missing-details-customer';
       await addToCart(service, customerId, service.products[0].id, 1);
       await expect(
-        service.createOrder(customerId, { deliveryName: '', deliveryPhone: '', fulfillmentType: 'delivery' }),
+        service.createOrder(customerId, { deliveryName: '', deliveryPhone: '', deliveryState: 'Bayelsa', fulfillmentType: 'delivery' }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
@@ -890,8 +890,9 @@ describe('AppService', () => {
       await service.createOrder(session.user.id, {
         deliveryName: 'Customer',
         deliveryAddress: 'Lagos',
-        deliveryPhone: '0812345678',
+        deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
         fulfillmentType: 'delivery',
+        deliveryZone: 'yenagoa',
       });
       database.userOrderCount.mockResolvedValueOnce(1);
       const result = await service.deleteAdminUser(session.user.id, 'other-admin-id');
@@ -920,7 +921,8 @@ describe('AppService', () => {
       const order = await service.createOrder(customerId, {
         deliveryName: 'Admin Buyer',
         deliveryAddress: 'Lagos',
-        deliveryPhone: '0812345678',
+        deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
+        deliveryZone: 'yenagoa',
       });
 
       const pending = await service.adminOrders('pending');
@@ -1002,7 +1004,8 @@ describe('AppService', () => {
         const order = await service.createOrder(customerId, {
           deliveryName: 'Webhook Buyer',
           deliveryAddress: 'Lagos',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
+          deliveryZone: 'yenagoa',
         });
         const reference = `DOVA-WEBHOOK-${order.id.slice(0, 8)}`;
         const amountSubunit = Math.round(order.totalAmount * 100);
@@ -1033,7 +1036,8 @@ describe('AppService', () => {
         const order = await service.createOrder(customerId, {
           deliveryName: 'Webhook Buyer',
           deliveryAddress: 'Lagos',
-          deliveryPhone: '0812345678',
+          deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
+          deliveryZone: 'yenagoa',
         });
         const reference = `DOVA-WEBHOOK-BAD-${order.id.slice(0, 8)}`;
         service.payments.set(reference, { orderId: order.id, status: 'pending' });

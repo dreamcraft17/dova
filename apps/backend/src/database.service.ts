@@ -17,7 +17,8 @@ import {
   Product,
   Role,
   User,
-  DELIVERY_FEE,
+  DeliveryZone,
+  deliveryFeeFor,
   minOrderMessage,
   productImageUrl,
   publicCatalogImageUrl,
@@ -619,6 +620,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
         throw new Error('Delivery address is required');
       }
+      if (fulfillmentType === 'delivery' && !['yenagoa', 'outside_yenagoa'].includes(body.deliveryZone)) {
+        throw new Error('Delivery zone is required');
+      }
       const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress;
 
       const productItems = productRows.rows.map((row) => ({
@@ -667,7 +671,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         bundleGroups.reduce((sum, group) => sum + group.subtotal, 0);
       const shortfallMsg = minOrderMessage(subtotal, fulfillmentType);
       if (shortfallMsg) throw new Error(shortfallMsg);
-      const total = subtotal + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0);
+      const total = subtotal + deliveryFeeFor(fulfillmentType, body.deliveryZone as DeliveryZone | undefined);
 
       const orderResult = await client.query(
         'INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
