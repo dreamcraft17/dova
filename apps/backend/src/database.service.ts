@@ -520,11 +520,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async getCart(userId: string): Promise<Cart | undefined> {
     if (!this.pool) return undefined;
     const productResult = await this.pool.query(
-      'SELECT ci.id,ci.quantity,ci.delivery_slot,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE',
+      'SELECT ci.id AS cart_item_id,ci.quantity,ci.delivery_slot,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 AND p.is_active=TRUE',
       [userId],
     );
     const items: Cart['items'] = productResult.rows.map((row) => ({
-      id: row.id,
+      id: row.cart_item_id,
       product: this.mapProduct(row),
       quantity: Number(row.quantity),
       subtotal: Number(row.price) * Number(row.quantity),
@@ -604,7 +604,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       await client.query('BEGIN');
 
       const productRows = await client.query(
-        'SELECT ci.id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 FOR UPDATE',
+        'SELECT ci.id AS cart_item_id,ci.quantity,p.*,s.business_name,c.name AS category_name FROM carts ca JOIN cart_items ci ON ci.cart_id=ca.id JOIN products p ON p.id=ci.product_id JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ca.user_id=$1 FOR UPDATE',
         [userId],
       );
       const bundleCartRows = await client.query(
@@ -626,7 +626,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress;
 
       const productItems = productRows.rows.map((row) => ({
-        id: row.id,
+        id: row.cart_item_id,
         product: this.mapProduct(row),
         quantity: Number(row.quantity),
         subtotal: Number(row.price) * Number(row.quantity),
