@@ -11,6 +11,7 @@ import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
 import { useToast } from '../../../context/ToastContext';
 import { useCart } from '../../../context/CartContext';
+import { canDownloadInvoice, openInvoice } from '../../../lib/invoice';
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: '#b45309',
@@ -187,6 +188,11 @@ export default function OrderDetail() {
                     {reordering ? <Loading label="Adding to cart…" inline size="sm" /> : '🔁 Re-order'}
                   </button>
                 )}
+                {canDownloadInvoice(order) && (
+                  <button type="button" className="button small" onClick={() => openInvoice(order)}>
+                    Download invoice
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -220,6 +226,9 @@ export default function OrderDetail() {
                       month: 'short',
                       year: 'numeric',
                     })}
+                    {order.paymentReference && (
+                      <><br />Reference: {order.paymentReference}</>
+                    )}
                   </p>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../components/Layout';
 import { Loading } from '../components/Loading';
@@ -17,6 +17,7 @@ import {
 } from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { CheckoutMapPicker } from '../components/CheckoutMapPicker';
 
 export default function Checkout() {
   const { user } = useAuth();
@@ -30,6 +31,8 @@ export default function Checkout() {
     deliveryPhone: string;
     deliveryState: string;
     deliveryZone: DeliveryZone | '';
+    deliveryLatitude?: number;
+    deliveryLongitude?: number;
   }>({
     deliveryName: '',
     deliveryAddress: '',
@@ -40,6 +43,18 @@ export default function Checkout() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [mapError, setMapError] = useState('');
+
+  const handleMapChange = useCallback((location: { latitude: number; longitude: number }, address?: string) => {
+    setForm((current) => ({
+      ...current,
+      deliveryLatitude: location.latitude,
+      deliveryLongitude: location.longitude,
+      deliveryAddress: address || current.deliveryAddress,
+    }));
+  }, []);
+
+  const handleMapError = useCallback((message: string) => setMapError(message), []);
 
   useEffect(() => {
     if (user)
@@ -105,6 +120,8 @@ export default function Checkout() {
         deliveryAddress:
           fulfillmentType === 'pickup' ? form.deliveryAddress || 'Pickup at DOVA hub' : form.deliveryAddress,
         deliveryZone: fulfillmentType === 'delivery' ? form.deliveryZone || undefined : undefined,
+        deliveryLatitude: fulfillmentType === 'delivery' ? form.deliveryLatitude : undefined,
+        deliveryLongitude: fulfillmentType === 'delivery' ? form.deliveryLongitude : undefined,
       };
       const order = await api<Order>('/orders', { method: 'POST', body: JSON.stringify(payload) });
       await refresh();
@@ -200,6 +217,13 @@ export default function Checkout() {
                       ))}
                     </select>
                     <label>Shipping Address</label>
+                    <p className="form-hint">Search your address or place the pin on the map. You can edit the address below for extra directions.</p>
+                    <CheckoutMapPicker
+                      value={form.deliveryLatitude != null && form.deliveryLongitude != null ? { latitude: form.deliveryLatitude, longitude: form.deliveryLongitude } : null}
+                      onChange={handleMapChange}
+                      onError={handleMapError}
+                    />
+                    {mapError && <p className="error">{mapError}</p>}
                     <textarea
                       required
                       rows={4}

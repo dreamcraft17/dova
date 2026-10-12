@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -80,6 +80,8 @@ export class CreateOrderDto {
   @IsString() @MinLength(2) deliveryName!: string;
   /** Required for delivery; pickup may send hub placeholder from the client. */
   @IsOptional() @IsString() @MinLength(5) deliveryAddress?: string;
+  @IsOptional() @Transform(({ value }) => (value == null || value === '' ? undefined : String(value))) @IsLatitude() deliveryLatitude?: string;
+  @IsOptional() @Transform(({ value }) => (value == null || value === '' ? undefined : String(value))) @IsLongitude() deliveryLongitude?: string;
   @IsString() @MinLength(7) deliveryPhone!: string;
   @IsOptional() @IsIn(['pickup', 'delivery']) fulfillmentType?: 'pickup' | 'delivery';
   @IsString() @MinLength(2) deliveryState!: string;
