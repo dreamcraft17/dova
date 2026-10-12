@@ -1352,11 +1352,11 @@ form .button {
     flex-shrink: 0;
   }
 
-  .nav-desktop a:not(.button) {
+  .nav-desktop a:not(.button):not(.nav-user-item):not(.nav-account) {
     color: #fff;
   }
 
-  .nav-desktop a:not(.button):hover {
+  .nav-desktop a:not(.button):not(.nav-user-item):not(.nav-account):hover {
     color: var(--gold);
   }
 
