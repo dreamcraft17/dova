@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, DELIVERY_FEE, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG } from 'dova-shared';
+import { Cart, Category, DELIVERY_FEE, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -486,6 +486,9 @@ export class AppService {
     const customer = await this.findUser(userId, true);
     if (customer && !customer.emailVerifiedAt) {
       throw new BadRequestException('Verify your email in Profile before placing an order.');
+    }
+    if (!body.deliveryState || !isAllowedDeliveryState(String(body.deliveryState))) {
+      throw new BadRequestException(deliveryStateRestrictionMessage());
     }
     if (this.database.enabled) {
       try {
