@@ -1,4 +1,5 @@
 import { useRouter } from 'next/router';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Layout } from '../../../components/Layout';
@@ -6,6 +7,7 @@ import { RequireAuth } from '../../../components/RequireAuth';
 import { AdminLayout } from '../../../components/admin/AdminLayout';
 import { StatusBadge } from '../../../components/admin/status-badge';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAdminOrderDetail } from '../../../hooks/admin/useAdminOrders';
 import type { OrderStatus } from 'dova-shared';
@@ -26,7 +28,24 @@ function formatNaira(amount: number) {
 function OrderDetailContent() {
   const router = useRouter();
   const id = typeof router.query.id === 'string' ? router.query.id : undefined;
-  const { order, loading, error } = useAdminOrderDetail(id);
+  const { order, loading, error, updateStatus } = useAdminOrderDetail(id);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState('');
+
+  const nextStatus = order?.status === 'paid' ? 'processing' : order?.status === 'processing' ? 'shipped' : order?.status === 'shipped' ? 'delivered' : undefined;
+
+  async function advanceStatus() {
+    if (!nextStatus) return;
+    setUpdatingStatus(true);
+    setStatusError('');
+    try {
+      await updateStatus(nextStatus);
+    } catch (e) {
+      setStatusError(e instanceof Error ? e.message : 'Unable to update order status.');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
 
   if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
@@ -51,10 +70,19 @@ function OrderDetailContent() {
             Placed {new Date(order.createdAt).toLocaleString('en-NG')}
           </p>
         </div>
-        <StatusBadge tone={STATUS_TONE[order.status]} className="text-sm">
-          {order.status}
-        </StatusBadge>
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusBadge tone={STATUS_TONE[order.status]} className="text-sm">
+            {order.status}
+          </StatusBadge>
+          {nextStatus && (
+            <Button type="button" size="sm" onClick={() => void advanceStatus()} disabled={updatingStatus}>
+              {updatingStatus ? 'Updating…' : `Mark ${nextStatus}`}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {statusError && <Card className="border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{statusError}</Card>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">

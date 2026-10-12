@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '../../components/Layout';
 import { Loading } from '../../components/Loading';
 import { RequireAuth } from '../../components/RequireAuth';
@@ -65,12 +65,19 @@ export default function PurchaseHistory() {
   const [search, setSearch] = useState('');
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadOrders = useCallback(() => {
+    setLoading(true);
     api<Order[]>('/orders')
       .then(setOrders)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    void loadOrders();
+    const refreshTimer = window.setInterval(() => void loadOrders(), 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [loadOrders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

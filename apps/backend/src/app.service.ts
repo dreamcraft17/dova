@@ -1042,8 +1042,9 @@ export class AppService {
   async adminOrders(status = '', search = '') {
     const stored = await this.database.adminOrders(status, search);
     if (stored) return stored;
+    const paidStatuses = new Set(['paid', 'processing', 'shipped', 'delivered']);
     return this.orders
-      .filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase())))
+      .filter(order => paidStatuses.has(order.status) && (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase())))
       .map(order => ({ id: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName, status: order.status, totalAmount: order.totalAmount, createdAt: order.createdAt }));
   }
 
@@ -1068,6 +1069,21 @@ export class AppService {
     const order = this.orders.find(o => o.id === id);
     if (!order) return undefined;
     return { ...order, customerName: this.users.find(u => u.id === order.customerId)?.fullName };
+  }
+  async updateAdminOrderStatus(id: string, status: string) {
+    if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid order status');
+    const stored = await this.database.updateAdminOrderStatus(id, status);
+    if (stored !== undefined) {
+      if (!stored) throw new BadRequestException('Order status transition is not allowed');
+      return { id, status };
+    }
+    const order = this.orders.find((entry) => entry.id === id);
+    if (!order) throw new NotFoundException('Order not found');
+    const previousStatus = status === 'processing' ? 'paid' : status === 'shipped' ? 'processing' : 'shipped';
+    if (order.status !== previousStatus) throw new BadRequestException('Order status transition is not allowed');
+    order.status = status as Order['status'];
+    order.items.forEach((item) => { item.supplierOrderStatus = status; });
+    return { id, status };
   }
   async adminAnalytics(days: number) {
     const since = new Date(Date.now() - days * 86_400_000);

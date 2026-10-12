@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '../../../components/Layout';
 import { Loading } from '../../../components/Loading';
@@ -40,12 +40,18 @@ export default function OrderDetail() {
   const { showToast } = useToast();
   const { refresh: refreshCart } = useCart();
 
-  useEffect(() => {
-    if (typeof router.query.id === 'string')
-      api<Order>(`/orders/${router.query.id}`)
-        .then(setOrder)
-        .catch((e: Error) => setError(e.message));
+  const loadOrder = useCallback(() => {
+    if (typeof router.query.id !== 'string') return;
+    api<Order>(`/orders/${router.query.id}`)
+      .then(setOrder)
+      .catch((e: Error) => setError(e.message));
   }, [router.query.id]);
+
+  useEffect(() => {
+    loadOrder();
+    const refreshTimer = window.setInterval(loadOrder, 30_000);
+    return () => window.clearInterval(refreshTimer);
+  }, [loadOrder]);
 
   async function payNow() {
     if (!order) return;

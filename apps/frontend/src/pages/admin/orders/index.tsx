@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAdminOrders } from '../../../hooks/admin/useAdminOrders';
 import type { OrderStatus } from 'dova-shared';
 
+type PaidOrderStatusFilter = 'all' | 'paid' | 'processing' | 'shipped' | 'delivered';
+
 const STATUS_TONE: Record<OrderStatus, 'green' | 'yellow' | 'blue' | 'red'> = {
   pending: 'yellow',
   paid: 'blue',
@@ -28,7 +30,7 @@ function formatNaira(amount: number) {
 function OrdersContent() {
   const { orders, loading, error, reload } = useAdminOrders();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<PaidOrderStatusFilter>('all');
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -42,7 +44,7 @@ function OrdersContent() {
   const counts = useMemo(
     () => ({
       all: orders.length,
-      pending: orders.filter((o) => o.status === 'pending' || o.status === 'paid').length,
+          paid: orders.filter((o) => o.status === 'paid').length,
       inDelivery: orders.filter((o) => o.status === 'processing' || o.status === 'shipped').length,
       completed: orders.filter((o) => o.status === 'delivered').length,
     }),
@@ -69,7 +71,7 @@ function OrdersContent() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
           { label: 'All', value: counts.all },
-          { label: 'Pending', value: counts.pending },
+          { label: 'Paid', value: counts.paid },
           { label: 'In Delivery', value: counts.inDelivery },
           { label: 'Completed', value: counts.completed },
         ].map((stat) => (
@@ -94,12 +96,10 @@ function OrdersContent() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="paid">Paid</SelectItem>
               <SelectItem value="processing">Processing</SelectItem>
               <SelectItem value="shipped">Shipped</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
