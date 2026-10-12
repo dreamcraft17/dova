@@ -926,7 +926,11 @@ describe('AppService', () => {
       });
 
       const pending = await service.adminOrders('pending');
-      expect(pending.some(o => o.id === order.id)).toBe(true);
+      expect(pending.some(o => o.id === order.id)).toBe(false);
+
+      order.status = 'paid';
+      const paid = await service.adminOrders('paid');
+      expect(paid.some(o => o.id === order.id)).toBe(true);
 
       const bySearch = await service.adminOrders('', order.orderNumber.slice(0, 6));
       expect(bySearch.some(o => o.id === order.id)).toBe(true);

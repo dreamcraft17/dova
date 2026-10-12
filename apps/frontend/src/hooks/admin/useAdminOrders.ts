@@ -52,5 +52,13 @@ export function useAdminOrderDetail(id: string | undefined) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { order, loading, error };
+  const updateStatus = useCallback(async (status: 'processing' | 'shipped' | 'delivered') => {
+    if (!id) throw new Error('Order id is missing.');
+    await api(`/admin/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+    const latest = await api<AdminOrderDetail>(`/admin/orders/${id}`);
+    setOrder(latest);
+    return latest;
+  }, [id]);
+
+  return { order, loading, error, updateStatus };
 }

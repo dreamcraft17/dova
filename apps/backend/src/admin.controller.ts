@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { AppService } from './app.service';
-import { AdminResetPasswordDto, AdminUpdateUserDto, SupplierRejectDto } from './auth.dto';
+import { AdminResetPasswordDto, AdminUpdateUserDto, OrderStatusDto, SupplierRejectDto } from './auth.dto';
 import { CurrentUser, Roles } from './auth.decorators';
 import { StoredUser } from './database.service';
 
@@ -62,6 +62,11 @@ export class AdminController {
   @Roles('admin')
   @Get('admin/orders') adminOrders(@Query('status') status = '', @Query('search') search = '') {
     return this.service.adminOrders(status, search);
+  }
+
+  @Roles('admin')
+  @Put('admin/orders/:id/status') updateOrderStatus(@Param('id') id: string, @Body() body: OrderStatusDto) {
+    return this.service.updateAdminOrderStatus(id, body.status);
   }
 
   @Roles('admin')

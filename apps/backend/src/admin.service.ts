@@ -200,8 +200,10 @@ export class AdminService {
   async adminOrders(status = '', search = '') {
     const stored = await this.database.adminOrders(status, search);
     if (stored) return stored;
+    const paidStatuses = new Set(['paid', 'processing', 'shipped', 'delivered']);
     return this.state.orders.filter(
       (order) =>
+        paidStatuses.has(order.status) &&
         (!status || order.status === status) &&
         (!search ||
           order.orderNumber.toLowerCase().includes(search.toLowerCase()) ||

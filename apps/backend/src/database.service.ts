@@ -871,6 +871,31 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async updateAdminOrderStatus(orderId: string, status: string) {
+    if (!this.pool) return undefined;
+    const previousStatus = status === 'processing' ? 'paid' : status === 'shipped' ? 'processing' : 'shipped';
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        'UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2 AND status=$3 RETURNING id',
+        [status, orderId, previousStatus],
+      );
+      if (!result.rowCount) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      await client.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE order_id=$2', [status, orderId]);
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async adminFinance() {
     if (!this.pool) return undefined;
     const [summaryResult, ledgerResult, exceptionResult] = await Promise.all([
@@ -990,7 +1015,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async adminProducts() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC'); return result.rows.map(row => this.mapProduct(row)); }
   async setProductActive(productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, productId]); }
   async bulkSetProductsActive(productIds: string[], active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=ANY($2::uuid[])', [active, productIds]); }
-  async adminOrders(status = '', search = '') { if (!this.pool) return undefined; const values: unknown[] = []; const filters: string[] = []; if (status) { values.push(status); filters.push(`o.status=$${values.length}`); } if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`(LOWER(o.order_number) LIKE $${values.length} OR LOWER(u.full_name) LIKE $${values.length})`); } const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''; const result = await this.pool.query(`SELECT o.*,u.full_name AS customer_name FROM orders o JOIN users u ON u.id=o.customer_id ${where} ORDER BY o.created_at DESC`, values); return result.rows.map(row => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, status: row.status, totalAmount: Number(row.total_amount), createdAt: new Date(row.created_at).toISOString() })); }
+  async adminOrders(status = '', search = '') { if (!this.pool) return undefined; const values: unknown[] = []; const filters: string[] = ["o.status IN ('paid','processing','shipped','delivered')"]; if (status) { values.push(status); filters.push(`o.status=$${values.length}`); } if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`(LOWER(o.order_number) LIKE $${values.length} OR LOWER(u.full_name) LIKE $${values.length})`); } const where = `WHERE ${filters.join(' AND ')}`; const result = await this.pool.query(`SELECT o.*,u.full_name AS customer_name FROM orders o JOIN users u ON u.id=o.customer_id ${where} ORDER BY o.created_at DESC`, values); return result.rows.map(row => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, status: row.status, totalAmount: Number(row.total_amount), createdAt: new Date(row.created_at).toISOString() })); }
   async adminAnalytics(since: Date) {
     if (!this.pool) return undefined;
     const [summary, trend, byStatus, byCategory, bySupplier] = await Promise.all([
