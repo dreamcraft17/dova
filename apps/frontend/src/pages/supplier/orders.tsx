@@ -21,8 +21,10 @@ const NEXT_STATUS: Record<string, string[]> = {
   shipped: ['delivered'],
 };
 
+// 'pending' (unpaid) orders are never shown to suppliers — nothing to
+// prepare until payment is confirmed. See AppService.supplierOrders.
 const STATUS_GROUPS: Record<string, string[]> = {
-  new: ['pending', 'paid'],
+  new: ['paid'],
   processing: ['processing', 'shipped'],
   completed: ['delivered'],
   cancelled: ['cancelled'],

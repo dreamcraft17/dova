@@ -695,6 +695,21 @@ describe('AppService', () => {
       expect(order.status).toBe('delivered');
     });
 
+    it('hides unpaid orders from the supplier order list', async () => {
+      const { service } = makeService();
+      const supplier = service.users.find(user => user.role === 'supplier')!;
+      const customer = service.users.find(user => user.role === 'admin')!;
+      const product = service.products[0];
+      await addToCart(service, customer.id, product.id, 1);
+      const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
+      expect(order.status).toBe('pending');
+      const supplierOrders = await service.supplierOrders(supplier.id);
+      expect(supplierOrders.some((row) => row.orderId === order.id)).toBe(false);
+      order.status = 'paid';
+      const afterPaid = await service.supplierOrders(supplier.id);
+      expect(afterPaid.some((row) => row.orderId === order.id)).toBe(true);
+    });
+
     it('supports supplier approval and rejects duplicate supplier emails', async () => {
       const { service } = makeService();
       const application = await service.makeSupplierUser({ businessName: 'New Farms', contactName: 'Nina', email: 'nina@farms.test', password: 'password123' });
