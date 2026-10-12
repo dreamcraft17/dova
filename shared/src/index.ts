@@ -73,6 +73,19 @@ export const DELIVERY_FEE_BY_ZONE: Record<DeliveryZone, number> = {
 export const deliveryFeeFor = (fulfillment: FulfillmentType, zone?: DeliveryZone) =>
   fulfillment === 'pickup' ? 0 : DELIVERY_FEE_BY_ZONE[zone ?? 'outside_yenagoa'];
 
+/** Paystack NGN local-card pricing: 1.5% + ₦100, flat fee waived at/under ₦2,500, fee capped at ₦2,000.
+ * DOVA's Paystack account is configured so the customer bears this fee, so the amount charged on the
+ * Paystack page is higher than the order total — this estimates that so checkout can disclose it upfront. */
+export const estimatePaystackFee = (amount: number): number => {
+  if (amount <= 0) return 0;
+  const flatFee = amount > 2500 ? 100 : 0;
+  const grossed = (amount + flatFee) / (1 - 0.015);
+  return Math.min(Math.round((grossed - amount) * 100) / 100, 2000);
+};
+
+export const estimatePaystackChargeTotal = (amount: number): number =>
+  Math.round((amount + estimatePaystackFee(amount)) * 100) / 100;
+
 export const minOrderFor = (fulfillment: FulfillmentType) =>
   fulfillment === 'pickup' ? MIN_ORDER_PICKUP : MIN_ORDER_DELIVERY;
 
