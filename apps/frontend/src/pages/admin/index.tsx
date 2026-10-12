@@ -61,12 +61,14 @@ function DashboardContent() {
   const { stats, users, orders, feedbackPosts, loading, error, reload } = useAdminDashboard();
   const weeklyActivity = useWeeklyOrderActivity(orders);
 
+  // 'pending' orders are unpaid — they don't count as sales and don't need
+  // fulfillment yet, so both metrics below exclude that status.
   const grossSales = useMemo(
-    () => orders.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + o.totalAmount, 0),
+    () => orders.filter((o) => o.status !== 'cancelled' && o.status !== 'pending').reduce((sum, o) => sum + o.totalAmount, 0),
     [orders],
   );
   const ordersAwaitingFulfillment = useMemo(
-    () => orders.filter((o) => o.status === 'pending' || o.status === 'paid' || o.status === 'processing').length,
+    () => orders.filter((o) => o.status === 'paid' || o.status === 'processing').length,
     [orders],
   );
   const openFeedbackCount = useMemo(
