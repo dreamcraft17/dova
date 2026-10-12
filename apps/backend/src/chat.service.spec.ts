@@ -84,6 +84,19 @@ describe('ChatService', () => {
     await expect(service.history(customer)).resolves.toEqual({ conversationId: null, messages: [] });
   });
 
+  it('tells the model it has no tools and retries once after a malformed function call', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ finishReason: 'MALFORMED_FUNCTION_CALL', content: { parts: [] } }] }))
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'Here are our products.' }] } }] }));
+    const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendMessage(customer, 'what products do you have?');
+    expect(result.messages[0].text).toBe('Here are our products.');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const request = JSON.parse(fetchMock.mock.calls[1][1]?.body as string);
+    expect(request.tools).toBeUndefined();
+    expect(request.systemInstruction.parts[0].text).toContain('You have no tools');
+  });
+
   it('retries without thinkingConfig when the model rejects a disabled thinking budget', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     const fetchMock = jest.spyOn(global, 'fetch')
