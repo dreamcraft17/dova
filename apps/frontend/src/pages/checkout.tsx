@@ -224,8 +224,8 @@ export default function Checkout() {
                     </p>
                     {isPaystack && paystackFee > 0 ? (
                       <p className="form-hint">
-                        Card/bank payments include a Paystack processing fee of ~₦{paystackFee.toLocaleString('en-NG')}.
-                        You&apos;ll be asked to pay ₦{(orderTotal + paystackFee).toLocaleString('en-NG')} on the Paystack page.
+                        Card/bank payments include a service fee of ~₦{paystackFee.toLocaleString('en-NG')}.
+                        You&apos;ll be asked to pay ₦{(orderTotal + paystackFee).toLocaleString('en-NG')} on the next page.
                       </p>
                     ) : null}
                   </>
@@ -285,11 +285,11 @@ export default function Checkout() {
               {isPaystack && paystackFee > 0 ? (
                 <>
                   <div className="summary-item">
-                    <span>Est. Paystack processing fee</span>
+                    <span>Est. service fee</span>
                     <span>₦ {paystackFee.toLocaleString('en-NG')}</span>
                   </div>
                   <div className="summary-item">
-                    <strong>Payable on Paystack</strong>
+                    <strong>Payable at checkout</strong>
                     <strong>₦ {(orderTotal + paystackFee).toLocaleString('en-NG')}</strong>
                   </div>
                 </>
