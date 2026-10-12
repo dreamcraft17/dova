@@ -866,6 +866,23 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       createdAt: new Date(row.created_at).toISOString(),
     };
   }
+
+  async adminFinance() {
+    if (!this.pool) return undefined;
+    const [summaryResult, ledgerResult, exceptionResult] = await Promise.all([
+      this.pool.query(`SELECT COALESCE(SUM(CASE WHEN o.status <> 'cancelled' THEN o.total_amount ELSE 0 END), 0) AS gross_sales, COALESCE(SUM(CASE WHEN o.status IN ('paid','processing','shipped','delivered') THEN o.total_amount ELSE 0 END), 0) AS collected_sales, COUNT(*) FILTER (WHERE o.status = 'pending')::int AS pending_payments, COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled_orders, COUNT(*) FILTER (WHERE o.status IN ('paid','processing','shipped'))::int AS pending_settlements FROM orders o WHERE o.created_at >= NOW() - INTERVAL '30 days'`),
+      this.pool.query(`SELECT o.id, o.order_number, o.status, o.total_amount, o.fulfillment_type, o.payment_reference, o.payment_verified_at, o.created_at, u.full_name AS customer_name, pl.status AS payment_status, pl.amount AS payment_amount, pl.created_at AS payment_created_at FROM orders o JOIN users u ON u.id = o.customer_id LEFT JOIN LATERAL (SELECT status, amount, created_at FROM payment_logs WHERE order_id = o.id ORDER BY created_at DESC LIMIT 1) pl ON TRUE ORDER BY COALESCE(pl.created_at, o.created_at) DESC LIMIT 100`),
+      this.pool.query(`SELECT pl.id, o.order_number, o.id AS order_id, pl.payment_reference, pl.amount, pl.status, pl.paystack_response, pl.created_at, u.full_name AS customer_name FROM payment_logs pl JOIN orders o ON o.id = pl.order_id JOIN users u ON u.id = o.customer_id WHERE pl.status IN ('failed', 'abandoned', 'reversed') OR (pl.status = 'pending' AND pl.created_at < NOW() - INTERVAL '30 minutes') ORDER BY pl.created_at DESC LIMIT 50`),
+    ]);
+    const summary = summaryResult.rows[0];
+    return {
+      currency: 'NGN', period: '30d',
+      summary: { grossSales: Number(summary.gross_sales), collectedSales: Number(summary.collected_sales), pendingPayments: Number(summary.pending_payments), cancelledOrders: Number(summary.cancelled_orders), pendingSettlements: Number(summary.pending_settlements), supplierPayouts: null, logisticsPayouts: null, refunds: null },
+      ledger: ledgerResult.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, amount: Number(row.payment_amount ?? row.total_amount), orderTotal: Number(row.total_amount), status: row.payment_status || row.status, orderStatus: row.status, paymentReference: row.payment_reference || undefined, fulfillmentType: row.fulfillment_type || 'delivery', createdAt: new Date(row.payment_created_at || row.created_at).toISOString(), verifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined })),
+      exceptions: exceptionResult.rows.map((row) => ({ id: row.id, orderId: row.order_id, orderNumber: row.order_number, customerName: row.customer_name, amount: row.amount == null ? undefined : Number(row.amount), status: row.status, paymentReference: row.payment_reference || undefined, detail: typeof row.paystack_response?.gateway_response === 'string' ? row.paystack_response.gateway_response : row.status === 'pending' ? 'Payment has been pending for more than 30 minutes.' : 'Payment requires review.', createdAt: new Date(row.created_at).toISOString() })),
+      capabilities: { supplierPayouts: false, logisticsPayouts: false, refunds: false, note: 'Payout and refund execution are not wired yet; this screen is read-only until those ledgers and approvals exist.' },
+    };
+  }
   async adminSuppliers() {
     if (!this.pool) return undefined;
     const result = await this.pool.query(

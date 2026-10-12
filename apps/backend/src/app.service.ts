@@ -1044,6 +1044,22 @@ export class AppService {
       .filter(order => (!status || order.status === status) && (!search || order.orderNumber.toLowerCase().includes(search.toLowerCase()) || (this.users.find(user => user.id === order.customerId)?.fullName || '').toLowerCase().includes(search.toLowerCase())))
       .map(order => ({ id: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName, status: order.status, totalAmount: order.totalAmount, createdAt: order.createdAt }));
   }
+
+  async adminFinance() {
+    const stored = await this.database.adminFinance();
+    if (stored) return stored;
+    const orders = this.orders.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const paidStatuses = new Set(['paid', 'processing', 'shipped', 'delivered']);
+    const customerName = (order: Order) => this.users.find((user) => user.id === order.customerId)?.fullName ?? 'Unknown customer';
+    const exceptions = orders.filter((order) => order.status === 'pending' && Date.now() - Date.parse(order.createdAt) > 30 * 60 * 1000).slice(0, 50).map((order) => ({ id: `pending-${order.id}`, orderId: order.id, orderNumber: order.orderNumber, customerName: customerName(order), amount: order.totalAmount, status: 'pending', paymentReference: order.paymentReference, detail: 'Payment has been pending for more than 30 minutes.', createdAt: order.createdAt }));
+    return {
+      currency: 'NGN', period: '30d',
+      summary: { grossSales: orders.filter((order) => order.status !== 'cancelled').reduce((sum, order) => sum + order.totalAmount, 0), collectedSales: orders.filter((order) => paidStatuses.has(order.status)).reduce((sum, order) => sum + order.totalAmount, 0), pendingPayments: orders.filter((order) => order.status === 'pending').length, cancelledOrders: orders.filter((order) => order.status === 'cancelled').length, pendingSettlements: orders.filter((order) => ['paid', 'processing', 'shipped'].includes(order.status)).length, supplierPayouts: null, logisticsPayouts: null, refunds: null },
+      ledger: orders.slice(0, 100).map((order) => ({ id: order.id, orderNumber: order.orderNumber, customerName: customerName(order), amount: order.totalAmount, orderTotal: order.totalAmount, status: paidStatuses.has(order.status) ? 'success' : order.status, orderStatus: order.status, paymentReference: order.paymentReference, fulfillmentType: order.fulfillmentType ?? 'delivery', createdAt: order.createdAt, verifiedAt: order.paymentVerifiedAt })),
+      exceptions,
+      capabilities: { supplierPayouts: false, logisticsPayouts: false, refunds: false, note: 'Payout and refund execution are not wired yet; this screen is read-only until those ledgers and approvals exist.' },
+    };
+  }
   async adminOrderDetail(id: string) {
     const stored = await this.database.adminOrderDetail(id);
     if (stored) return stored;
