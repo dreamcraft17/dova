@@ -17,7 +17,8 @@ import {
   Product,
   Role,
   User,
-  DELIVERY_FEE,
+  DeliveryZone,
+  deliveryFeeFor,
   minOrderMessage,
   productImageUrl,
   publicCatalogImageUrl,
@@ -61,6 +62,13 @@ export type ChatQuestion = {
   userEmail?: string;
   text: string;
   createdAt: string;
+};
+export type AiKnowledgeCache = {
+  questionHash: string;
+  normalizedQuestion: string;
+  answer: string;
+  sources: Array<{ title?: string; uri?: string }>;
+  expiresAt: string;
 };
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -257,7 +265,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       name: row.name,
       description: row.description || '',
       price: Number(row.price),
-      stockQuantity: row.stock_quantity,
+      stockQuantity: Number(row.stock_quantity),
       categoryId: row.category_id,
       categoryName: row.category_name,
       imageUrl: publicCatalogImageUrl(row.name, row.category_name, row.image_url),
@@ -367,10 +375,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
        WHERE ${where} ORDER BY b.is_featured DESC, b.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
       values,
     );
-    const data = [];
-    for (const row of result.rows) {
-      data.push(this.toBundleSummary(row, await this.getBundleContents(this.pool, row.id)));
-    }
+    const data = await Promise.all(
+      result.rows.map(async (row: any) => this.toBundleSummary(row, await this.getBundleContents(this.pool!, row.id))),
+    );
     return { data, pagination: { page, limit, total: totalResult.rows[0].total } };
   }
 
@@ -613,6 +620,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
         throw new Error('Delivery address is required');
       }
+      if (fulfillmentType === 'delivery' && !['yenagoa', 'outside_yenagoa'].includes(body.deliveryZone)) {
+        throw new Error('Delivery zone is required');
+      }
       const deliveryAddress = fulfillmentType === 'pickup' ? (body.deliveryAddress || 'Pickup at DOVA hub') : body.deliveryAddress;
 
       const productItems = productRows.rows.map((row) => ({
@@ -661,7 +671,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         bundleGroups.reduce((sum, group) => sum + group.subtotal, 0);
       const shortfallMsg = minOrderMessage(subtotal, fulfillmentType);
       if (shortfallMsg) throw new Error(shortfallMsg);
-      const total = subtotal + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0);
+      const total = subtotal + deliveryFeeFor(fulfillmentType, body.deliveryZone as DeliveryZone | undefined);
 
       const orderResult = await client.query(
         'INSERT INTO orders (customer_id,order_number,status,total_amount,delivery_name,delivery_address,delivery_phone,fulfillment_type) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
@@ -814,8 +824,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async createSupplierProduct(supplierId: string, body: any) { if (!this.pool) return undefined; const result = await this.pool.query('INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id', [supplierId, body.name, body.description, body.price, body.quantity, body.categoryId, body.imageUrl || null]); return this.findSupplierProduct(supplierId, result.rows[0].id); }
   async updateSupplierProduct(supplierId: string, productId: string, body: any) { if (!this.pool) return undefined; const result = await this.pool.query('UPDATE products SET name=$1,description=$2,price=$3,stock_quantity=$4,category_id=$5,image_url=COALESCE($6,image_url),updated_at=NOW() WHERE id=$7 AND supplier_id=$8 RETURNING id', [body.name, body.description, body.price, body.quantity, body.categoryId, body.imageUrl ?? null, productId, supplierId]); return result.rowCount ? this.findSupplierProduct(supplierId, productId) : undefined; }
   async deleteSupplierProduct(supplierId: string, productId: string) { if (this.pool) await this.pool.query('UPDATE products SET is_active=FALSE,updated_at=NOW() WHERE id=$1 AND supplier_id=$2', [productId, supplierId]); }
-  async adjustStock(supplierId: string, productId: string, quantity: number, reason: string) { if (!this.pool) return undefined; const client = await this.pool.connect(); try { await client.query('BEGIN'); const delta = reason === 'damage' ? -quantity : quantity; const result = await client.query('UPDATE products SET stock_quantity=stock_quantity+$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND stock_quantity+$1>=0 RETURNING stock_quantity', [delta, productId, supplierId]); if (!result.rowCount) throw new Error('Product not found or insufficient stock'); await client.query('INSERT INTO stock_adjustments (product_id,supplier_id,quantity,reason,stock_after) VALUES ($1,$2,$3,$4,$5)', [productId, supplierId, delta, reason, result.rows[0].stock_quantity]); await client.query('COMMIT'); return result.rows[0].stock_quantity; } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
-  async stockHistory(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,quantity,reason,stock_after,created_at FROM stock_adjustments WHERE supplier_id=$1 AND product_id=$2 ORDER BY created_at DESC', [supplierId, productId]); return result.rows.map(row => ({ id: row.id, quantity: row.quantity, reason: row.reason, stockAfter: row.stock_after, createdAt: new Date(row.created_at).toISOString() })); }
+  async adjustStock(supplierId: string, productId: string, quantity: number, reason: string) { if (!this.pool) return undefined; const client = await this.pool.connect(); try { await client.query('BEGIN'); const delta = reason === 'damage' ? -quantity : quantity; const result = await client.query('UPDATE products SET stock_quantity=stock_quantity+$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND stock_quantity+$1>=0 RETURNING stock_quantity', [delta, productId, supplierId]); if (!result.rowCount) throw new Error('Product not found or insufficient stock'); await client.query('INSERT INTO stock_adjustments (product_id,supplier_id,quantity,reason,stock_after) VALUES ($1,$2,$3,$4,$5)', [productId, supplierId, delta, reason, result.rows[0].stock_quantity]); await client.query('COMMIT'); return Number(result.rows[0].stock_quantity); } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
+  async stockHistory(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,quantity,reason,stock_after,created_at FROM stock_adjustments WHERE supplier_id=$1 AND product_id=$2 ORDER BY created_at DESC', [supplierId, productId]); return result.rows.map(row => ({ id: row.id, quantity: Number(row.quantity), reason: row.reason, stockAfter: Number(row.stock_after), createdAt: new Date(row.created_at).toISOString() })); }
   async supplierOrders(supplierId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT o.*,u.full_name AS customer_name,oi.id AS item_id,oi.quantity,oi.unit_price,oi.subtotal,oi.supplier_order_status,p.id AS product_id,p.name AS product_name FROM orders o JOIN users u ON u.id=o.customer_id JOIN order_items oi ON oi.order_id=o.id JOIN products p ON p.id=oi.product_id WHERE oi.supplier_id=$1 ORDER BY o.created_at DESC', [supplierId]); return result.rows.map(row => ({ orderId: row.id, orderNumber: row.order_number, customerName: row.customer_name, deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, createdAt: new Date(row.created_at).toISOString(), itemId: row.item_id, productName: row.product_name, quantity: Number(row.quantity), unitPrice: Number(row.unit_price), subtotal: Number(row.subtotal), status: row.supplier_order_status })); }
   async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND supplier_order_status = ANY($4::text[]) RETURNING id,order_id', [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query('UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2', [status, orderId]); return true; }
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
@@ -1308,6 +1318,42 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       text: row.text,
       createdAt: new Date(row.created_at).toISOString(),
     }));
+  }
+
+  async chatGetKnowledge(questionHash: string): Promise<AiKnowledgeCache | undefined> {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `UPDATE ai_knowledge_cache
+       SET hit_count = hit_count + 1, last_used_at = NOW(), updated_at = NOW()
+       WHERE question_hash = $1 AND expires_at > NOW()
+       RETURNING question_hash, normalized_question, answer, sources, expires_at`,
+      [questionHash],
+    );
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      questionHash: row.question_hash,
+      normalizedQuestion: row.normalized_question,
+      answer: row.answer,
+      sources: Array.isArray(row.sources) ? row.sources : [],
+      expiresAt: new Date(row.expires_at).toISOString(),
+    };
+  }
+
+  async chatSaveKnowledge(input: Omit<AiKnowledgeCache, 'expiresAt'> & { expiresAt: string }) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `INSERT INTO ai_knowledge_cache
+       (question_hash, normalized_question, answer, sources, expires_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4::jsonb, $5, NOW(), NOW())
+       ON CONFLICT (question_hash) DO UPDATE SET
+         normalized_question = EXCLUDED.normalized_question,
+         answer = EXCLUDED.answer,
+         sources = EXCLUDED.sources,
+         expires_at = EXCLUDED.expires_at,
+         updated_at = NOW()`,
+      [input.questionHash, input.normalizedQuestion, input.answer, JSON.stringify(input.sources), input.expiresAt],
+    );
   }
 
   async auditSaveLog(log: AuditLog, ipAddress?: string) {

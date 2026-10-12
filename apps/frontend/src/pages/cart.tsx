@@ -189,9 +189,9 @@ export default function CartPage() {
                     <div className="cart-quantity">
                       <input
                         type="number"
-                        min={1}
+                        min={i.bundleId ? 1 : 0.5}
                         max={i.product.stockQuantity}
-                        step={i.bundleId ? 1 : 0.01}
+                        step={i.bundleId ? 1 : 0.5}
                         value={qtyInputs[i.id] ?? i.quantity.toString()}
                         disabled={busy}
                         onChange={(e) => {
@@ -199,8 +199,9 @@ export default function CartPage() {
                         }}
                         onBlur={(e) => {
                           const val = i.bundleId ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
+                          const floor = i.bundleId ? 1 : 0.5;
                           const rounded = i.bundleId ? (isNaN(val) ? 1 : Math.round(val)) : Math.round(val * 100) / 100;
-                          const clamped = isNaN(rounded) ? 1 : Math.max(1, Math.min(i.product.stockQuantity, rounded));
+                          const clamped = isNaN(rounded) ? floor : Math.max(floor, Math.min(i.product.stockQuantity, rounded));
                           setQtyInputs((prev) => ({ ...prev, [i.id]: clamped.toString() }));
                           if (clamped !== i.quantity) {
                             void update(i.id, clamped);

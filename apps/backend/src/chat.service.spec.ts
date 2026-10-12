@@ -9,6 +9,8 @@ function makeDatabase() {
     getCart: jest.fn().mockResolvedValue(undefined),
     chatSaveQuestion: jest.fn().mockResolvedValue(undefined),
     chatListAdminQuestions: jest.fn().mockResolvedValue([]),
+    chatGetKnowledge: jest.fn().mockResolvedValue(undefined),
+    chatSaveKnowledge: jest.fn().mockResolvedValue(undefined),
   } as unknown as DatabaseService;
 }
 function makeCatalog() {
@@ -26,7 +28,12 @@ const customer = {
 function jsonResponse(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status }); }
 
 describe('ChatService', () => {
-  afterEach(() => { delete process.env.GEMINI_API_KEY; delete process.env.GEMINI_FALLBACK_MODEL; jest.restoreAllMocks(); });
+  afterEach(() => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_FALLBACK_MODEL;
+    delete process.env.GEMINI_MAX_ATTEMPTS;
+    jest.restoreAllMocks();
+  });
 
   it('reports the assistant as unconfigured when GEMINI_API_KEY is missing', async () => {
     await expect(new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendMessage(customer, 'hello')).rejects.toThrow(ServiceUnavailableException);
@@ -61,7 +68,7 @@ describe('ChatService', () => {
     expect(request.systemInstruction.parts[0].text).toContain('Products (/marketplace)');
     expect(request.systemInstruction.parts[0].text).toContain('Orders (/customer/history)');
     expect(request.systemInstruction.parts[0].text).toContain('only authoritative product/site facts');
-    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 900 });
+    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 700 });
     expect(request.safetySettings).toEqual(expect.arrayContaining([
       expect.objectContaining({ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }),
     ]));
@@ -98,6 +105,7 @@ describe('ChatService', () => {
 
   it('retries a transient Gemini 503 and returns the recovered response', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
+    process.env.GEMINI_MAX_ATTEMPTS = '2';
     const fetchMock = jest.spyOn(global, 'fetch')
       .mockResolvedValueOnce(jsonResponse({ error: 'temporarily unavailable' }, 503))
       .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'Recovered response.' }] } }] }));
@@ -111,6 +119,7 @@ describe('ChatService', () => {
   it('uses the configured fallback model after repeated transient failures', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     process.env.GEMINI_FALLBACK_MODEL = 'gemini-2.5-flash';
+    process.env.GEMINI_MAX_ATTEMPTS = '2';
     const fetchMock = jest.spyOn(global, 'fetch')
       .mockResolvedValueOnce(jsonResponse({}, 503))
       .mockResolvedValueOnce(jsonResponse({}, 503))
@@ -120,6 +129,90 @@ describe('ChatService', () => {
 
     expect(result.messages[0].text).toBe('Fallback response.');
     expect(fetchMock.mock.calls[2][0]).toContain('/models/gemini-2.5-flash:generateContent');
+  });
+
+  it('reuses the catalog context briefly across messages', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockImplementation(async () =>
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Answer' }] } }] }),
+    );
+    const catalog = makeCatalog();
+    const bundles = makeBundles();
+    const service = new ChatService(makeDatabase(), catalog, bundles);
+
+    await service.sendGuestMessage('What products do you have?');
+    await service.sendGuestMessage('What bundles do you have?');
+
+    expect(catalog.listProducts).toHaveBeenCalledTimes(1);
+    expect(bundles.listCustomerBundles).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses web grounding for relevant public research and stores a reusable answer', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'DOVA connects farmers, products, and customers.' }] } }],
+        groundingMetadata: { groundingChunks: [{ web: { title: 'DOVA Chain', uri: 'https://dovachain.com/about' } }] },
+      }),
+    );
+    const database = makeDatabase();
+    const service = new ChatService(database, makeCatalog(), makeBundles());
+
+    const first = await service.sendGuestMessage('What is DOVA Chain and what is its mission?');
+    const second = await service.sendGuestMessage('What is DOVA Chain and what is its mission?');
+
+    expect(first.messages[0].text).toContain('DOVA connects');
+    expect(second.messages[0].text).toContain('DOVA connects');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string).tools).toEqual([{ google_search: {} }]);
+    expect(database.chatSaveKnowledge).toHaveBeenCalledTimes(1);
+    const saveKnowledgeMock = database.chatSaveKnowledge as jest.Mock;
+    expect(saveKnowledgeMock.mock.calls[0][0].sources[0].uri).toBe('https://dovachain.com/about');
+  });
+
+  it('serves a stored public answer without calling Gemini', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch');
+    const database = makeDatabase();
+    jest.spyOn(database, 'chatGetKnowledge').mockResolvedValue({
+      questionHash: 'cached', normalizedQuestion: 'what is dova chain?', answer: 'Cached DOVA answer.', sources: [{ title: 'DOVA', uri: 'https://dovachain.com/about' }],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const result = await new ChatService(database, makeCatalog(), makeBundles()).sendGuestMessage('What is DOVA Chain?');
+
+    expect(result.messages[0].text).toBe('Cached DOVA answer.');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse or save an ungrounded web answer', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Unverified answer.' }] } }] }),
+    );
+    const database = makeDatabase();
+    database.chatGetKnowledge = jest.fn().mockResolvedValue({
+      questionHash: 'old', normalizedQuestion: 'who is dovachain founder?', answer: 'Old answer.', sources: [],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const service = new ChatService(database, makeCatalog(), makeBundles());
+
+    const result = await service.sendGuestMessage('Who is DOVA Chain founder?');
+
+    expect(result.messages[0].text).toBe('Unverified answer.');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(database.chatSaveKnowledge).not.toHaveBeenCalled();
+  });
+
+  it('uses a longer timeout budget for web-grounded questions', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const timeoutSpy = jest.spyOn(AbortSignal, 'timeout');
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ candidates: [{ content: { parts: [{ text: 'Grounded answer.' }] } }], groundingMetadata: { groundingChunks: [{ web: { uri: 'https://dovachain.com' } }] } }),
+    );
+
+    await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendGuestMessage('What is DOVA Chain mission today?');
+
+    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
   });
 
   it('refuses programming questions without calling Gemini', async () => {
