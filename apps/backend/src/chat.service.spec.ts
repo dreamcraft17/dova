@@ -84,6 +84,49 @@ describe('ChatService', () => {
     await expect(service.history(customer)).resolves.toEqual({ conversationId: null, messages: [] });
   });
 
+  it('falls back to a grounded web search when the answer is not in DOVA data', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const database = makeDatabase();
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'NEED_WEB_SEARCH' }] } }] }))
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{
+        content: { parts: [{ text: 'DOVA was founded by Jane Founder.' }] },
+        groundingMetadata: { groundingChunks: [{ web: { title: 'About DOVA', uri: 'https://example.com/dova' } }] },
+      }] }));
+    const result = await new ChatService(database, makeCatalog(), makeBundles()).sendMessage(customer, 'Tell me about the people behind the company');
+    expect(result.messages[0].text).toBe('DOVA was founded by Jane Founder.');
+    const first = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    const second = JSON.parse(fetchMock.mock.calls[1][1]?.body as string);
+    expect(first.tools).toBeUndefined();
+    expect(first.systemInstruction.parts[0].text).toContain('NEED_WEB_SEARCH');
+    expect(second.tools).toEqual([{ google_search: {} }]);
+    expect(second.systemInstruction.parts[0].text).not.toContain('buyer@dova.local');
+    expect(database.chatSaveKnowledge).toHaveBeenCalledWith(expect.objectContaining({ answer: 'DOVA was founded by Jane Founder.' }));
+  });
+
+  it('pairs a short follow-up with the previous question for the web search', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'It started in Bayelsa.' }] } }] }))
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'NEED_WEB_SEARCH' }] } }] }))
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'Because of local demand.' }] } }] }));
+    const service = new ChatService(makeDatabase(), makeCatalog(), makeBundles());
+    await service.sendMessage(customer, 'Tell me the story of the company');
+    await service.sendMessage(customer, 'why?');
+    const webRequest = JSON.parse(fetchMock.mock.calls[2][1]?.body as string);
+    expect(webRequest.contents).toEqual([{ role: 'user', parts: [{ text: 'Tell me the story of the company\nwhy?' }] }]);
+  });
+
+  it('answers a catalog question from DOVA data without touching the web', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ candidates: [{ content: { parts: [{ text: 'We have Plantain Flour.' }] } }] }));
+    const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendGuestMessage('what products are available?');
+    expect(result.messages[0].text).toBe('We have Plantain Flour.');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string).tools).toBeUndefined();
+  });
+
   it('tells the model it has no tools and retries once after a malformed function call', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     const fetchMock = jest.spyOn(global, 'fetch')
