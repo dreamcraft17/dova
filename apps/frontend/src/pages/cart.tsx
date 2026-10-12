@@ -6,7 +6,8 @@ import { Loading, LoadingOverlay } from '../components/Loading';
 import { ProductImage } from '../components/ProductImage';
 import { RequireAuth } from '../components/RequireAuth';
 import { ApiError, api } from '../lib/api';
-import type { Cart } from 'dova-shared';
+import { startOrderPayment } from '../lib/payment';
+import type { Cart, Order } from 'dova-shared';
 import { formatPricePerUnit, formatQuantityWithUnit, productUnit } from 'dova-shared';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,8 @@ export default function CartPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [cart, setCart] = useState<Cart>();
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -30,6 +33,13 @@ export default function CartPage() {
         const inputs: Record<string, string> = {};
         data.items.forEach((item) => { inputs[item.id] = item.quantity.toString(); });
         setQtyInputs(inputs);
+        if (data.items.length === 0) {
+          api<Order[]>('/orders')
+            .then((orders) => setPendingOrders(orders.filter((o) => o.status === 'pending')))
+            .catch(() => setPendingOrders([]));
+        } else {
+          setPendingOrders([]);
+        }
       })
       .catch((err: unknown) => {
         if (err instanceof ApiError) {
@@ -89,6 +99,16 @@ export default function CartPage() {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function payNow(order: Order) {
+    setPayingOrderId(order.id);
+    try {
+      await startOrderPayment(order.id, order.totalAmount, api);
+    } catch (e) {
+      setError((e as Error).message);
+      setPayingOrderId(null);
     }
   }
 
@@ -234,6 +254,49 @@ export default function CartPage() {
                 </Link>
               </div>
             </>
+          ) : pendingOrders.length > 0 ? (
+            <div style={{ textAlign: 'center', maxWidth: 460, margin: '0 auto' }}>
+              <p style={{ fontWeight: 600 }}>
+                Your cart is empty, but you have {pendingOrders.length > 1 ? 'orders' : 'an order'} awaiting payment.
+              </p>
+              <p className="form-hint" style={{ marginBottom: 16 }}>
+                You already confirmed {pendingOrders.length > 1 ? 'these orders' : 'this order'} — finish paying to complete
+                {pendingOrders.length > 1 ? ' them' : ' it'}, no need to shop again.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pendingOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 12,
+                      border: '1px solid var(--line)',
+                      borderRadius: 10,
+                      padding: '12px 16px',
+                    }}
+                  >
+                    <div style={{ textAlign: 'left' }}>
+                      <strong>{order.orderNumber}</strong>
+                      <div className="form-hint">₦ {order.totalAmount.toLocaleString('en-NG')}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="button small confirm-btn"
+                      disabled={payingOrderId === order.id}
+                      onClick={() => void payNow(order)}
+                    >
+                      {payingOrderId === order.id ? 'Redirecting…' : 'Complete payment'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p style={{ marginTop: 16 }}>
+                <Link href="/customer/history">View purchase history</Link> ·{' '}
+                <Link href="/marketplace">Explore products</Link>
+              </p>
+            </div>
           ) : (
             <p style={{ textAlign: 'center' }}>
               Your cart is empty. <Link href="/marketplace">Explore products</Link>
