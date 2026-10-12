@@ -12,6 +12,9 @@ type VerifyResponse = {
   message?: string;
 };
 
+const PENDING_TIMEOUT_MESSAGE =
+  "We haven't heard back from Paystack yet. Your order is saved as unpaid — check Purchase History for its status, or try paying again from there.";
+
 const POLL_INTERVAL_MS = 4000;
 const MAX_POLL_ATTEMPTS = 15;
 
@@ -37,8 +40,9 @@ export default function Verify() {
 
         if (cancelled) return;
 
+        setOrder({ orderNumber: result.orderNumber });
+
         if (result.status === 'paid') {
-          setOrder({ orderNumber: result.orderNumber });
           setStatus('success');
           setMessage('Payment successful.');
           return;
@@ -47,7 +51,7 @@ export default function Verify() {
         attemptsRef.current += 1;
         if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
           setStatus('error');
-          setMessage(result.message || 'Payment is still pending. Check your orders shortly.');
+          setMessage(PENDING_TIMEOUT_MESSAGE);
           return;
         }
 
