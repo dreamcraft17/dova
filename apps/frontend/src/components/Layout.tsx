@@ -278,7 +278,7 @@ export function Layout({
           <div>
             <h4>Contact</h4>
             <ul>
-              <li>support@dova.com</li>
+              <li>support@dovachain.com</li>
               <li><a href="tel:+2349032696825">+234 903 269 6825</a></li>
               <li>Nigeria</li>
             </ul>

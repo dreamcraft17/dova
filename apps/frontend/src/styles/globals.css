@@ -817,6 +817,7 @@ a.button.secondary:hover {
   font-size: 13px;
   color: var(--muted);
   font-weight: 500;
+  flex-basis: 100%;
 }
 
 .slot-pill {

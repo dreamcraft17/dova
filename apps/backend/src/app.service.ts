@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, DELIVERY_FEE, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG } from 'dova-shared';
+import { Cart, Category, DeliveryZone, deliveryFeeFor, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -467,7 +467,7 @@ export class AppService {
     const cart = await this.cart(userId);
     const existing = cart.items.find(i => i.product.id === productId);
     const newQty = (existing?.quantity || 0) + quantity;
-    if (!Number.isFinite(quantity) || quantity < 1 || newQty > p.stockQuantity) {
+    if (!Number.isFinite(quantity) || quantity < 0.5 || newQty > p.stockQuantity) {
       throw new BadRequestException(stockLimitMessage(p.stockQuantity, p.name, p.categoryName));
     }
     if (existing) {
@@ -480,12 +480,15 @@ export class AppService {
     return this.saveCart(userId, cart);
   }
   recalculate(cart: Cart) { cart.items.forEach(i => i.subtotal = i.quantity * i.product.price); cart.total = cart.items.reduce((sum, i) => sum + i.subtotal, 0); }
-  async updateCart(userId: string, itemId: string, quantity?: number, deliverySlot?: 'morning' | 'evening') { const cart = await this.cart(userId); const item = cart.items.find(i => i.id === itemId); if (!item) throw new NotFoundException('Cart item not found'); if (quantity !== undefined) { if (quantity < 1 || quantity > item.product.stockQuantity) throw new BadRequestException('Invalid quantity'); item.quantity = quantity; } if (deliverySlot !== undefined) { item.deliverySlot = deliverySlot; } this.recalculate(cart); return this.saveCart(userId, cart); }
+  async updateCart(userId: string, itemId: string, quantity?: number, deliverySlot?: 'morning' | 'evening') { const cart = await this.cart(userId); const item = cart.items.find(i => i.id === itemId); if (!item) throw new NotFoundException('Cart item not found'); if (quantity !== undefined) { if (quantity < 0.5 || quantity > item.product.stockQuantity) throw new BadRequestException('Invalid quantity'); item.quantity = quantity; } if (deliverySlot !== undefined) { item.deliverySlot = deliverySlot; } this.recalculate(cart); return this.saveCart(userId, cart); }
   async removeCart(userId: string, itemId: string) { const cart = await this.cart(userId); cart.items = cart.items.filter(i => i.id !== itemId); this.recalculate(cart); return this.saveCart(userId, cart); }
   async createOrder(userId: string, body: any) {
     const customer = await this.findUser(userId, true);
     if (customer && !customer.emailVerifiedAt) {
       throw new BadRequestException('Verify your email in Profile before placing an order.');
+    }
+    if (!body.deliveryState || !isAllowedDeliveryState(String(body.deliveryState))) {
+      throw new BadRequestException(deliveryStateRestrictionMessage());
     }
     if (this.database.enabled) {
       try {
@@ -509,6 +512,9 @@ export class AppService {
     if (!body.deliveryName || !body.deliveryPhone) throw new BadRequestException('Delivery details are required');
     if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
       throw new BadRequestException('Delivery address is required');
+    }
+    if (fulfillmentType === 'delivery' && !['yenagoa', 'outside_yenagoa'].includes(body.deliveryZone)) {
+      throw new BadRequestException('Delivery zone is required');
     }
     const shortfallMsg = minOrderMessage(cart.total, fulfillmentType);
     if (shortfallMsg) throw new BadRequestException(shortfallMsg);
@@ -535,7 +541,7 @@ export class AppService {
       orderNumber: `DOVA-${Date.now().toString(36).toUpperCase()}`,
       customerId: userId,
       status: 'pending',
-      totalAmount: cart.total + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0),
+      totalAmount: cart.total + deliveryFeeFor(fulfillmentType, body.deliveryZone as DeliveryZone | undefined),
       deliveryName: body.deliveryName,
       deliveryAddress,
       deliveryPhone: body.deliveryPhone,

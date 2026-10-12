@@ -66,13 +66,13 @@ export class SupplierRegisterDto {
 
 export class CartAddDto {
   @IsString() productId!: string;
-  /** Most products are sold by weight (kg/L) — quantity may be fractional, e.g. 1.5. */
-  @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) quantity!: number;
+  /** Most products are sold by weight (kg/L) — quantity may be fractional, e.g. 1.5. 500g is the smallest pack size. */
+  @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.5) quantity!: number;
   @IsString() @IsIn(['morning', 'evening']) deliverySlot!: 'morning' | 'evening';
 }
 
 export class CartUpdateDto {
-  @IsOptional() @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(1) quantity?: number;
+  @IsOptional() @Transform(({ value }) => Number(value)) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.5) quantity?: number;
   @IsOptional() @IsString() @IsIn(['morning', 'evening']) deliverySlot?: 'morning' | 'evening';
 }
 
@@ -82,6 +82,9 @@ export class CreateOrderDto {
   @IsOptional() @IsString() @MinLength(5) deliveryAddress?: string;
   @IsString() @MinLength(7) deliveryPhone!: string;
   @IsOptional() @IsIn(['pickup', 'delivery']) fulfillmentType?: 'pickup' | 'delivery';
+  @IsString() @MinLength(2) deliveryState!: string;
+  /** Required for delivery; drives the zone-based delivery fee. Ignored for pickup. */
+  @IsOptional() @IsIn(['yenagoa', 'outside_yenagoa']) deliveryZone?: 'yenagoa' | 'outside_yenagoa';
 }
 
 export class ContactDto {

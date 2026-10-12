@@ -56,7 +56,35 @@ export const ORDER_STATUSES: OrderStatus[] = ['pending', 'paid', 'processing', '
 /** Minimum basket (NGN) by fulfillment type — stakeholder confirmed amounts. */
 export const MIN_ORDER_PICKUP = 3000;
 export const MIN_ORDER_DELIVERY = 5000;
-export const DELIVERY_FEE = 1500;
+
+export type DeliveryZone = 'yenagoa' | 'outside_yenagoa';
+
+export const DELIVERY_ZONES: { value: DeliveryZone; label: string }[] = [
+  { value: 'yenagoa', label: 'Within Yenagoa' },
+  { value: 'outside_yenagoa', label: 'Outside Yenagoa' },
+];
+
+/** Delivery fee (NGN) by zone — ops-confirmed pricing, Mbiama hub as reference point. */
+export const DELIVERY_FEE_BY_ZONE: Record<DeliveryZone, number> = {
+  yenagoa: 1200,
+  outside_yenagoa: 1600,
+};
+
+export const deliveryFeeFor = (fulfillment: FulfillmentType, zone?: DeliveryZone) =>
+  fulfillment === 'pickup' ? 0 : DELIVERY_FEE_BY_ZONE[zone ?? 'outside_yenagoa'];
+
+/** Paystack NGN local-card pricing: 1.5% + ₦100, flat fee waived at/under ₦2,500, fee capped at ₦2,000.
+ * DOVA's Paystack account is configured so the customer bears this fee, so the amount charged on the
+ * Paystack page is higher than the order total — this estimates that so checkout can disclose it upfront. */
+export const estimatePaystackFee = (amount: number): number => {
+  if (amount <= 0) return 0;
+  const flatFee = amount > 2500 ? 100 : 0;
+  const grossed = (amount + flatFee) / (1 - 0.015);
+  return Math.min(Math.round((grossed - amount) * 100) / 100, 2000);
+};
+
+export const estimatePaystackChargeTotal = (amount: number): number =>
+  Math.round((amount + estimatePaystackFee(amount)) * 100) / 100;
 
 export const minOrderFor = (fulfillment: FulfillmentType) =>
   fulfillment === 'pickup' ? MIN_ORDER_PICKUP : MIN_ORDER_DELIVERY;
@@ -71,6 +99,23 @@ export const minOrderMessage = (total: number, fulfillment: FulfillmentType) => 
   if (shortfall <= 0) return undefined;
   return `Add ₦${shortfall.toLocaleString('en-NG')} more to reach the minimum order value for this fulfillment option.`;
 };
+
+export const NIGERIA_STATES = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
+  'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'Gombe', 'Imo', 'Jigawa',
+  'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger',
+  'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe',
+  'Zamfara', 'FCT',
+];
+
+/** States DOVA currently delivers/sells to. Starting with Bayelsa only; add more here as coverage expands. */
+export const ALLOWED_DELIVERY_STATES = ['Bayelsa'];
+
+export const isAllowedDeliveryState = (state: string) =>
+  ALLOWED_DELIVERY_STATES.some((allowed) => allowed.toLowerCase() === state.trim().toLowerCase());
+
+export const deliveryStateRestrictionMessage = () =>
+  `We currently only deliver within ${ALLOWED_DELIVERY_STATES.join(', ')} State${ALLOWED_DELIVERY_STATES.length > 1 ? 's' : ''}. More states coming soon!`;
 
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 export const isValidPassword = (password: string) => password.length >= 8;

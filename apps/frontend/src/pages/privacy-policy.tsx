@@ -314,7 +314,7 @@ const sections: LegalSection[] = [
       <p>
         For privacy questions, requests, or complaints, email{' '}
         <a href="mailto:privacy@dova.com">privacy@dova.com</a>. For general support, email{' '}
-        <a href="mailto:support@dova.com">support@dova.com</a> or call{' '}
+        <a href="mailto:support@dovachain.com">support@dovachain.com</a> or call{' '}
         <a href="tel:+2349032696825">+234 903 269 6825</a>.
       </p>
     ),
