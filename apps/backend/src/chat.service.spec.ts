@@ -68,10 +68,32 @@ describe('ChatService', () => {
     expect(request.systemInstruction.parts[0].text).toContain('Products (/marketplace)');
     expect(request.systemInstruction.parts[0].text).toContain('Orders (/customer/history)');
     expect(request.systemInstruction.parts[0].text).toContain('only authoritative product/site facts');
-    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 700 });
+    expect(request.generationConfig).toEqual({ temperature: 0.35, topP: 0.85, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } });
     expect(request.safetySettings).toEqual(expect.arrayContaining([
       expect.objectContaining({ category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }),
     ]));
+  });
+
+  it('ignores thought parts and does not persist a question whose answer came back empty', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      jsonResponse({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: 'thinking…', thought: true }] } }] }),
+    );
+    const service = new ChatService(makeDatabase(), makeCatalog(), makeBundles());
+    await expect(service.sendMessage(customer, 'what products do you have?')).rejects.toThrow('could not answer');
+    await expect(service.history(customer)).resolves.toEqual({ conversationId: null, messages: [] });
+  });
+
+  it('retries without thinkingConfig when the model rejects a disabled thinking budget', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ error: { message: 'thinking budget not supported' } }, 400))
+      .mockResolvedValueOnce(jsonResponse({ candidates: [{ content: { parts: [{ text: 'Recovered.' }] } }] }));
+    const result = await new ChatService(makeDatabase(), makeCatalog(), makeBundles()).sendMessage(customer, 'hi');
+    expect(result.messages[0].text).toBe('Recovered.');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string).generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+    expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string).generationConfig.thinkingConfig).toBeUndefined();
   });
 
   it('adds only the signed-in user order projection to the model context', async () => {

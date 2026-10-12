@@ -10,7 +10,10 @@ const REQUEST_TIMEOUT_MS = 12_000;
 const WEB_SEARCH_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_MAX_ATTEMPTS = 1;
 const CATALOG_CACHE_TTL_MS = 30_000;
-const GEMINI_MAX_OUTPUT_TOKENS = 700;
+// Flash "thinking" models count reasoning tokens against maxOutputTokens, so a
+// tight limit can be fully consumed by thinking and return no text at all.
+const GEMINI_MAX_OUTPUT_TOKENS = 2048;
+const DEFAULT_THINKING_BUDGET = 0;
 const PUBLIC_KNOWLEDGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_STORED_MESSAGES = 100;
@@ -25,18 +28,21 @@ const PROMPT_INJECTION_PATTERNS = [
   /\b(call|invoke|use|run)\b.{0,80}\b(tool|function|delete|refund|transfer)\b.{0,80}\b(without|skip|bypass)\b.{0,40}\b(approval|permission|confirmation)\b/i,
 ];
 
-type GeminiPart = { text?: string };
+type GeminiPart = { text?: string; thought?: boolean };
 type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
 type GeminiSource = { title?: string; uri?: string };
+type GeminiGrounding = { groundingChunks?: Array<{ web?: { title?: string; uri?: string } }> };
 type GeminiResponse = {
-  candidates?: Array<{ content?: { parts?: GeminiPart[] }; finishReason?: string }>;
-  groundingMetadata?: { groundingChunks?: Array<{ web?: { title?: string; uri?: string } }> };
+  candidates?: Array<{ content?: { parts?: GeminiPart[] }; finishReason?: string; groundingMetadata?: GeminiGrounding }>;
+  groundingMetadata?: GeminiGrounding;
+  promptFeedback?: { blockReason?: string };
+  usageMetadata?: Record<string, number>;
 };
 type GeneratedAnswer = { text: string; sources: GeminiSource[] };
 type GeminiRequest = {
   systemInstruction: { parts: GeminiPart[] };
   contents: GeminiContent[];
-  generationConfig: { temperature: number; topP: number; maxOutputTokens: number };
+  generationConfig: { temperature: number; topP: number; maxOutputTokens: number; thinkingConfig?: { thinkingBudget: number } };
   safetySettings: Array<{ category: string; threshold: string }>;
   tools?: Array<{ google_search: Record<string, never> }>;
 };
@@ -74,6 +80,15 @@ export class ChatService {
       : DEFAULT_GEMINI_MAX_ATTEMPTS;
   }
 
+  /** undefined = don't send thinkingConfig (use the model default). */
+  private thinkingBudget(): number | undefined {
+    const raw = process.env.GEMINI_THINKING_BUDGET?.trim();
+    if (raw === undefined || raw === '') return DEFAULT_THINKING_BUDGET;
+    if (raw === 'default') return undefined;
+    const value = Number(raw);
+    return Number.isInteger(value) && value >= -1 ? value : DEFAULT_THINKING_BUDGET;
+  }
+
   private requestTimeoutMs(useWebSearch: boolean) {
     const configured = Number(process.env.GEMINI_WEB_TIMEOUT_MS);
     if (useWebSearch && Number.isFinite(configured) && configured >= 15_000 && configured <= 60_000) return configured;
@@ -85,10 +100,12 @@ export class ChatService {
     const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
     const fallbackModel = process.env.GEMINI_FALLBACK_MODEL?.trim();
     const models = [primaryModel, fallbackModel].filter((model, index, all): model is string => Boolean(model) && all.indexOf(model) === index);
+    const thinkingBudget = this.thinkingBudget();
     let lastStatus: number | undefined;
 
-    for (const model of models) {
+    for (const [modelIndex, model] of models.entries()) {
       let response: Response | undefined;
+      let withThinking = thinkingBudget !== undefined;
       for (let attempt = 1; attempt <= this.maxGeminiAttempts(); attempt += 1) {
         try {
           response = await fetch(this.apiUrl(model), {
@@ -125,7 +142,12 @@ ${catalogContext}
 ${accountContext}
 </PRIVATE_ACCOUNT_DATA>` }] },
           contents,
-          generationConfig: { temperature: 0.35, topP: 0.85, maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
+          generationConfig: {
+            temperature: 0.35,
+            topP: 0.85,
+            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+            ...(withThinking ? { thinkingConfig: { thinkingBudget: thinkingBudget as number } } : {}),
+          },
           ...(useWebSearch ? { tools: [{ google_search: {} }] } : {}),
           safetySettings: [
             { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
@@ -150,6 +172,13 @@ ${accountContext}
 
         if (!response) break;
         lastStatus = response.status;
+        // Some models (e.g. Pro tiers) reject a disabled thinking budget; retry
+        // the same attempt with the model's default thinking instead of failing.
+        if (response.status === 400 && withThinking) {
+          withThinking = false;
+          attempt -= 1;
+          continue;
+        }
         const retryable = [429, 500, 502, 503, 504].includes(response.status);
         if (response.ok || !retryable || attempt === this.maxGeminiAttempts()) break;
         await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
@@ -158,9 +187,21 @@ ${accountContext}
       if (!response) continue;
       if (response.ok) {
         const payload = await response.json().catch(() => undefined) as GeminiResponse | undefined;
-        const text = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('').trim();
-        if (!text) throw new BadRequestException('The AI assistant returned an empty response. Please try again.');
-        const sources = payload?.groundingMetadata?.groundingChunks
+        const candidate = payload?.candidates?.[0];
+        const text = candidate?.content?.parts
+          ?.filter((part) => !part.thought)
+          .map((part) => part.text || '')
+          .join('')
+          .trim();
+        if (!text) {
+          console.warn(
+            `[Chat] Gemini ${model} returned no text`,
+            JSON.stringify({ finishReason: candidate?.finishReason, blockReason: payload?.promptFeedback?.blockReason, usage: payload?.usageMetadata }),
+          );
+          if (modelIndex < models.length - 1) continue;
+          throw new BadRequestException('The AI assistant could not answer that right now. Please rephrase or try again.');
+        }
+        const sources = (candidate?.groundingMetadata ?? payload?.groundingMetadata)?.groundingChunks
           ?.map((chunk) => chunk.web)
           .filter((source): source is GeminiSource => Boolean(source?.uri))
           .slice(0, 8) || [];
@@ -388,14 +429,22 @@ ${accountContext}
     await this.recordQuestion(normalizedText, user.id);
     const history = await this.getHistory(user.id);
     const userMessage: ChatRecord = { id: `user-${Date.now()}`, userId: user.id, role: 'user', text: normalizedText, createdAt: new Date().toISOString() };
-    await this.saveMessage(userMessage);
-    if (this.isPromptInjection(normalizedText)) return this.refusal(user.id, INJECTION_REFUSAL);
-    if (this.isProgrammingRequest(normalizedText)) return this.refusal(user.id, PROGRAMMING_REFUSAL);
+    if (this.isPromptInjection(normalizedText)) {
+      await this.saveMessage(userMessage);
+      return this.refusal(user.id, INJECTION_REFUSAL);
+    }
+    if (this.isProgrammingRequest(normalizedText)) {
+      await this.saveMessage(userMessage);
+      return this.refusal(user.id, PROGRAMMING_REFUSAL);
+    }
     const contents: GeminiContent[] = [
       ...history.slice(-MAX_CONTEXT_MESSAGES).map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.text }] } as GeminiContent)),
       { role: 'user', parts: [{ text: normalizedText }] },
     ];
     const generated = await this.generate(contents, await this.catalogContext(), this.languageInstruction(normalizedText), await this.accountContext(user));
+    // Persist the question only once it has an answer, so a failed generation
+    // doesn't leave an unanswered message stuck in the user's chat history.
+    await this.saveMessage(userMessage);
     const reply: ChatRecord = { id: `assistant-${Date.now()}`, userId: user.id, role: 'assistant', text: generated.text, createdAt: new Date().toISOString() };
     await this.saveMessage(reply);
     return { conversationId: null, messages: [{ id: reply.id, role: reply.role, text: reply.text, createdAt: reply.createdAt }] };
