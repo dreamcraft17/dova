@@ -520,6 +520,12 @@ export class AppService {
     if (shortfallMsg) throw new BadRequestException(shortfallMsg);
     const deliveryAddress =
       fulfillmentType === 'pickup' ? body.deliveryAddress || 'Pickup at DOVA hub' : body.deliveryAddress;
+    for (const i of cart.items) {
+      const p = this.products.find((item) => item.id === i.product.id);
+      if (p && i.quantity > p.stockQuantity) {
+        throw new BadRequestException(stockLimitMessage(p.stockQuantity, p.name, p.categoryName));
+      }
+    }
     cart.items.forEach((i) => {
       const p = this.products.find((item) => item.id === i.product.id);
       if (p) {
