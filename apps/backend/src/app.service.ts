@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, DELIVERY_FEE, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
+import { Cart, Category, DeliveryZone, deliveryFeeFor, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -513,6 +513,9 @@ export class AppService {
     if (fulfillmentType === 'delivery' && (!body.deliveryAddress || String(body.deliveryAddress).length < 5)) {
       throw new BadRequestException('Delivery address is required');
     }
+    if (fulfillmentType === 'delivery' && !['yenagoa', 'outside_yenagoa'].includes(body.deliveryZone)) {
+      throw new BadRequestException('Delivery zone is required');
+    }
     const shortfallMsg = minOrderMessage(cart.total, fulfillmentType);
     if (shortfallMsg) throw new BadRequestException(shortfallMsg);
     const deliveryAddress =
@@ -538,7 +541,7 @@ export class AppService {
       orderNumber: `DOVA-${Date.now().toString(36).toUpperCase()}`,
       customerId: userId,
       status: 'pending',
-      totalAmount: cart.total + (fulfillmentType === 'delivery' ? DELIVERY_FEE : 0),
+      totalAmount: cart.total + deliveryFeeFor(fulfillmentType, body.deliveryZone as DeliveryZone | undefined),
       deliveryName: body.deliveryName,
       deliveryAddress,
       deliveryPhone: body.deliveryPhone,
