@@ -82,6 +82,7 @@ export class CreateOrderDto {
   @IsOptional() @IsString() @MinLength(5) deliveryAddress?: string;
   @IsString() @MinLength(7) deliveryPhone!: string;
   @IsOptional() @IsIn(['pickup', 'delivery']) fulfillmentType?: 'pickup' | 'delivery';
+  @IsString() @MinLength(2) deliveryState!: string;
 }
 
 export class ContactDto {

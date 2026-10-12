@@ -72,6 +72,23 @@ export const minOrderMessage = (total: number, fulfillment: FulfillmentType) => 
   return `Add ₦${shortfall.toLocaleString('en-NG')} more to reach the minimum order value for this fulfillment option.`;
 };
 
+export const NIGERIA_STATES = [
+  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
+  'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'Gombe', 'Imo', 'Jigawa',
+  'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger',
+  'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe',
+  'Zamfara', 'FCT',
+];
+
+/** States DOVA currently delivers/sells to. Starting with Bayelsa only; add more here as coverage expands. */
+export const ALLOWED_DELIVERY_STATES = ['Bayelsa'];
+
+export const isAllowedDeliveryState = (state: string) =>
+  ALLOWED_DELIVERY_STATES.some((allowed) => allowed.toLowerCase() === state.trim().toLowerCase());
+
+export const deliveryStateRestrictionMessage = () =>
+  `We currently only deliver within ${ALLOWED_DELIVERY_STATES.join(', ')} State${ALLOWED_DELIVERY_STATES.length > 1 ? 's' : ''}. More states coming soon!`;
+
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 export const isValidPassword = (password: string) => password.length >= 8;
 

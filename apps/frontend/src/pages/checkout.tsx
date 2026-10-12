@@ -5,7 +5,14 @@ import { Loading } from '../components/Loading';
 import { api } from '../lib/api';
 import { paymentProviderLabel, startOrderPayment, type PaymentConfig } from '../lib/payment';
 import type { Cart, FulfillmentType, Order } from 'dova-shared';
-import { DELIVERY_FEE, minOrderMessage, formatQuantityWithUnit } from 'dova-shared';
+import {
+  DELIVERY_FEE,
+  minOrderMessage,
+  formatQuantityWithUnit,
+  NIGERIA_STATES,
+  isAllowedDeliveryState,
+  deliveryStateRestrictionMessage,
+} from 'dova-shared';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -19,6 +26,7 @@ export default function Checkout() {
     deliveryName: '',
     deliveryAddress: '',
     deliveryPhone: '',
+    deliveryState: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,11 +61,23 @@ export default function Checkout() {
     () => (cart ? minOrderMessage(cart.total, fulfillmentType) : undefined),
     [cart, fulfillmentType],
   );
+  const stateRestrictionMessage = useMemo(
+    () => (form.deliveryState && !isAllowedDeliveryState(form.deliveryState) ? deliveryStateRestrictionMessage() : undefined),
+    [form.deliveryState],
+  );
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (shortfallMessage) {
       setError(shortfallMessage);
+      return;
+    }
+    if (!form.deliveryState) {
+      setError('Select your state.');
+      return;
+    }
+    if (stateRestrictionMessage) {
+      setError(stateRestrictionMessage);
       return;
     }
     setBusy(true);
@@ -130,6 +150,20 @@ export default function Checkout() {
                   value={form.deliveryPhone}
                   onChange={(e) => setForm({ ...form, deliveryPhone: e.target.value })}
                 />
+                <label>State</label>
+                <select
+                  required
+                  value={form.deliveryState}
+                  onChange={(e) => setForm({ ...form, deliveryState: e.target.value })}
+                >
+                  <option value="">Select your state</option>
+                  {NIGERIA_STATES.map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                </select>
+                {stateRestrictionMessage && <p className="error">{stateRestrictionMessage}</p>}
                 {fulfillmentType === 'delivery' ? (
                   <>
                     <label>Shipping Address</label>
@@ -161,7 +195,7 @@ export default function Checkout() {
                   <p className="form-hint">Loading payment options…</p>
                 )}
                 {shortfallMessage && <p className="error">{shortfallMessage}</p>}
-                <button className="confirm-btn" disabled={busy || Boolean(shortfallMessage)}>
+                <button className="confirm-btn" disabled={busy || Boolean(shortfallMessage) || Boolean(stateRestrictionMessage)}>
                   {busy ? <Loading label="Redirecting…" inline size="sm" /> : 'Confirm Order'}
                 </button>
                 {error && <p className="error">{error}</p>}
