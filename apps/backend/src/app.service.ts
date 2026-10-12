@@ -545,6 +545,8 @@ export class AppService {
       deliveryName: body.deliveryName,
       deliveryAddress,
       deliveryPhone: body.deliveryPhone,
+      deliveryLatitude: body.deliveryLatitude == null ? undefined : Number(body.deliveryLatitude),
+      deliveryLongitude: body.deliveryLongitude == null ? undefined : Number(body.deliveryLongitude),
       fulfillmentType,
       items: cart.items.map((i) => ({
         id: randomUUID(),

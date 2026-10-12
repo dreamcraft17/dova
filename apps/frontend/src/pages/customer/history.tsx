@@ -8,6 +8,7 @@ import { startOrderPayment } from '../../lib/payment';
 import { groupOrderItems } from '../../lib/order-items';
 import type { Order, OrderStatus } from 'dova-shared';
 import { formatQuantityWithUnit } from 'dova-shared';
+import { canDownloadInvoice, openInvoice } from '../../lib/invoice';
 
 const STATUS_LABELS: Record<OrderStatus | 'all', string> = {
   all: 'All',
@@ -323,6 +324,11 @@ export default function PurchaseHistory() {
                       Total: ₦ {order.totalAmount.toLocaleString('en-NG')}
                     </span>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {canDownloadInvoice(order) && (
+                        <button type="button" className="button small" onClick={() => openInvoice(order)}>
+                          Download invoice
+                        </button>
+                      )}
                       {order.status === 'pending' && (
                         <button
                           type="button"

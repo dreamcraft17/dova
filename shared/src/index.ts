@@ -44,6 +44,8 @@ export interface Order {
   deliveryName: string;
   deliveryAddress: string;
   deliveryPhone: string;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
   fulfillmentType?: FulfillmentType;
   paymentReference?: string;
   paymentVerifiedAt?: string;
