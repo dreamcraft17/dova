@@ -68,7 +68,7 @@ export class ChatService {
     return key;
   }
 
-  private apiUrl(model = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest') {
+  private apiUrl(model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash') {
     const base = process.env.GEMINI_API_URL?.trim() || 'https://generativelanguage.googleapis.com/v1beta';
     return `${base}/models/${model}:generateContent`;
   }
@@ -97,7 +97,7 @@ export class ChatService {
 
   private async generate(contents: GeminiContent[], catalogContext: string, languageInstruction: string, accountContext: string, useWebSearch = false): Promise<GeneratedAnswer> {
     const apiKey = this.apiKey();
-    const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
+    const primaryModel = process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash';
     const fallbackModel = process.env.GEMINI_FALLBACK_MODEL?.trim();
     const models = [primaryModel, fallbackModel].filter((model, index, all): model is string => Boolean(model) && all.indexOf(model) === index);
     const thinkingBudget = this.thinkingBudget();

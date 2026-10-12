@@ -58,7 +58,7 @@ describe('ChatService', () => {
     expect(result.conversationId).toBeNull();
     expect(result.messages[0].text).toBe('Hello from Gemini.');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/models/gemini-flash-latest:generateContent'),
+      expect.stringContaining('/models/gemini-3.5-flash:generateContent'),
       expect.objectContaining({ headers: expect.objectContaining({ 'X-goog-api-key': 'test-key' }) }),
     );
     const request = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
