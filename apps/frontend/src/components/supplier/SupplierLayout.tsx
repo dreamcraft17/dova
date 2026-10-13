@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   BarChart3,
   Bell,
@@ -25,12 +25,12 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { FeedlogLink } from '../FeedlogLink';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import type { SupplierInfo } from '../../hooks/supplier/useSupplierInfo';
 import { inter, unbounded } from '../../lib/fonts';
 import { initialsOf } from './ui';
+import { SupplierFeedbackDialog } from './SupplierFeedbackDialog';
 
 type NavItem = { href: string; label: string; icon: typeof Home; feedback?: boolean };
 
@@ -56,6 +56,7 @@ function isNavItemActive(pathname: string, href: string) {
 function SupplierSidebar({ supplierInfo }: { supplierInfo?: SupplierInfo }) {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
     <Sidebar collapsible="offcanvas" className="border-r border-[rgba(212,175,55,0.12)]">
@@ -82,10 +83,10 @@ function SupplierSidebar({ supplierInfo }: { supplierInfo?: SupplierInfo }) {
                 className={NAV_BUTTON_CLASS}
               >
                 {feedback ? (
-                  <FeedlogLink isLoggedIn>
+                  <button type="button" onClick={() => setFeedbackOpen(true)} className="flex w-full items-center gap-3 text-left">
                     <Icon />
                     <span>{label}</span>
-                  </FeedlogLink>
+                  </button>
                 ) : (
                   <Link href={href}>
                     <Icon />
@@ -113,6 +114,7 @@ function SupplierSidebar({ supplierInfo }: { supplierInfo?: SupplierInfo }) {
           Log Out
         </button>
       </SidebarFooter>
+      {feedbackOpen ? <SupplierFeedbackDialog onClose={() => setFeedbackOpen(false)} /> : null}
     </Sidebar>
   );
 }
