@@ -180,6 +180,18 @@ export class AppController {
     return this.service.updateNotificationPreferences(user.id, body);
   }
 
+  @Get('settings/sessions') sessions(@CurrentUser() user: StoredUser, @Req() req: AuthenticatedRequest) {
+    return this.service.listSessions(user.id, req.cookies?.refreshToken);
+  }
+
+  @Delete('settings/sessions/:id') revokeSession(@CurrentUser() user: StoredUser, @Param('id') id: string) {
+    return this.service.revokeSessionById(user.id, id);
+  }
+
+  @Post('settings/sessions/revoke-others') revokeOtherSessions(@CurrentUser() user: StoredUser, @Req() req: AuthenticatedRequest) {
+    return this.service.revokeOtherSessions(user.id, req.cookies?.refreshToken);
+  }
+
   @RequireIntegration()
   @Public()
   @Get('categories') categories() { return this.service.listCategories(); }

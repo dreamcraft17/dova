@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { PageHead, Panel, StatusPill, buttonStyles } from '../../components/supplier/ui';
 import { api } from '../../lib/api';
+import { getRefreshToken } from '../../lib/auth-session';
 
 type NotificationPreferences = {
   newOrderAlerts: boolean;
@@ -12,6 +13,7 @@ type NotificationPreferences = {
   productApprovalUpdates: boolean;
   marketingUpdates: boolean;
 };
+type Session = { id: string; createdAt: string; expiresAt: string; current: boolean };
 
 function SettingRow({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
@@ -43,10 +45,24 @@ function SettingsContent() {
   const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
   const [savingNotification, setSavingNotification] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState('');
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionMessage, setSessionMessage] = useState('');
 
   useEffect(() => {
     void api<NotificationPreferences>('/settings/notifications').then(setNotifications).catch((error) => setNotificationError(error instanceof Error ? error.message : 'Unable to load notification settings'));
+    void api<Session[]>('/settings/sessions').then(setSessions).catch(() => undefined);
   }, []);
+
+  async function revokeSession(id: string) {
+    await api(`/settings/sessions/${id}`, { method: 'DELETE' });
+    setSessions((current) => current.filter((session) => session.id !== id));
+  }
+
+  async function revokeOtherSessions() {
+    await api('/settings/sessions/revoke-others', { method: 'POST', body: JSON.stringify({ refreshToken: getRefreshToken() }) });
+    setSessions((current) => current.filter((session) => session.current));
+    setSessionMessage('Other sessions have been signed out.');
+  }
 
   async function toggleNotification(key: keyof NotificationPreferences, value: boolean) {
     if (!notifications) return;
@@ -94,7 +110,11 @@ function SettingsContent() {
               </Button>
             }
           />
-          <SettingRow title="Sessions" body="Review signed-in devices." />
+          <div className="border-b border-border py-3 last:border-b-0">
+            <div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-foreground">Sessions</p><p className="text-[10px] text-muted-foreground">Review and revoke signed-in sessions.</p></div><Button type="button" variant="outline" className={buttonStyles.light} onClick={() => void revokeOtherSessions()} disabled={sessions.length < 2}>Sign out others</Button></div>
+            <div className="space-y-2">{sessions.length ? sessions.map((session) => <div key={session.id} className="flex items-center justify-between rounded-[10px] bg-[var(--cream)] px-3 py-2"><div><p className="text-[11px] font-bold text-foreground">{session.current ? 'This device' : 'Signed-in device'}</p><p className="text-[10px] text-muted-foreground">Started {new Date(session.createdAt).toLocaleString()}</p></div>{session.current ? <StatusPill tone="green">Current</StatusPill> : <Button type="button" variant="ghost" className="h-7 px-2 text-[10px] font-bold text-destructive" onClick={() => void revokeSession(session.id)}>Revoke</Button>}</div>) : <p className="text-[11px] text-muted-foreground">No additional active sessions.</p>}</div>
+            {sessionMessage ? <p className="mt-2 text-[10px] text-[var(--emerald)]">{sessionMessage}</p> : null}
+          </div>
         </Panel>
 
         <Panel title="Payout Preferences">

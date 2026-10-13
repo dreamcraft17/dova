@@ -43,8 +43,8 @@ export class SessionService {
   async issueSession(user: UserRecord, rememberMe = false) {
     const result = this.tokensFor(user, rememberMe);
     const refreshMs = rememberMe ? REFRESH_TOKEN_TTL_MS_REMEMBERED : REFRESH_TOKEN_TTL_MS;
-    await this.database.saveSession(user.id, result.accessToken, new Date(Date.now() + ACCESS_TOKEN_TTL_MS));
-    await this.database.saveSession(user.id, result.refreshToken, new Date(Date.now() + refreshMs));
+    await this.database.saveSession(user.id, result.accessToken, new Date(Date.now() + ACCESS_TOKEN_TTL_MS), 'access');
+    await this.database.saveSession(user.id, result.refreshToken, new Date(Date.now() + refreshMs), 'refresh');
     await this.cacheSession(user.id, result.accessToken, result.refreshToken, refreshMs / 1000);
     return result;
   }
@@ -76,8 +76,8 @@ export class SessionService {
       const u = await this.users.findUser(payload.sub, true);
       if (!u) throw new UnauthorizedException('Invalid refresh token');
       const result = this.tokensFor(u);
-      await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + ACCESS_TOKEN_TTL_MS));
-      await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      await this.database.saveSession(u.id, result.accessToken, new Date(Date.now() + ACCESS_TOKEN_TTL_MS), 'access');
+      await this.database.saveSession(u.id, result.refreshToken, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'refresh');
       await this.cacheSession(u.id, result.accessToken, result.refreshToken);
       return result;
     } catch {

@@ -254,9 +254,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       client.release();
     }
   }
-  async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
+  async saveSession(userId: string, token: string, expiresAt: Date, tokenType: 'access' | 'refresh' = 'refresh') { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at,token_type) VALUES ($1,$2,$3,$4)', [userId, digest(token), expiresAt, tokenType]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
   async revokeSession(refreshToken?: string) { if (this.pool && refreshToken) await this.pool.query('DELETE FROM user_sessions WHERE token_hash=$1', [digest(refreshToken)]); }
+  async listSessions(userId: string, currentRefreshToken?: string) {
+    if (!this.pool) return [];
+    const result = await this.pool.query('SELECT id,created_at,expires_at,token_hash FROM user_sessions WHERE user_id=$1 AND token_type=\'refresh\' AND expires_at > NOW() ORDER BY created_at DESC', [userId]);
+    const currentHash = currentRefreshToken ? digest(currentRefreshToken) : '';
+    return result.rows.map(row => ({ id: row.id, createdAt: new Date(row.created_at).toISOString(), expiresAt: new Date(row.expires_at).toISOString(), current: row.token_hash === currentHash }));
+  }
+  async revokeSessionById(userId: string, sessionId: string) { if (!this.pool) return false; const result = await this.pool.query('DELETE FROM user_sessions WHERE id=$1 AND user_id=$2 AND token_type=\'refresh\'', [sessionId, userId]); return result.rowCount === 1; }
+  async revokeOtherSessions(userId: string, currentRefreshToken?: string) {
+    if (!this.pool) return 0;
+    if (!currentRefreshToken) { const result = await this.pool.query('DELETE FROM user_sessions WHERE user_id=$1 AND token_type=\'refresh\'', [userId]); return result.rowCount ?? 0; }
+    const result = await this.pool.query('DELETE FROM user_sessions WHERE user_id=$1 AND token_type=\'refresh\' AND token_hash<>$2', [userId, digest(currentRefreshToken)]);
+    return result.rowCount ?? 0;
+  }
   async notificationPreferences(userId: string) {
     if (!this.pool) return undefined;
     const result = await this.pool.query('SELECT new_order_alerts,order_status_updates,product_approval_updates,marketing_updates,updated_at FROM notification_preferences WHERE user_id=$1', [userId]);

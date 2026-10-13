@@ -443,6 +443,10 @@ export class AppService {
     this.notificationPreferences.set(userId, result);
     return result;
   }
+
+  async listSessions(userId: string, currentRefreshToken?: string) { return this.database.listSessions(userId, currentRefreshToken); }
+  async revokeSessionById(userId: string, sessionId: string) { return { revoked: await this.database.revokeSessionById(userId, sessionId) }; }
+  async revokeOtherSessions(userId: string, currentRefreshToken?: string) { return { revoked: await this.database.revokeOtherSessions(userId, currentRefreshToken) }; }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }
