@@ -6,6 +6,7 @@ import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { PageHead, Panel, StatusPill, buttonStyles } from '../../components/supplier/ui';
 import { api } from '../../lib/api';
 import { getRefreshToken } from '../../lib/auth-session';
+import { useAuth } from '../../context/AuthContext';
 
 type NotificationPreferences = {
   newOrderAlerts: boolean;
@@ -43,6 +44,7 @@ function NotificationToggle({ title, body, value, onChange, disabled }: { title:
 }
 
 function SettingsContent() {
+  const { logout } = useAuth();
   const [notifications, setNotifications] = useState<NotificationPreferences | null>(null);
   const [savingNotification, setSavingNotification] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState('');
@@ -52,6 +54,7 @@ function SettingsContent() {
   const [payoutForm, setPayoutForm] = useState({ bankName: '', accountName: '', accountNumber: '' });
   const [payoutMessage, setPayoutMessage] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
+  const [accountMessage, setAccountMessage] = useState('');
 
   useEffect(() => {
     void api<NotificationPreferences>('/settings/notifications').then(setNotifications).catch((error) => setNotificationError(error instanceof Error ? error.message : 'Unable to load notification settings'));
@@ -78,6 +81,20 @@ function SettingsContent() {
       setPayout(data); setPayoutForm({ bankName: data.bankName, accountName: data.accountName, accountNumber: '' }); setPayoutMessage('Payout preferences saved securely.');
     } catch (error) { setPayoutMessage(error instanceof Error ? error.message : 'Unable to save payout preferences.'); }
     finally { setSavingPayout(false); }
+  }
+
+  async function exportData() {
+    const data = await api<Record<string, unknown>>('/settings/export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'dova-account-data.json'; anchor.click(); URL.revokeObjectURL(url);
+  }
+
+  async function closeAccount() {
+    const password = window.prompt('Enter your current password to request account closure.');
+    if (!password) return;
+    if (!window.confirm('This will sign you out and deactivate your supplier account. Continue?')) return;
+    try { await api('/settings/close-account', { method: 'POST', body: JSON.stringify({ currentPassword: password }) }); setAccountMessage('Closure request submitted. Signing you out…'); await logout(); }
+    catch (error) { setAccountMessage(error instanceof Error ? error.message : 'Unable to request account closure.'); }
   }
 
   async function toggleNotification(key: keyof NotificationPreferences, value: boolean) {
@@ -148,8 +165,9 @@ function SettingsContent() {
         </Panel>
 
         <Panel title="Account">
-          <SettingRow title="Export my data" body="Download a copy of your supplier account data." />
-          <SettingRow title="Request account closure" body="Closure requires secure confirmation by the DOVA team." />
+          <SettingRow title="Export my data" body="Download a copy of your supplier account data." action={<Button type="button" variant="outline" className={buttonStyles.light} onClick={() => void exportData()}>Download</Button>} />
+          <SettingRow title="Request account closure" body="Closure requires secure confirmation by the DOVA team." action={<Button type="button" variant="outline" className={buttonStyles.danger} onClick={() => void closeAccount()}>Request closure</Button>} />
+          {accountMessage ? <p className="mt-3 text-[10px] text-muted-foreground">{accountMessage}</p> : null}
         </Panel>
       </div>
     </div>

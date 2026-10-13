@@ -68,6 +68,11 @@ export class UpdatePayoutPreferencesDto {
   @IsString() @Length(10, 10) accountNumber!: string;
 }
 
+export class RequestAccountClosureDto {
+  @IsString() @MinLength(8) currentPassword!: string;
+  @IsOptional() @IsString() @MinLength(3) reason?: string;
+}
+
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;

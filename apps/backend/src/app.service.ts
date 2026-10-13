@@ -469,6 +469,24 @@ export class AppService {
     if (!stored) return { configured: true, bankName: values.bankName.trim(), accountName: values.accountName.trim(), accountNumber: `•••• ${values.accountNumber.slice(-4)}`, payoutMethod: 'bank_transfer' };
     return { configured: true, bankName: stored.bank_name, accountName: stored.account_name, accountNumber: `•••• ${stored.account_number_last4}`, payoutMethod: stored.payout_method, updatedAt: new Date(stored.updated_at).toISOString() };
   }
+
+  async exportAccountData(userId: string) {
+    const user = await this.findUser(userId, true);
+    if (!user) throw new NotFoundException('User not found');
+    const supplier = await this.database.findSupplierByUser(userId);
+    const orders = (await this.database.listOrders(userId)) ?? this.orders.filter((order) => order.customerId === userId);
+    return { exportedAt: new Date().toISOString(), user: this.publicUser(user), notificationPreferences: await this.getNotificationPreferences(userId), supplier, orders };
+  }
+
+  async requestAccountClosure(userId: string, currentPassword: string, reason?: string) {
+    const user = await this.findUser(userId, true);
+    if (!user || !bcrypt.compareSync(currentPassword, user.passwordHash)) throw new UnauthorizedException('Current password is incorrect');
+    const result = await this.database.requestAccountClosure(userId, reason);
+    user.isActive = false;
+    this.syncUserRecord(user);
+    this.revokedTokens.add(userId);
+    return { message: 'Account closure request submitted.', ...result };
+  }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }

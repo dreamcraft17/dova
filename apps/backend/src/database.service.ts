@@ -286,6 +286,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     return result.rows[0];
   }
+  async requestAccountClosure(userId: string, reason?: string) {
+    if (!this.pool) return { requestedAt: new Date().toISOString() };
+    const result = await this.pool.query('INSERT INTO account_closure_requests (user_id,reason) VALUES ($1,$2) RETURNING requested_at', [userId, reason?.trim() || null]);
+    await this.pool.query('UPDATE users SET is_active=FALSE,updated_at=NOW() WHERE id=$1', [userId]);
+    await this.revokeAllUserSessions(userId);
+    return { requestedAt: new Date(result.rows[0].requested_at).toISOString() };
+  }
   async notificationPreferences(userId: string) {
     if (!this.pool) return undefined;
     const result = await this.pool.query('SELECT new_order_alerts,order_status_updates,product_approval_updates,marketing_updates,updated_at FROM notification_preferences WHERE user_id=$1', [userId]);
