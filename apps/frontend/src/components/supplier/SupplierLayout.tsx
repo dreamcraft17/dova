@@ -26,10 +26,10 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
 import type { SupplierInfo } from '../../hooks/supplier/useSupplierInfo';
+import { useSupplierOrders } from '../../hooks/supplier/useSupplierOrders';
 import { inter, unbounded } from '../../lib/fonts';
-import { initialsOf } from './ui';
+import { formatNaira, initialsOf, orderStatusTone, StatusPill } from './ui';
 import { SupplierFeedbackDialog } from './SupplierFeedbackDialog';
 
 type NavItem = { href: string; label: string; icon: typeof Home; feedback?: boolean };
@@ -128,10 +128,12 @@ function SupplierTopbar({
   subtitle?: string;
   supplierInfo?: SupplierInfo;
 }) {
-  const { showToast } = useToast();
+  const { orders } = useSupplierOrders();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const recentOrders = orders.slice(0, 5);
 
   return (
-    <header className="sticky top-0 z-10 flex h-[76px] items-center justify-between gap-4 border-b border-border bg-white/90 px-4 backdrop-blur-md md:px-7">
+    <header className="sticky top-0 z-20 flex h-[76px] items-center justify-between gap-4 border-b border-border bg-white/90 px-4 backdrop-blur-md md:px-7">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger className="md:hidden" />
         <div className="min-w-0">
@@ -143,8 +145,9 @@ function SupplierTopbar({
         <button
           type="button"
           aria-label="Notifications"
+          aria-expanded={notificationsOpen}
           className="grid size-[38px] place-items-center rounded-[11px] border border-border bg-white text-[var(--forest)] hover:bg-[var(--cream)]"
-          onClick={() => showToast('Notifications are not wired up yet.', 'info')}
+          onClick={() => setNotificationsOpen((open) => !open)}
         >
           <Bell className="size-4" />
         </button>
@@ -156,6 +159,13 @@ function SupplierTopbar({
           {supplierInfo?.businessName ? initialsOf(supplierInfo.businessName) : 'SU'}
         </Link>
       </div>
+      {notificationsOpen ? (
+        <div className="absolute right-4 top-[66px] w-[min(360px,calc(100vw-2rem))] rounded-[16px] border border-border bg-white p-3 shadow-[0_16px_40px_rgba(1,48,35,0.16)] md:right-7">
+          <div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-xs font-black text-[var(--near)]">Notifications</p><p className="text-[10px] text-muted-foreground">Your latest supplier activity</p></div><Link href="/supplier/settings" className="text-[10px] font-bold text-[var(--emerald)] hover:underline">Preferences</Link></div>
+          {recentOrders.length ? <div className="space-y-1.5">{recentOrders.map((order) => <Link key={order.itemId} href="/supplier/orders" onClick={() => setNotificationsOpen(false)} className="flex items-center justify-between gap-3 rounded-[10px] bg-[var(--cream)] px-2.5 py-2 hover:bg-[#e7f0e9]"><div className="min-w-0"><p className="truncate text-[11px] font-bold text-foreground">Order #{order.orderNumber}</p><p className="truncate text-[10px] text-muted-foreground">{order.productName} · {formatNaira(order.subtotal)}</p></div><StatusPill tone={orderStatusTone(order.status)}>{order.status}</StatusPill></Link>)}</div> : <p className="rounded-[10px] bg-[var(--cream)] px-3 py-4 text-center text-[11px] text-muted-foreground">No order notifications yet.</p>}
+          <Link href="/supplier/orders" onClick={() => setNotificationsOpen(false)} className="mt-2 block text-center text-[10px] font-extrabold text-[var(--emerald)] hover:underline">View all orders →</Link>
+        </div>
+      ) : null}
     </header>
   );
 }
