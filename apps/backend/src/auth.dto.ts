@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -127,6 +127,7 @@ export class ProductDto {
   @Transform(({ value }) => Number(value)) @IsNumber() @Min(1000) price!: number;
   @Transform(({ value }) => Number(value)) @IsInt() @Min(1) quantity!: number;
   @IsString() categoryId!: string;
+  @IsOptional() @IsString() @MaxLength(80) unitLabel?: string;
   @IsOptional()
   @Transform(({ value }) => (value === '' || value == null ? undefined : value))
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })

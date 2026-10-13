@@ -11,7 +11,7 @@ import { PageHead, SupplierCard, buttonStyles, fieldStyles } from '../../compone
 import { api } from '../../lib/api';
 import type { Category, Product } from 'dova-shared';
 
-const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', imageUrl: '' };
+const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', unitLabel: '', imageUrl: '' };
 
 function AddProductContent() {
   const router = useRouter();
@@ -43,6 +43,7 @@ function AddProductContent() {
             quantity: existing.stockQuantity,
             categoryId: existing.categoryId,
             imageUrl: existing.imageUrl || '',
+            unitLabel: existing.unitLabel || '',
           });
         } else if (cats[0]) {
           setForm((current) => ({ ...current, categoryId: current.categoryId || cats[0].id }));
@@ -77,6 +78,7 @@ function AddProductContent() {
       body.append('price', String(form.price));
       body.append('quantity', String(form.quantity));
       body.append('categoryId', form.categoryId);
+      if (form.unitLabel.trim()) body.append('unitLabel', form.unitLabel.trim());
       if (form.imageUrl) body.append('imageUrl', form.imageUrl);
       if (imageFile) body.append('image', imageFile);
       await api(path, { method: editingId ? 'PUT' : 'POST', body });
@@ -128,6 +130,11 @@ function AddProductContent() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className={fieldStyles.control}
                 />
+              </div>
+              <div className="grid gap-1.5 md:col-span-2">
+                <Label htmlFor="product-unit-label" className={fieldStyles.label}>Selling unit / pack size *</Label>
+                <Input id="product-unit-label" required maxLength={80} placeholder="e.g. 25 kg bag, 1 bag, 500 ml bottle, 1 crate" value={form.unitLabel} onChange={(e) => setForm({ ...form, unitLabel: e.target.value })} className={fieldStyles.control} />
+                <p className="text-[10px] text-muted-foreground">Price and stock will be shown using this label. Enter the number of packs/bags available in stock.</p>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="product-category" className={fieldStyles.label}>
