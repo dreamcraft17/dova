@@ -11,6 +11,7 @@ import { NotificationService } from './notification.service';
 import { isEmailProviderConfigured, usesResend, usesSmtp } from './mail.util';
 import { PaystackService } from './paystack.service';
 import { createHash } from 'crypto';
+import { encryptPayoutValue } from './payout-crypto';
 import { isValidOtpFormat } from 'dova-shared';
 import {
   generateOtpCode,
@@ -447,6 +448,27 @@ export class AppService {
   async listSessions(userId: string, currentRefreshToken?: string) { return this.database.listSessions(userId, currentRefreshToken); }
   async revokeSessionById(userId: string, sessionId: string) { return { revoked: await this.database.revokeSessionById(userId, sessionId) }; }
   async revokeOtherSessions(userId: string, currentRefreshToken?: string) { return { revoked: await this.database.revokeOtherSessions(userId, currentRefreshToken) }; }
+
+  private async supplierIdForUser(userId: string) {
+    const supplier = await this.database.findSupplierByUser(userId);
+    if (!supplier) throw new NotFoundException('Supplier profile not found');
+    return supplier.id;
+  }
+
+  async getPayoutPreferences(userId: string) {
+    const supplierId = await this.supplierIdForUser(userId);
+    const stored = await this.database.payoutPreferences(supplierId);
+    if (!stored) return { configured: false, bankName: '', accountName: '', accountNumber: '', payoutMethod: 'bank_transfer' };
+    return { configured: true, bankName: stored.bank_name, accountName: stored.account_name, accountNumber: `•••• ${stored.account_number_last4}`, payoutMethod: stored.payout_method, updatedAt: new Date(stored.updated_at).toISOString() };
+  }
+
+  async updatePayoutPreferences(userId: string, values: { bankName: string; accountName: string; accountNumber: string }) {
+    if (!/^\d{10}$/.test(values.accountNumber)) throw new BadRequestException('Account number must contain exactly 10 digits');
+    const supplierId = await this.supplierIdForUser(userId);
+    const stored = await this.database.upsertPayoutPreferences(supplierId, { bankName: values.bankName.trim(), accountName: values.accountName.trim(), accountNumberCiphertext: encryptPayoutValue(values.accountNumber), accountNumberLast4: values.accountNumber.slice(-4) });
+    if (!stored) return { configured: true, bankName: values.bankName.trim(), accountName: values.accountName.trim(), accountNumber: `•••• ${values.accountNumber.slice(-4)}`, payoutMethod: 'bank_transfer' };
+    return { configured: true, bankName: stored.bank_name, accountName: stored.account_name, accountNumber: `•••• ${stored.account_number_last4}`, payoutMethod: stored.payout_method, updatedAt: new Date(stored.updated_at).toISOString() };
+  }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }
   private async cacheSession(userId: string, accessToken: string, refreshToken: string, refreshTtlSeconds = 604800) { await this.redis.set(this.sessionKey(accessToken), userId, 900); await this.redis.set(this.sessionKey(refreshToken), userId, refreshTtlSeconds); }

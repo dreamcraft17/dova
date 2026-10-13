@@ -270,6 +270,22 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const result = await this.pool.query('DELETE FROM user_sessions WHERE user_id=$1 AND token_type=\'refresh\' AND token_hash<>$2', [userId, digest(currentRefreshToken)]);
     return result.rowCount ?? 0;
   }
+  async payoutPreferences(supplierId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT bank_name,account_name,account_number_ciphertext,account_number_last4,payout_method,updated_at FROM supplier_payout_preferences WHERE supplier_id=$1', [supplierId]);
+    return result.rows[0];
+  }
+  async upsertPayoutPreferences(supplierId: string, values: { bankName: string; accountName: string; accountNumberCiphertext: string; accountNumberLast4: string }) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `INSERT INTO supplier_payout_preferences (supplier_id,bank_name,account_name,account_number_ciphertext,account_number_last4)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (supplier_id) DO UPDATE SET bank_name=$2,account_name=$3,account_number_ciphertext=$4,account_number_last4=$5,updated_at=NOW()
+       RETURNING bank_name,account_name,account_number_ciphertext,account_number_last4,payout_method,updated_at`,
+      [supplierId, values.bankName, values.accountName, values.accountNumberCiphertext, values.accountNumberLast4],
+    );
+    return result.rows[0];
+  }
   async notificationPreferences(userId: string) {
     if (!this.pool) return undefined;
     const result = await this.pool.query('SELECT new_order_alerts,order_status_updates,product_approval_updates,marketing_updates,updated_at FROM notification_preferences WHERE user_id=$1', [userId]);
