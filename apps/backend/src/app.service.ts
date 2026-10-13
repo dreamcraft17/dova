@@ -38,10 +38,12 @@ type PendingRegistrationOtp = {
   otpResendCount: number;
   otpResendWindowStart?: string;
 };
+type NotificationPreferences = { newOrderAlerts: boolean; orderStatusUpdates: boolean; productApprovalUpdates: boolean; marketingUpdates: boolean; updatedAt: string };
 @Injectable()
 export class AppService {
   users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string; authorization_url?: string }>(); stockAdjustments: any[] = [];
   private pendingRegistrationOtps = new Map<string, PendingRegistrationOtp>();
+  private notificationPreferences = new Map<string, NotificationPreferences>();
   contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
   revokedTokens = new Set<string>(); // in-memory dev only (!database.enabled)
   categories: Category[] = ['Vegetables','Fruits','Dairy','Grains','Meat','Seafood','Beverages','Pantry'].map(name => ({ id: randomUUID(), name }));
@@ -425,6 +427,21 @@ export class AppService {
     await this.database.updateUserPassword(userId, user.passwordHash);
     await this.database.revokeAllUserSessions(userId);
     return { message: 'Password updated. Please sign in again with your new password.' };
+  }
+
+  async getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
+    const stored = await this.database.notificationPreferences(userId);
+    if (stored) return stored;
+    return this.notificationPreferences.get(userId) ?? { newOrderAlerts: true, orderStatusUpdates: true, productApprovalUpdates: true, marketingUpdates: false, updatedAt: new Date().toISOString() };
+  }
+
+  async updateNotificationPreferences(userId: string, patch: Partial<Omit<NotificationPreferences, 'updatedAt'>>) {
+    const current = await this.getNotificationPreferences(userId);
+    const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    const stored = await this.database.upsertNotificationPreferences(userId, next);
+    const result = stored ?? next;
+    this.notificationPreferences.set(userId, result);
+    return result;
   }
   async findUser(emailOrId: string, byId = false) { const local = byId ? this.users.find(x => x.id === emailOrId) : this.users.find(x => x.email === emailOrId.toLowerCase()); if (!this.database.enabled) return local; return (byId ? await this.database.findUserById(emailOrId) : await this.database.findUserByEmail(emailOrId)) ?? local; }
   private sessionKey(token: string) { return `dova:session:${createHash('sha256').update(token).digest('hex')}`; }

@@ -55,6 +55,13 @@ export class ResetPasswordDto {
   @IsString() @MinLength(8) confirmPassword!: string;
 }
 
+export class UpdateNotificationPreferencesDto {
+  @IsOptional() @IsBoolean() newOrderAlerts?: boolean;
+  @IsOptional() @IsBoolean() orderStatusUpdates?: boolean;
+  @IsOptional() @IsBoolean() productApprovalUpdates?: boolean;
+  @IsOptional() @IsBoolean() marketingUpdates?: boolean;
+}
+
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;

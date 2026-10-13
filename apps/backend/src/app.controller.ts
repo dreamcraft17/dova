@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto } from './auth.dto';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
@@ -170,6 +170,14 @@ export class AppController {
 
   @Post('auth/change-password') changePassword(@CurrentUser() user: StoredUser, @Body() body: ChangePasswordDto) {
     return this.service.changePassword(user.id, body.currentPassword, body.newPassword, body.confirmPassword);
+  }
+
+  @Get('settings/notifications') notificationPreferences(@CurrentUser() user: StoredUser) {
+    return this.service.getNotificationPreferences(user.id);
+  }
+
+  @Patch('settings/notifications') updateNotificationPreferences(@CurrentUser() user: StoredUser, @Body() body: UpdateNotificationPreferencesDto) {
+    return this.service.updateNotificationPreferences(user.id, body);
   }
 
   @RequireIntegration()
