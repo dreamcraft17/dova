@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto } from './auth.dto';
+import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto, UpdatePayoutPreferencesDto } from './auth.dto';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
@@ -190,6 +190,12 @@ export class AppController {
 
   @Post('settings/sessions/revoke-others') revokeOtherSessions(@CurrentUser() user: StoredUser, @Req() req: AuthenticatedRequest) {
     return this.service.revokeOtherSessions(user.id, req.cookies?.refreshToken);
+  }
+
+  @Get('settings/payout') payoutPreferences(@CurrentUser() user: StoredUser) { return this.service.getPayoutPreferences(user.id); }
+
+  @Patch('settings/payout') updatePayoutPreferences(@CurrentUser() user: StoredUser, @Body() body: UpdatePayoutPreferencesDto) {
+    return this.service.updatePayoutPreferences(user.id, body);
   }
 
   @RequireIntegration()

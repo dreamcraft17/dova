@@ -62,6 +62,12 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional() @IsBoolean() marketingUpdates?: boolean;
 }
 
+export class UpdatePayoutPreferencesDto {
+  @IsString() @MinLength(2) bankName!: string;
+  @IsString() @MinLength(2) accountName!: string;
+  @IsString() @Length(10, 10) accountNumber!: string;
+}
+
 export class SupplierRegisterDto {
   @IsString() @MinLength(2) businessName!: string;
   @IsOptional() @IsString() contactName?: string;

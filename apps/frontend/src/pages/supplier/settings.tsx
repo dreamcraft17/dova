@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { PageHead, Panel, StatusPill, buttonStyles } from '../../components/supplier/ui';
@@ -14,6 +14,7 @@ type NotificationPreferences = {
   marketingUpdates: boolean;
 };
 type Session = { id: string; createdAt: string; expiresAt: string; current: boolean };
+type PayoutPreferences = { configured: boolean; bankName: string; accountName: string; accountNumber: string; payoutMethod: string };
 
 function SettingRow({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
@@ -47,10 +48,15 @@ function SettingsContent() {
   const [notificationError, setNotificationError] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionMessage, setSessionMessage] = useState('');
+  const [payout, setPayout] = useState<PayoutPreferences | null>(null);
+  const [payoutForm, setPayoutForm] = useState({ bankName: '', accountName: '', accountNumber: '' });
+  const [payoutMessage, setPayoutMessage] = useState('');
+  const [savingPayout, setSavingPayout] = useState(false);
 
   useEffect(() => {
     void api<NotificationPreferences>('/settings/notifications').then(setNotifications).catch((error) => setNotificationError(error instanceof Error ? error.message : 'Unable to load notification settings'));
     void api<Session[]>('/settings/sessions').then(setSessions).catch(() => undefined);
+    void api<PayoutPreferences>('/settings/payout').then((data) => { setPayout(data); setPayoutForm({ bankName: data.bankName, accountName: data.accountName, accountNumber: '' }); }).catch(() => undefined);
   }, []);
 
   async function revokeSession(id: string) {
@@ -62,6 +68,16 @@ function SettingsContent() {
     await api('/settings/sessions/revoke-others', { method: 'POST', body: JSON.stringify({ refreshToken: getRefreshToken() }) });
     setSessions((current) => current.filter((session) => session.current));
     setSessionMessage('Other sessions have been signed out.');
+  }
+
+  async function savePayout(event: FormEvent) {
+    event.preventDefault();
+    setSavingPayout(true); setPayoutMessage('');
+    try {
+      const data = await api<PayoutPreferences>('/settings/payout', { method: 'PATCH', body: JSON.stringify(payoutForm) });
+      setPayout(data); setPayoutForm({ bankName: data.bankName, accountName: data.accountName, accountNumber: '' }); setPayoutMessage('Payout preferences saved securely.');
+    } catch (error) { setPayoutMessage(error instanceof Error ? error.message : 'Unable to save payout preferences.'); }
+    finally { setSavingPayout(false); }
   }
 
   async function toggleNotification(key: keyof NotificationPreferences, value: boolean) {
@@ -121,7 +137,14 @@ function SettingsContent() {
           <p className="mb-3.5 text-[11px] text-muted-foreground">
             Keep payout information private and encrypted. Only authorized account services should access it.
           </p>
-          <StatusPill tone="gray">Coming soon</StatusPill>
+          {payout?.configured ? <p className="mb-3 text-[11px] text-[var(--emerald)]">{payout.bankName} · {payout.accountName} · {payout.accountNumber}</p> : null}
+          <form className="space-y-2.5" onSubmit={savePayout}>
+            <input required value={payoutForm.bankName} onChange={(event) => setPayoutForm({ ...payoutForm, bankName: event.target.value })} placeholder="Bank name" className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
+            <input required value={payoutForm.accountName} onChange={(event) => setPayoutForm({ ...payoutForm, accountName: event.target.value })} placeholder="Account name" className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
+            <input required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={payoutForm.accountNumber} onChange={(event) => setPayoutForm({ ...payoutForm, accountNumber: event.target.value.replace(/\D/g, '') })} placeholder={payout?.configured ? 'Enter 10-digit number to replace' : '10-digit account number'} className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
+            <Button type="submit" variant="outline" className={buttonStyles.light} disabled={savingPayout}>{savingPayout ? 'Saving…' : 'Save payout details'}</Button>
+          </form>
+          {payoutMessage ? <p className="mt-2 text-[10px] text-[var(--emerald)]">{payoutMessage}</p> : null}
         </Panel>
 
         <Panel title="Account">
