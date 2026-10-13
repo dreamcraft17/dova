@@ -10,7 +10,7 @@ import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { LoginModal } from '../../components/LoginModal';
 import type { Product } from 'dova-shared';
-import { formatPricePerUnit, productUnit, formatStockInUnit } from 'dova-shared';
+import { formatPricePerUnitLabel, productUnitLabel, formatStockInUnit } from 'dova-shared';
 
 export default function ProductPage() {
   const router = useRouter();
@@ -38,6 +38,7 @@ export default function ProductPage() {
     api<Product>(`/products/${id}`)
       .then((data) => {
         setP(data);
+        setQuantity(data.unitLabel ? 1 : 0.5);
         return api<{ data: Product[] }>(`/products?page=1&limit=5&categoryId=${data.categoryId}`);
       })
       .then((r) => setRelated(r.data.filter((item) => item.id !== id).slice(0, 2)))
@@ -48,11 +49,12 @@ export default function ProductPage() {
   if (loading) return <ChainChrome title="Loading…"><Loading label="Loading product…" block /></ChainChrome>;
   if (!p) return <ChainChrome title="Not Found"><section className="section"><p style={{ padding: '0 20px' }}>Product not found.</p></section></ChainChrome>;
 
-  const unit = productUnit(p.name, p.categoryName);
+  const unit = productUnitLabel(p.name, p.categoryName, p.unitLabel);
+  const minimumQuantity = p.unitLabel ? 1 : 0.5;
   const packSizes = [
-    { label: unit === 'L' ? '500ml' : '500g', value: 0.5 },
-    { label: unit === 'L' ? '1L' : '1kg', value: 1 },
-    { label: unit === 'L' ? '2L' : '2kg', value: 2 },
+    { label: `1 ${unit}`, value: 1 },
+    { label: `2 ${unit}`, value: 2 },
+    { label: `5 ${unit}`, value: 5 },
   ];
 
   const addToCart = async () => {
@@ -106,7 +108,7 @@ export default function ProductPage() {
               <h1>{p.name}</h1>
               <p style={{ color: 'var(--muted)', fontSize: '.78rem' }}>{p.description}</p>
               <div className="rating"><b>★★★★★</b><small>No ratings yet · <a href="#reviews">Be the first to rate</a></small></div>
-              <div className="pricebig">{p.price > 0 ? `₦ ${p.price.toLocaleString('en-NG')} ${formatPricePerUnit(unit)}` : '₦ —'}</div>
+              <div className="pricebig">{p.price > 0 ? `₦ ${p.price.toLocaleString('en-NG')} ${formatPricePerUnitLabel(unit)}` : '₦ —'}</div>
               <small style={{ color: 'var(--muted)', fontSize: '.61rem' }}>Live price should be returned by the product backend.</small>
               <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Pack size</h4>
               <div className="variants">
@@ -130,19 +132,19 @@ export default function ProductPage() {
               <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Quantity</h4>
               <div className="purchase">
                 <div className="qty">
-                  <button type="button" onClick={() => setQuantity((v) => Math.max(0.5, Math.round((v - 0.5) * 100) / 100))}>−</button>
+                  <button type="button" onClick={() => setQuantity((v) => Math.max(minimumQuantity, p.unitLabel ? v - 1 : Math.round((v - 0.5) * 100) / 100))}>−</button>
                   <input
                     aria-label="Quantity"
                     type="number"
-                    min={0.5}
+                    min={minimumQuantity}
                     max={p.stockQuantity}
-                    step={0.5}
+                    step={p.unitLabel ? 1 : 0.5}
                     value={quantity}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                      setQuantity(Math.max(0.5, Math.min(p.stockQuantity, Number(e.target.value) || 0.5)))
+                      setQuantity(Math.max(minimumQuantity, Math.min(p.stockQuantity, Number(e.target.value) || minimumQuantity)))
                     }
                   />
-                  <button type="button" onClick={() => setQuantity((v) => Math.min(p.stockQuantity, Math.round((v + 0.5) * 100) / 100))}>+</button>
+                  <button type="button" onClick={() => setQuantity((v) => Math.min(p.stockQuantity, p.unitLabel ? v + 1 : Math.round((v + 0.5) * 100) / 100))}>+</button>
                 </div>
                 <button className="btn green" type="button" onClick={addToCart} disabled={busy}>
                   {busy ? 'Adding…' : 'Add to Cart'}

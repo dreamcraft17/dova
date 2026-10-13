@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import type { Category, Product } from 'dova-shared';
-import { productUnit } from 'dova-shared';
+import { productUnitLabel } from 'dova-shared';
 import styles from '../styles/marketplace.module.css';
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
@@ -51,7 +51,7 @@ function useCatalog() {
 }
 
 function ProductCard({ product, busy, onAdd }: { product: Product; busy: boolean; onAdd: (p: Product) => void }) {
-  const unit = productUnit(product.name, product.categoryName);
+  const unit = productUnitLabel(product.name, product.categoryName, product.unitLabel);
   const out = product.stockQuantity <= 0;
   const low = !out && product.stockQuantity <= LOW_STOCK;
   const href = `/products/${product.id}`;

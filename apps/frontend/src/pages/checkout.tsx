@@ -291,7 +291,7 @@ export default function Checkout() {
                       </>
                     ) : (
                       <>
-                        {i.product.name} × {formatQuantityWithUnit(i.quantity, i.product.name, i.product.categoryName)}
+                        {i.product.name} × {formatQuantityWithUnit(i.quantity, i.product.name, i.product.categoryName, i.product.unitLabel)}
                       </>
                     )}
                   </span>

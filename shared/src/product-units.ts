@@ -14,6 +14,15 @@ export function productUnit(name: string, categoryName?: string): ProductUnit {
   return 'kg';
 }
 
+/** Supplier-defined selling/pack unit, with the legacy name-based fallback for old products. */
+export function productUnitLabel(name: string, categoryName?: string, unitLabel?: string): string {
+  return unitLabel?.trim() || productUnit(name, categoryName);
+}
+
+export function formatPricePerUnitLabel(label: string): string {
+  return `/ ${label}`;
+}
+
 export function formatPricePerUnit(unit: ProductUnit): string {
   return unit === 'L' ? '/ L' : '/ kg';
 }
@@ -31,6 +40,10 @@ export function formatStockAvailable(quantity: number, name: string, categoryNam
   return `${quantity} ${unit} available`;
 }
 
+export function formatStockAvailableLabel(quantity: number, label: string): string {
+  return `${quantity} ${label} available`;
+}
+
 export function stockLimitMessage(quantity: number, name: string, categoryName?: string): string {
   const unit = productUnit(name, categoryName);
   return `Only ${quantity} ${unit} available in stock`;
@@ -40,8 +53,9 @@ export function formatQuantityWithUnit(
   quantity: number | string,
   name: string,
   categoryName?: string,
+  unitLabel?: string,
 ): string {
-  const unit = productUnit(name, categoryName);
+  const unit = productUnitLabel(name, categoryName, unitLabel);
   const n = Number(quantity);
   const safe = Number.isFinite(n) ? n : 0;
   const value = Number.isInteger(safe) ? safe : safe.toFixed(2);

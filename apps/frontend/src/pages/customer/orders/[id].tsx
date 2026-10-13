@@ -288,6 +288,7 @@ export default function OrderDetail() {
                             g.item.quantity,
                             g.item.product.name,
                             g.item.product.categoryName,
+                            g.item.product.unitLabel,
                           )}{' '}
                           × ₦ {g.item.unitPrice.toLocaleString('en-NG')}
                         </span>

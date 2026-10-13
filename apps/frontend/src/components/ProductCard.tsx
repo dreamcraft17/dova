@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ProductImage } from './ProductImage';
-import { formatPricePerUnit, formatStockAvailable, productUnit } from 'dova-shared';
+import { formatPricePerUnitLabel, formatStockAvailableLabel, productUnitLabel } from 'dova-shared';
 
 export type ProductCardItem = {
   id: string;
@@ -12,6 +12,7 @@ export type ProductCardItem = {
   categoryName?: string;
   supplierName?: string;
   stockQuantity?: number;
+  unitLabel?: string;
 };
 
 type ProductCardProps = {
@@ -23,7 +24,7 @@ export function ProductCard({ product, variant = 'grid' }: ProductCardProps) {
   const { href, name, imageUrl, description, price, categoryName, supplierName, stockQuantity } =
     product;
 
-  const unit = productUnit(name, categoryName);
+  const unitLabel = productUnitLabel(name, categoryName, product.unitLabel);
 
   return (
     <Link
@@ -48,11 +49,11 @@ export function ProductCard({ product, variant = 'grid' }: ProductCardProps) {
         </p>
         {price > 0 && (
           <p className="pc-price">
-            ₦ {price.toLocaleString('en-NG')} {formatPricePerUnit(unit)}
+            ₦ {price.toLocaleString('en-NG')} {formatPricePerUnitLabel(unitLabel)}
           </p>
         )}
         {variant === 'grid' && stockQuantity !== undefined && (
-          <p className="pc-stock">{formatStockAvailable(stockQuantity, name, categoryName)}</p>
+          <p className="pc-stock">{formatStockAvailableLabel(stockQuantity, unitLabel)}</p>
         )}
         {variant === 'featured' && (
           <span className="button small pc-cta">View Details →</span>

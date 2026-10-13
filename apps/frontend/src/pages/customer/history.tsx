@@ -303,6 +303,7 @@ export default function PurchaseHistory() {
                                 g.item.quantity,
                                 g.item.product.name,
                                 g.item.product.categoryName,
+                                g.item.product.unitLabel,
                               )}
                             </span>
                           </span>

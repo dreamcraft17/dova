@@ -8,7 +8,7 @@ import { RequireAuth } from '../components/RequireAuth';
 import { ApiError, api } from '../lib/api';
 import { startOrderPayment } from '../lib/payment';
 import type { Cart, Order } from 'dova-shared';
-import { formatPricePerUnit, formatQuantityWithUnit, productUnit } from 'dova-shared';
+import { formatPricePerUnitLabel, productUnitLabel } from 'dova-shared';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -159,7 +159,7 @@ export default function CartPage() {
               <div className={`cart-wrapper${busy ? ' is-busy' : ''}`}>
                 {busy ? <LoadingOverlay label="Updating cart…" /> : null}
                 {cart.items.map((i) => {
-                  const unit = productUnit(i.product.name, i.product.categoryName);
+                  const unit = productUnitLabel(i.product.name, i.product.categoryName, i.product.unitLabel);
                   return (
                   <div className="cart-item" key={i.id}>
                     <ProductImage
@@ -172,7 +172,7 @@ export default function CartPage() {
                       <h3>{i.product.name}</h3>
                       <p>Supplier: {i.bundleId ? 'DOVA Curated Bundle' : (i.product.supplierName || 'DOVA Supplier')}</p>
                       <h4>
-                        ₦ {i.product.price.toLocaleString('en-NG')} {i.bundleId ? '/ bundle' : formatPricePerUnit(unit)}
+                        ₦ {i.product.price.toLocaleString('en-NG')} {i.bundleId ? '/ bundle' : formatPricePerUnitLabel(unit)}
                       </h4>
                       {i.bundleId && i.bundleContents?.length ? (
                         <details className="cart-bundle-contents">
@@ -209,9 +209,9 @@ export default function CartPage() {
                     <div className="cart-quantity">
                       <input
                         type="number"
-                        min={i.bundleId ? 1 : 0.5}
+                        min={i.bundleId || i.product.unitLabel ? 1 : 0.5}
                         max={i.product.stockQuantity}
-                        step={i.bundleId ? 1 : 0.5}
+                        step={i.bundleId || i.product.unitLabel ? 1 : 0.5}
                         value={qtyInputs[i.id] ?? i.quantity.toString()}
                         disabled={busy}
                         onChange={(e) => {
@@ -219,8 +219,8 @@ export default function CartPage() {
                         }}
                         onBlur={(e) => {
                           const val = i.bundleId ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
-                          const floor = i.bundleId ? 1 : 0.5;
-                          const rounded = i.bundleId ? (isNaN(val) ? 1 : Math.round(val)) : Math.round(val * 100) / 100;
+                          const floor = i.bundleId || i.product.unitLabel ? 1 : 0.5;
+                          const rounded = i.bundleId || i.product.unitLabel ? (isNaN(val) ? 1 : Math.round(val)) : Math.round(val * 100) / 100;
                           const clamped = isNaN(rounded) ? floor : Math.max(floor, Math.min(i.product.stockQuantity, rounded));
                           setQtyInputs((prev) => ({ ...prev, [i.id]: clamped.toString() }));
                           if (clamped !== i.quantity) {
