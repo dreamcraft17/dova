@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AppService } from './app.service';
-import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto, UpdatePayoutPreferencesDto } from './auth.dto';
+import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto, UpdatePayoutPreferencesDto, RequestAccountClosureDto } from './auth.dto';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
@@ -196,6 +196,12 @@ export class AppController {
 
   @Patch('settings/payout') updatePayoutPreferences(@CurrentUser() user: StoredUser, @Body() body: UpdatePayoutPreferencesDto) {
     return this.service.updatePayoutPreferences(user.id, body);
+  }
+
+  @Get('settings/export') exportAccountData(@CurrentUser() user: StoredUser) { return this.service.exportAccountData(user.id); }
+
+  @Post('settings/close-account') requestAccountClosure(@CurrentUser() user: StoredUser, @Body() body: RequestAccountClosureDto) {
+    return this.service.requestAccountClosure(user.id, body.currentPassword, body.reason);
   }
 
   @RequireIntegration()
