@@ -257,6 +257,24 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async saveSession(userId: string, refreshToken: string, expiresAt: Date) { if (!this.pool) return; await this.pool.query('INSERT INTO user_sessions (user_id,token_hash,expires_at) VALUES ($1,$2,$3)', [userId, digest(refreshToken), expiresAt]); }
   async hasSession(userId: string, refreshToken: string) { if (!this.pool) return true; const result = await this.pool.query('SELECT 1 FROM user_sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at > NOW() LIMIT 1', [userId, digest(refreshToken)]); return result.rowCount === 1; }
   async revokeSession(refreshToken?: string) { if (this.pool && refreshToken) await this.pool.query('DELETE FROM user_sessions WHERE token_hash=$1', [digest(refreshToken)]); }
+  async notificationPreferences(userId: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query('SELECT new_order_alerts,order_status_updates,product_approval_updates,marketing_updates,updated_at FROM notification_preferences WHERE user_id=$1', [userId]);
+    const row = result.rows[0];
+    return row ? { newOrderAlerts: row.new_order_alerts, orderStatusUpdates: row.order_status_updates, productApprovalUpdates: row.product_approval_updates, marketingUpdates: row.marketing_updates, updatedAt: new Date(row.updated_at).toISOString() } : undefined;
+  }
+  async upsertNotificationPreferences(userId: string, values: { newOrderAlerts: boolean; orderStatusUpdates: boolean; productApprovalUpdates: boolean; marketingUpdates: boolean }) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `INSERT INTO notification_preferences (user_id,new_order_alerts,order_status_updates,product_approval_updates,marketing_updates)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (user_id) DO UPDATE SET new_order_alerts=$2,order_status_updates=$3,product_approval_updates=$4,marketing_updates=$5,updated_at=NOW()
+       RETURNING new_order_alerts,order_status_updates,product_approval_updates,marketing_updates,updated_at`,
+      [userId, values.newOrderAlerts, values.orderStatusUpdates, values.productApprovalUpdates, values.marketingUpdates],
+    );
+    const row = result.rows[0];
+    return { newOrderAlerts: row.new_order_alerts, orderStatusUpdates: row.order_status_updates, productApprovalUpdates: row.product_approval_updates, marketingUpdates: row.marketing_updates, updatedAt: new Date(row.updated_at).toISOString() };
+  }
   private mapProduct(row: any): Product {
     return {
       id: row.id,
