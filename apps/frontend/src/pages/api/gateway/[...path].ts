@@ -35,8 +35,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (const [name, value] of Object.entries(req.headers)) {
     if (!value || HOP.has(name)) continue;
     if (name === 'x-api-key') continue;
+    if (name === 'x-forwarded-for') continue;
     headers[name] = Array.isArray(value) ? value.join(',') : value;
   }
+  const clientIp = req.socket.remoteAddress || '';
+  const existingForwardedFor = req.headers['x-forwarded-for'];
+  const forwardedChain = Array.isArray(existingForwardedFor) ? existingForwardedFor.join(',') : existingForwardedFor;
+  headers['x-forwarded-for'] = [forwardedChain, clientIp].filter(Boolean).join(', ');
 
   const method = req.method || 'GET';
   const body = method === 'GET' || method === 'HEAD' ? undefined : await rawBody(req);

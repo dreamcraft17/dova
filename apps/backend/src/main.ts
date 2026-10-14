@@ -25,6 +25,11 @@ async function bootstrap() {
   if (!existsSync(uploadRoot)) mkdirSync(uploadRoot, { recursive: true });
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  // Requests arrive via the frontend's /api/gateway proxy, which forwards the real
+  // visitor IP in X-Forwarded-For -- trust exactly that one hop so ThrottlerGuard
+  // (keyed by req.ip) rate-limits per visitor instead of bucketing the whole site
+  // under the gateway's own IP.
+  app.set('trust proxy', 1);
   app.useStaticAssets(uploadRoot, { prefix: '/uploads/', index: false, dotfiles: 'deny' });
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
