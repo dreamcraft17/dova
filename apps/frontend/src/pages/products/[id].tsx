@@ -21,6 +21,7 @@ export default function ProductPage() {
   const [p, setP] = useState<Product>();
   const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(0.5);
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening'>('morning');
   const [busy, setBusy] = useState(false);
@@ -38,6 +39,7 @@ export default function ProductPage() {
     api<Product>(`/products/${id}`)
       .then((data) => {
         setP(data);
+        setActiveImageIndex(0);
         setQuantity(data.unitLabel ? 1 : 0.5);
         return api<{ data: Product[] }>(`/products?page=1&limit=5&categoryId=${data.categoryId}`);
       })
@@ -51,6 +53,8 @@ export default function ProductPage() {
 
   const unit = productUnitLabel(p.name, p.categoryName, p.unitLabel);
   const minimumQuantity = p.unitLabel ? 1 : 0.5;
+  const gallery = p.imageUrls?.length ? p.imageUrls : p.imageUrl ? [p.imageUrl] : [];
+  const activeImage = gallery[activeImageIndex] ?? gallery[0];
   const packSizes = [
     { label: `1 ${unit}`, value: 1 },
     { label: `2 ${unit}`, value: 2 },
@@ -93,15 +97,24 @@ export default function ProductPage() {
               <div className="gallery">
                 <span className="badge">{p.stockQuantity > 0 ? 'Starting Product' : 'Out of Stock'}</span>
                 <div className="pack">
-                  <ProductImage name={p.name} imageUrl={p.imageUrl} categoryName={p.categoryName} decorative={false} />
+                  <ProductImage name={p.name} imageUrl={activeImage} categoryName={p.categoryName} decorative={false} />
                 </div>
               </div>
-              <div className="thumbs">
-                <div className="thumb">Front</div>
-                <div className="thumb">Back</div>
-                <div className="thumb">Pack</div>
-                <div className="thumb">Detail</div>
-              </div>
+              {gallery.length > 1 && (
+                <div className="thumbs">
+                  {gallery.map((url, index) => (
+                    <button
+                      key={url}
+                      type="button"
+                      className={`thumb ${index === activeImageIndex ? 'active' : ''}`}
+                      onClick={() => setActiveImageIndex(index)}
+                      aria-label={`Show image ${index + 1} of ${gallery.length}`}
+                    >
+                      <ProductImage name={p.name} imageUrl={url} categoryName={p.categoryName} />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <div className="eyebrow">DOVA · {p.categoryName}</div>

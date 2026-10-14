@@ -1,15 +1,22 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { Body, Controller, Delete, Get, Param, Post, Put, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import { MAX_PRODUCT_IMAGES } from 'dova-shared';
 import { AppService } from './app.service';
 import { OrderStatusDto, ProductDto, StockDto, SupplierRegisterDto } from './auth.dto';
 import { CurrentUser, Public, Roles } from './auth.decorators';
 import { StoredUser } from './database.service';
-import { UploadStorageService } from './upload-storage.service';
+import { UploadStorageService, type UploadedFilePayload } from './upload-storage.service';
 
-const imageUpload = FileInterceptor('image', {
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
+type ProductImageFields = { image?: UploadedFilePayload[]; images?: UploadedFilePayload[] };
+
+const imageUpload = FileFieldsInterceptor(
+  [
+    { name: 'image', maxCount: 1 },
+    { name: 'images', maxCount: MAX_PRODUCT_IMAGES },
+  ],
+  { limits: { fileSize: 5 * 1024 * 1024 } },
+);
 
 const supplierDocUpload = FileInterceptor('verificationDocs', {
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -22,12 +29,15 @@ export class SupplierController {
     private readonly uploads: UploadStorageService,
   ) {}
 
-  private async applyProductImage(b: ProductDto, file?: { mimetype: string; buffer: Buffer }) {
-    if (file) {
-      b.imageUrl = await this.uploads.saveProductImage(file);
-    } else if (b.imageUrl) {
-      this.uploads.validateExternalImageUrl(b.imageUrl);
-    }
+  private async applyProductImages(b: ProductDto, files?: ProductImageFields) {
+    const kept = Array.isArray(b.imageUrls) ? b.imageUrls : (b.imageUrl ? [b.imageUrl] : []);
+    kept.forEach((url) => this.uploads.validateExternalImageUrl(url));
+    const toUpload = [...(files?.image ?? []), ...(files?.images ?? [])];
+    const uploaded = [];
+    for (const file of toUpload) uploaded.push(await this.uploads.saveProductImage(file));
+    const all = [...kept, ...uploaded].slice(0, MAX_PRODUCT_IMAGES);
+    b.imageUrls = all;
+    b.imageUrl = all[0];
     return b;
   }
 
@@ -47,14 +57,14 @@ export class SupplierController {
 
   @Roles('supplier')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@CurrentUser() user: StoredUser, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
-    return this.service.addSupplierProduct(user.id, await this.applyProductImage(b, file));
+  @Post('suppliers/products') @UseInterceptors(imageUpload) async supplierProductCreate(@CurrentUser() user: StoredUser, @Body() b: ProductDto, @UploadedFiles() files?: ProductImageFields) {
+    return this.service.addSupplierProduct(user.id, await this.applyProductImages(b, files));
   }
 
   @Roles('supplier')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@CurrentUser() user: StoredUser, @Param('id') id: string, @Body() b: ProductDto, @UploadedFile() file?: { mimetype: string; buffer: Buffer }) {
-    return this.service.updateSupplierProduct(user.id, id, await this.applyProductImage(b, file));
+  @Put('suppliers/products/:id') @UseInterceptors(imageUpload) async supplierProductUpdate(@CurrentUser() user: StoredUser, @Param('id') id: string, @Body() b: ProductDto, @UploadedFiles() files?: ProductImageFields) {
+    return this.service.updateSupplierProduct(user.id, id, await this.applyProductImages(b, files));
   }
 
   @Roles('supplier')
