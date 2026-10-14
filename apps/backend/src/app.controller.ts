@@ -8,6 +8,7 @@ import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, Con
 import type { UploadedFilePayload } from './upload-storage.service';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
+import { CreatePromotionDto, PromotionActiveDto, UpdatePromotionDto } from './promotion.dto';
 import { FeedbackPostDto, FeedbackStatusDto, FeedbackCommentDto, ChangelogDto } from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 import { SendChatMessageDto } from './chat.dto';
@@ -33,6 +34,10 @@ const supplierDocUpload = FileInterceptor('verificationDocs', {
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
+const promotionImageUpload = FileInterceptor('image', {
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 @Controller()
 export class AppController {
   constructor(
@@ -53,6 +58,15 @@ export class AppController {
     const all = [...kept, ...uploaded].slice(0, MAX_PRODUCT_IMAGES);
     b.imageUrls = all;
     b.imageUrl = all[0];
+    return b;
+  }
+
+  private async applyPromotionImage(b: CreatePromotionDto | UpdatePromotionDto, file?: UploadedFilePayload) {
+    if (file) {
+      b.imageUrl = await this.uploads.saveProductImage(file);
+    } else if (b.imageUrl) {
+      this.uploads.validateExternalImageUrl(b.imageUrl);
+    }
     return b;
   }
 
@@ -440,6 +454,32 @@ export class AppController {
 
   @Roles('admin')
   @Delete('admin/bundles/:id') deleteBundle(@Param('id') id: string) { return this.bundles.deleteBundle(id); }
+
+  @Public()
+  @Get('promotions/active') activePromotion() { return this.service.getActivePromotion(); }
+
+  @Roles('admin')
+  @Get('admin/promotions') adminPromotions() { return this.service.listPromotions(); }
+
+  @Roles('admin')
+  @Post('admin/promotions') @UseInterceptors(promotionImageUpload)
+  async createPromotion(@Body() b: CreatePromotionDto, @UploadedFile() file?: UploadedFilePayload) {
+    return this.service.createPromotion(await this.applyPromotionImage(b, file));
+  }
+
+  @Roles('admin')
+  @Put('admin/promotions/:id') @UseInterceptors(promotionImageUpload)
+  async updatePromotion(@Param('id') id: string, @Body() b: UpdatePromotionDto, @UploadedFile() file?: UploadedFilePayload) {
+    return this.service.updatePromotion(id, await this.applyPromotionImage(b, file));
+  }
+
+  @Roles('admin')
+  @Put('admin/promotions/:id/active') promotionActive(@Param('id') id: string, @Body() body: PromotionActiveDto) {
+    return this.service.setPromotionActive(id, body.active);
+  }
+
+  @Roles('admin')
+  @Delete('admin/promotions/:id') deletePromotion(@Param('id') id: string) { return this.service.deletePromotion(id); }
 
   @Roles('admin')
   @Get('admin/orders') adminOrders(@Query('status') status = '', @Query('search') search = '') {

@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { bcryptCost } from './bcrypt-cost';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { Cart, Category, DeliveryZone, deliveryFeeFor, Order, Product, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
+import { Cart, Category, DeliveryZone, deliveryFeeFor, Order, Product, Promotion, Role, SupplierStatus, User, minOrderMessage, FulfillmentType, productImageUrl, stockLimitMessage, SEED_PRODUCT_CATALOG, isAllowedDeliveryState, deliveryStateRestrictionMessage } from 'dova-shared';
 import { DatabaseService, StoredUser } from './database.service';
 import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
@@ -42,7 +42,7 @@ type PendingRegistrationOtp = {
 type NotificationPreferences = { newOrderAlerts: boolean; orderStatusUpdates: boolean; productApprovalUpdates: boolean; marketingUpdates: boolean; updatedAt: string };
 @Injectable()
 export class AppService {
-  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string; authorization_url?: string }>(); stockAdjustments: any[] = [];
+  users: UserRecord[] = []; suppliers: (Supplier & { rejectionReason?: string })[] = []; products: Product[] = []; orders: Order[] = []; carts = new Map<string, Cart>(); payments = new Map<string, { orderId: string; status: string; authorization_url?: string }>(); stockAdjustments: any[] = []; promotions: Promotion[] = [];
   private pendingRegistrationOtps = new Map<string, PendingRegistrationOtp>();
   private notificationPreferences = new Map<string, NotificationPreferences>();
   contacts: { id: string; name: string; email: string; message: string; status: string; createdAt: string }[] = [];
@@ -898,6 +898,71 @@ export class AppService {
   async removeSupplierProduct(userId: string, productId: string) { const s = await this.supplierFor(userId); await this.database.deleteSupplierProduct(s.id, productId); const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (!product && !this.database.enabled) throw new NotFoundException('Product not found'); if (product) product.isActive = false; return { message: 'Product removed' }; }
   async setSupplierProductActive(userId: string, productId: string) { const s = await this.supplierFor(userId); await this.database.setSupplierProductActive(s.id, productId, true); const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (product) product.isActive = true; return { message: 'Product activated' }; }
   private validateProduct(body: any) { if (!body.name || !body.description || Number(body.price) < 1000 || !Number.isInteger(Number(body.quantity)) || Number(body.quantity) < 1 || !body.categoryId) throw new BadRequestException('Invalid product data'); }
+
+  async listPromotions(): Promise<Promotion[]> {
+    if (this.database.enabled) return (await this.database.listPromotions()) ?? [];
+    return this.promotions;
+  }
+  async getActivePromotion(): Promise<Promotion | null> {
+    if (this.database.enabled) return (await this.database.getActivePromotion()) ?? null;
+    return this.promotions.find((p) => p.isActive) ?? null;
+  }
+  async createPromotion(body: any): Promise<Promotion> {
+    if (!body.title || !body.imageUrl) throw new BadRequestException('Title and image are required');
+    if (this.database.enabled) {
+      const stored = await this.database.createPromotion(body);
+      if (stored) return stored;
+    }
+    const promo: Promotion = {
+      id: randomUUID(),
+      title: body.title,
+      imageUrl: body.imageUrl,
+      linkUrl: body.linkUrl || undefined,
+      isActive: body.isActive ?? true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.promotions.unshift(promo);
+    return promo;
+  }
+  async updatePromotion(id: string, body: any): Promise<Promotion> {
+    if (this.database.enabled) {
+      const stored = await this.database.updatePromotion(id, body);
+      if (stored === undefined) throw new NotFoundException('Promotion not found');
+      if (stored) return stored;
+    }
+    const promo = this.promotions.find((p) => p.id === id);
+    if (!promo) throw new NotFoundException('Promotion not found');
+    Object.assign(promo, {
+      title: body.title ?? promo.title,
+      imageUrl: body.imageUrl ?? promo.imageUrl,
+      linkUrl: body.linkUrl ?? promo.linkUrl,
+      isActive: body.isActive ?? promo.isActive,
+      updatedAt: new Date().toISOString(),
+    });
+    return promo;
+  }
+  async setPromotionActive(id: string, active: boolean): Promise<{ message: string }> {
+    if (this.database.enabled) {
+      await this.database.setPromotionActive(id, active);
+      return { message: 'Promotion updated' };
+    }
+    const promo = this.promotions.find((p) => p.id === id);
+    if (!promo) throw new NotFoundException('Promotion not found');
+    promo.isActive = active;
+    promo.updatedAt = new Date().toISOString();
+    return { message: 'Promotion updated' };
+  }
+  async deletePromotion(id: string): Promise<{ message: string }> {
+    if (this.database.enabled) {
+      await this.database.deletePromotion(id);
+      return { message: 'Promotion removed' };
+    }
+    const index = this.promotions.findIndex((p) => p.id === id);
+    if (index < 0) throw new NotFoundException('Promotion not found');
+    this.promotions.splice(index, 1);
+    return { message: 'Promotion removed' };
+  }
   async adjustSupplierStock(userId: string, productId: string, quantity: number, reason: 'restock' | 'damage') { const s = await this.supplierFor(userId); const stored = await this.database.adjustStock(s.id, productId, quantity, reason); if (stored !== undefined) return { stockQuantity: stored }; const product = this.products.find(p => p.id === productId && p.supplierId === s.id && p.isActive); if (!product) throw new NotFoundException('Product not found'); const delta = reason === 'damage' ? -quantity : quantity; if (product.stockQuantity + delta < 0) throw new BadRequestException('Insufficient stock'); product.stockQuantity += delta; const entry = { id: randomUUID(), productId, supplierId: s.id, quantity: delta, reason, stockAfter: product.stockQuantity, createdAt: new Date().toISOString() }; this.stockAdjustments.unshift(entry); return { stockQuantity: product.stockQuantity }; }
   async supplierStockHistory(userId: string, productId: string) { const s = await this.supplierFor(userId); return (await this.database.stockHistory(s.id, productId)) ?? this.stockAdjustments.filter(x => x.supplierId === s.id && x.productId === productId); }
   async supplierOrders(userId: string) { const s = await this.supplierFor(userId); const stored = await this.database.supplierOrders(s.id); if (stored) return stored; return this.orders.filter(order => order.status !== 'pending').flatMap(order => order.items.filter(item => item.product.supplierId === s.id).map(item => ({ orderId: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName || order.deliveryName, deliveryName: order.deliveryName, deliveryAddress: order.deliveryAddress, createdAt: order.createdAt, itemId: item.id, productName: item.product.name, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.subtotal, status: item.supplierOrderStatus }))); }
