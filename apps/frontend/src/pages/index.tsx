@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { DovaAiFloatingWidget } from '../components/DovaAiFloatingWidget';
 import { WhatsAppCommunity } from '../components/WhatsAppCommunity';
+import { PromoModal } from '../components/PromoModal';
 import DovaChainNavbar from '../components/DovaChainNavbar';
 import { fraunces, manrope } from '../lib/fonts';
 import styles from '../styles/home-v3.module.css';
@@ -1058,6 +1059,7 @@ export default function Home() {
       </footer>
       <DovaAiFloatingWidget />
       <WhatsAppCommunity />
+      <PromoModal />
     </div>
   );
 }
