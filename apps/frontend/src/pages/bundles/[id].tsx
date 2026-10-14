@@ -24,7 +24,7 @@ export default function BundleDetailPage() {
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening'>('morning');
   const [busy, setBusy] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [message, setMessage] = useState('Connect purchase actions to the existing cart/API.');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (!id || typeof id !== 'string') return;
@@ -50,7 +50,7 @@ export default function BundleDetailPage() {
         body: JSON.stringify({ bundleId: bundle.id, quantity, deliverySlot }),
       });
       await refreshCart();
-      setMessage(`${bundle.name} (${deliverySlot}) selected, quantity ${quantity}. Connect this action to the live DOVA cart/API.`);
+      setMessage(`Added ${quantity} × ${bundle.name} to your cart (${deliverySlot} delivery).`);
     } catch (e) {
       showToast((e as Error).message, 'error');
     } finally {
@@ -76,7 +76,7 @@ export default function BundleDetailPage() {
               <div className="eyebrow">DOVA · {bundle.categoryName || 'Bundle'}</div>
               <h1>{bundle.name}</h1>
               <p style={{ color: 'var(--muted)', fontSize: '.78rem' }}>{bundle.description}</p>
-              <div className="rating"><b>★★★★★</b><small>Bundle rating placeholder</small></div>
+              <div className="rating"><b>★★★★★</b><small>No ratings yet</small></div>
               <div className="pricebig">₦ {bundle.bundlePrice.toLocaleString('en-NG')}</div>
               {computed.savingsAmount > 0 && (
                 <div className="price" style={{ marginTop: '-8px' }}>
