@@ -71,12 +71,6 @@ export default function BundleDetailPage() {
                   <ProductImage name={bundle.name} imageUrl={bundle.imageUrl} categoryName={bundle.categoryName} decorative={false} />
                 </div>
               </div>
-              <div className="thumbs">
-                <div className="thumb">Front</div>
-                <div className="thumb">Back</div>
-                <div className="thumb">Pack</div>
-                <div className="thumb">Detail</div>
-              </div>
             </div>
             <div>
               <div className="eyebrow">DOVA · {bundle.categoryName || 'Bundle'}</div>

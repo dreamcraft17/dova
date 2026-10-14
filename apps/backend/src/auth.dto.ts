@@ -1,5 +1,6 @@
 import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { MAX_PRODUCT_IMAGES } from 'dova-shared';
 
 export class RegisterDto {
   @IsString() @MinLength(2) fullName!: string;
@@ -132,6 +133,21 @@ export class ProductDto {
   @Transform(({ value }) => (value === '' || value == null ? undefined : value))
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   imageUrl?: string;
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    if (value === '') return undefined;
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  })
+  @IsArray()
+  @ArrayMaxSize(MAX_PRODUCT_IMAGES)
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] }, { each: true })
+  imageUrls?: string[];
 }
 
 export class StockDto {

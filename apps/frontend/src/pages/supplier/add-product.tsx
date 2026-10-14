@@ -10,8 +10,11 @@ import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { PageHead, SupplierCard, buttonStyles, fieldStyles } from '../../components/supplier/ui';
 import { api } from '../../lib/api';
 import type { Category, Product } from 'dova-shared';
+import { MAX_PRODUCT_IMAGES } from 'dova-shared';
 
-const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', unitLabel: '', imageUrl: '' };
+const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', unitLabel: '' };
+
+type PendingImage = { file: File; previewUrl: string };
 
 function AddProductContent() {
   const router = useRouter();
@@ -19,11 +22,15 @@ function AddProductContent() {
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState(empty);
-  const [imageFile, setImageFile] = useState<File>();
-  const [imagePreview, setImagePreview] = useState<string>();
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [imageUrlInput, setImageUrlInput] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
+
+  const totalImages = existingImageUrls.length + pendingImages.length;
+  const atImageLimit = totalImages >= MAX_PRODUCT_IMAGES;
 
   useEffect(() => {
     void (async () => {
@@ -42,9 +49,11 @@ function AddProductContent() {
             price: existing.price,
             quantity: existing.stockQuantity,
             categoryId: existing.categoryId,
-            imageUrl: existing.imageUrl || '',
             unitLabel: existing.unitLabel || '',
           });
+          setExistingImageUrls(
+            existing.imageUrls?.length ? existing.imageUrls : existing.imageUrl ? [existing.imageUrl] : [],
+          );
         } else if (cats[0]) {
           setForm((current) => ({ ...current, categoryId: current.categoryId || cats[0].id }));
         }
@@ -57,14 +66,47 @@ function AddProductContent() {
   }, [editingId]);
 
   useEffect(() => {
-    if (!imageFile) {
-      setImagePreview(undefined);
+    return () => {
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function addFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const room = MAX_PRODUCT_IMAGES - totalImages;
+    if (room <= 0) return;
+    const next = Array.from(files)
+      .slice(0, room)
+      .map((file) => ({ file, previewUrl: URL.createObjectURL(file) }));
+    setPendingImages((current) => [...current, ...next]);
+  }
+
+  function removeExistingImage(url: string) {
+    setExistingImageUrls((current) => current.filter((u) => u !== url));
+  }
+
+  function removePendingImage(previewUrl: string) {
+    setPendingImages((current) => {
+      const target = current.find((img) => img.previewUrl === previewUrl);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((img) => img.previewUrl !== previewUrl);
+    });
+  }
+
+  function addImageUrl() {
+    const url = imageUrlInput.trim();
+    if (!url || atImageLimit) return;
+    try {
+      const parsed = new URL(url);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
+    } catch {
+      setMessage('Image URL must be a valid http(s) link.');
       return;
     }
-    const url = URL.createObjectURL(imageFile);
-    setImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
+    setExistingImageUrls((current) => (current.includes(url) ? current : [...current, url]));
+    setImageUrlInput('');
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -79,8 +121,8 @@ function AddProductContent() {
       body.append('quantity', String(form.quantity));
       body.append('categoryId', form.categoryId);
       if (form.unitLabel.trim()) body.append('unitLabel', form.unitLabel.trim());
-      if (form.imageUrl) body.append('imageUrl', form.imageUrl);
-      if (imageFile) body.append('image', imageFile);
+      body.append('imageUrls', JSON.stringify(existingImageUrls));
+      pendingImages.forEach((img) => body.append('images', img.file));
       await api(path, { method: editingId ? 'PUT' : 'POST', body });
       await router.push('/supplier/products');
     } catch (err) {
@@ -195,47 +237,91 @@ function AddProductContent() {
                 />
               </div>
 
-              <div className="rounded-[15px] border border-dashed border-[rgba(8,127,91,0.35)] bg-[#f7faf6] p-6 text-center md:col-span-2">
-                <strong className="block text-xs text-[var(--forest)]">Product image</strong>
-                <span className="mb-3 mt-1 block text-[10px] text-muted-foreground">JPG, PNG or WEBP · max 5 MB</span>
-                {imagePreview || form.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={imagePreview || form.imageUrl}
-                    alt=""
-                    className="mx-auto mb-3 max-h-40 max-w-40 rounded-[12px] object-cover"
-                  />
+              <div className="rounded-[15px] border border-dashed border-[rgba(8,127,91,0.35)] bg-[#f7faf6] p-6 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <strong className="block text-xs text-[var(--forest)]">Product images</strong>
+                  <span className="text-[10px] text-muted-foreground">{totalImages}/{MAX_PRODUCT_IMAGES} · JPG, PNG or WEBP · max 5 MB each</span>
+                </div>
+                <p className="mb-3 mt-1 text-[10px] text-muted-foreground">
+                  The first image is used as the cover photo everywhere on the marketplace. The rest appear as a gallery on the product page.
+                </p>
+
+                {totalImages > 0 ? (
+                  <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+                    {existingImageUrls.map((url, index) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <div key={url} className="group relative aspect-square overflow-hidden rounded-[10px] border border-[rgba(8,127,91,0.2)]">
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        {index === 0 ? (
+                          <span className="absolute left-1 top-1 rounded bg-[var(--forest)] px-1.5 py-0.5 text-[8px] font-bold text-white">Cover</span>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(url)}
+                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+                          aria-label="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {pendingImages.map((img) => (
+                      <div key={img.previewUrl} className="group relative aspect-square overflow-hidden rounded-[10px] border border-[rgba(8,127,91,0.2)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img.previewUrl} alt="" className="h-full w-full object-cover" />
+                        {existingImageUrls.length === 0 && pendingImages[0] === img ? (
+                          <span className="absolute left-1 top-1 rounded bg-[var(--forest)] px-1.5 py-0.5 text-[8px] font-bold text-white">Cover</span>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => removePendingImage(img.previewUrl)}
+                          className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+                          aria-label="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 ) : null}
+
                 <Label
                   htmlFor="product-image"
-                  className={`${buttonStyles.light} inline-flex cursor-pointer items-center`}
+                  className={`${buttonStyles.light} inline-flex cursor-pointer items-center ${atImageLimit ? 'pointer-events-none opacity-50' : ''}`}
                 >
-                  {imageFile ? `Selected: ${imageFile.name}` : 'Choose image'}
+                  Add images
                 </Label>
                 <input
                   id="product-image"
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  disabled={atImageLimit}
                   className="sr-only"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    setImageFile(file);
-                    if (file) setForm((current) => ({ ...current, imageUrl: '' }));
+                    addFiles(e.target.files);
+                    e.target.value = '';
                   }}
                 />
               </div>
 
               <div className="grid gap-1.5 md:col-span-2">
                 <Label htmlFor="product-image-url" className={fieldStyles.label}>
-                  Or image URL (optional)
+                  Or add an image URL
                 </Label>
-                <Input
-                  id="product-image-url"
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                  placeholder="https://..."
-                  className={fieldStyles.control}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="product-image-url"
+                    value={imageUrlInput}
+                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    placeholder="https://..."
+                    disabled={atImageLimit}
+                    className={fieldStyles.control}
+                  />
+                  <Button type="button" variant="outline" className={buttonStyles.light} onClick={addImageUrl} disabled={atImageLimit || !imageUrlInput.trim()}>
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
 
