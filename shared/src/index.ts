@@ -8,6 +8,16 @@ export interface Category { id: string; name: string; }
 export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; imageUrls?: string[]; unitLabel?: string; isActive: boolean; }
 
 export const MAX_PRODUCT_IMAGES = 6;
+
+export interface Promotion {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 export type DeliverySlot = 'morning' | 'evening';
 /** bundleId/bundleContents are set only for a bundle cart line — `product` is still always populated
  * (a synthesized bundle-as-product view: id/name/price/stock of the bundle itself) so existing code

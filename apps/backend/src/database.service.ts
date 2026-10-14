@@ -15,6 +15,7 @@ import {
   computeBundlePricing,
   Order,
   Product,
+  Promotion,
   Role,
   User,
   DeliveryZone,
@@ -884,6 +885,24 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async deleteSupplierProduct(supplierId: string, productId: string) { if (this.pool) await this.pool.query('UPDATE products SET is_active=FALSE,updated_at=NOW() WHERE id=$1 AND supplier_id=$2', [productId, supplierId]); }
   async adjustStock(supplierId: string, productId: string, quantity: number, reason: string) { if (!this.pool) return undefined; const client = await this.pool.connect(); try { await client.query('BEGIN'); const delta = reason === 'damage' ? -quantity : quantity; const result = await client.query('UPDATE products SET stock_quantity=stock_quantity+$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND stock_quantity+$1>=0 RETURNING stock_quantity', [delta, productId, supplierId]); if (!result.rowCount) throw new Error('Product not found or insufficient stock'); await client.query('INSERT INTO stock_adjustments (product_id,supplier_id,quantity,reason,stock_after) VALUES ($1,$2,$3,$4,$5)', [productId, supplierId, delta, reason, result.rows[0].stock_quantity]); await client.query('COMMIT'); return Number(result.rows[0].stock_quantity); } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); } }
   async stockHistory(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,quantity,reason,stock_after,created_at FROM stock_adjustments WHERE supplier_id=$1 AND product_id=$2 ORDER BY created_at DESC', [supplierId, productId]); return result.rows.map(row => ({ id: row.id, quantity: Number(row.quantity), reason: row.reason, stockAfter: Number(row.stock_after), createdAt: new Date(row.created_at).toISOString() })); }
+
+  private mapPromotion(row: any): Promotion {
+    return {
+      id: row.id,
+      title: row.title,
+      imageUrl: row.image_url,
+      linkUrl: row.link_url || undefined,
+      isActive: row.is_active,
+      createdAt: new Date(row.created_at).toISOString(),
+      updatedAt: new Date(row.updated_at).toISOString(),
+    };
+  }
+  async listPromotions(): Promise<Promotion[] | undefined> { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM promotions ORDER BY created_at DESC'); return result.rows.map((row) => this.mapPromotion(row)); }
+  async getActivePromotion(): Promise<Promotion | null | undefined> { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM promotions WHERE is_active=TRUE ORDER BY updated_at DESC LIMIT 1'); return result.rows[0] ? this.mapPromotion(result.rows[0]) : null; }
+  async createPromotion(body: any): Promise<Promotion | undefined> { if (!this.pool) return undefined; const result = await this.pool.query('INSERT INTO promotions (title,image_url,link_url,is_active) VALUES ($1,$2,$3,$4) RETURNING *', [body.title, body.imageUrl, body.linkUrl || null, body.isActive ?? true]); return this.mapPromotion(result.rows[0]); }
+  async updatePromotion(id: string, body: any): Promise<Promotion | null | undefined> { if (!this.pool) return undefined; const result = await this.pool.query('UPDATE promotions SET title=$1,image_url=COALESCE($2,image_url),link_url=$3,is_active=$4,updated_at=NOW() WHERE id=$5 RETURNING *', [body.title, body.imageUrl ?? null, body.linkUrl || null, body.isActive ?? true, id]); return result.rows[0] ? this.mapPromotion(result.rows[0]) : null; }
+  async setPromotionActive(id: string, active: boolean): Promise<boolean | undefined> { if (!this.pool) return undefined; await this.pool.query('UPDATE promotions SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, id]); return true; }
+  async deletePromotion(id: string): Promise<boolean | undefined> { if (!this.pool) return undefined; await this.pool.query('DELETE FROM promotions WHERE id=$1', [id]); return true; }
   async supplierOrders(supplierId: string) { if (!this.pool) return undefined; const result = await this.pool.query("SELECT o.*,u.full_name AS customer_name,oi.id AS item_id,oi.quantity,oi.unit_price,oi.subtotal,oi.supplier_order_status,p.id AS product_id,p.name AS product_name FROM orders o JOIN users u ON u.id=o.customer_id JOIN order_items oi ON oi.order_id=o.id JOIN products p ON p.id=oi.product_id WHERE oi.supplier_id=$1 AND o.status != 'pending' ORDER BY o.created_at DESC", [supplierId]); return result.rows.map(row => ({ orderId: row.id, orderNumber: row.order_number, customerName: row.customer_name, deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, createdAt: new Date(row.created_at).toISOString(), itemId: row.item_id, productName: row.product_name, quantity: Number(row.quantity), unitPrice: Number(row.unit_price), subtotal: Number(row.subtotal), status: row.supplier_order_status })); }
   async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND supplier_order_status = ANY($4::text[]) RETURNING id,order_id', [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query('UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2', [status, orderId]); return true; }
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
