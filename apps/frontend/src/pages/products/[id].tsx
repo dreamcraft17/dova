@@ -26,7 +26,7 @@ export default function ProductPage() {
   const [deliverySlot, setDeliverySlot] = useState<'morning' | 'evening'>('morning');
   const [busy, setBusy] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [message, setMessage] = useState('Connect purchase actions to the existing cart/API.');
+  const [message, setMessage] = useState('');
   const [rating, setRating] = useState(0);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewName, setReviewName] = useState('');
@@ -71,7 +71,7 @@ export default function ProductPage() {
         body: JSON.stringify({ productId: p.id, quantity, deliverySlot }),
       });
       await refreshCart();
-      setMessage(`${p.name} (${deliverySlot}) selected, quantity ${quantity}${unit}. Connect this action to the live DOVA cart/API.`);
+      setMessage(`Added ${quantity}${unit} of ${p.name} to your cart (${deliverySlot} delivery).`);
     } catch (e) {
       showToast((e as Error).message, 'error');
     } finally {
@@ -122,7 +122,6 @@ export default function ProductPage() {
               <p style={{ color: 'var(--muted)', fontSize: '.78rem' }}>{p.description}</p>
               <div className="rating"><b>★★★★★</b><small>No ratings yet · <a href="#reviews">Be the first to rate</a></small></div>
               <div className="pricebig">{p.price > 0 ? `₦ ${p.price.toLocaleString('en-NG')} ${formatPricePerUnitLabel(unit)}` : '₦ —'}</div>
-              <small style={{ color: 'var(--muted)', fontSize: '.61rem' }}>Live price should be returned by the product backend.</small>
               <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Pack size</h4>
               <div className="variants">
                 {packSizes.map((size) => (
@@ -145,7 +144,7 @@ export default function ProductPage() {
               <h4 style={{ fontSize: '.7rem', margin: '22px 0 8px' }}>Quantity</h4>
               <div className="purchase">
                 <div className="qty">
-                  <button type="button" onClick={() => setQuantity((v) => Math.max(minimumQuantity, p.unitLabel ? v - 1 : Math.round((v - 0.5) * 100) / 100))}>−</button>
+                  <button type="button" aria-label="Decrease quantity" onClick={() => setQuantity((v) => Math.max(minimumQuantity, p.unitLabel ? v - 1 : Math.round((v - 0.5) * 100) / 100))}>−</button>
                   <input
                     aria-label="Quantity"
                     type="number"
@@ -157,7 +156,7 @@ export default function ProductPage() {
                       setQuantity(Math.max(minimumQuantity, Math.min(p.stockQuantity, Number(e.target.value) || minimumQuantity)))
                     }
                   />
-                  <button type="button" onClick={() => setQuantity((v) => Math.min(p.stockQuantity, p.unitLabel ? v + 1 : Math.round((v + 0.5) * 100) / 100))}>+</button>
+                  <button type="button" aria-label="Increase quantity" onClick={() => setQuantity((v) => Math.min(p.stockQuantity, p.unitLabel ? v + 1 : Math.round((v + 0.5) * 100) / 100))}>+</button>
                 </div>
                 <button className="btn green" type="button" onClick={addToCart} disabled={busy}>
                   {busy ? 'Adding…' : 'Add to Cart'}
