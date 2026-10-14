@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Promotion } from 'dova-shared';
 
-const AUTO_CLOSE_MS = 5000;
+const AUTO_CLOSE_SECONDS = 10;
+const AUTO_CLOSE_MS = AUTO_CLOSE_SECONDS * 1000;
 
 export function PromoModal() {
   const [promo, setPromo] = useState<Promotion | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(5);
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_CLOSE_SECONDS);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +25,7 @@ export function PromoModal() {
 
   useEffect(() => {
     if (!promo) return;
-    setSecondsLeft(5);
+    setSecondsLeft(AUTO_CLOSE_SECONDS);
     const tick = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     const closeTimer = setTimeout(() => setPromo(null), AUTO_CLOSE_MS);
     return () => {
