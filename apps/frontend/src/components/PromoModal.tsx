@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import type { Promotion } from 'dova-shared';
 
-const SESSION_KEY = 'dova_promo_dismissed';
 const AUTO_CLOSE_MS = 5000;
 
 export function PromoModal() {
@@ -10,14 +9,10 @@ export function PromoModal() {
   const [secondsLeft, setSecondsLeft] = useState(5);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || sessionStorage.getItem(SESSION_KEY)) return;
     let cancelled = false;
     api<Promotion | null>('/promotions/active')
       .then((data) => {
-        if (!cancelled && data?.imageUrl) {
-          setPromo(data);
-          sessionStorage.setItem(SESSION_KEY, '1');
-        }
+        if (!cancelled && data?.imageUrl) setPromo(data);
       })
       .catch(() => {
         /* a failed promo fetch should never block the storefront */
