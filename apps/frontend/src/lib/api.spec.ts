@@ -1,4 +1,4 @@
-import { ApiError, api, configureLoginPersistence } from './api';
+import { ApiError, api, configureLoginPersistence, resolveApiBase } from './api';
 import { clearTokens, getAccessToken, setTokens } from './auth-session';
 
 function mockSessionStorage() {
@@ -89,6 +89,26 @@ describe('frontend api client', () => {
   it('falls back to a generic message when the API body has no message', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response('not-json', { status: 500 }));
     await expect(api('/broken')).rejects.toThrow('Request failed');
+  });
+
+  it('maps network failures to a readable ApiError', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+    await expect(api('/suppliers/products', { method: 'POST', body: new FormData() })).rejects.toMatchObject({
+      message: expect.stringContaining('Cannot reach the server'),
+      status: 0,
+      code: 'NETWORK_ERROR',
+    });
+  });
+
+  it('uses same-origin gateway when NEXT_PUBLIC_API_URL points at another host', () => {
+    const prev = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.dova.dntech.id/api/v1';
+    Object.defineProperty(global, 'window', {
+      configurable: true,
+      value: { location: { origin: 'https://dova.dntech.id' } },
+    });
+    expect(resolveApiBase()).toBe('/api/gateway');
+    process.env.NEXT_PUBLIC_API_URL = prev;
   });
 
   it('omits JSON Content-Type for FormData uploads', async () => {
