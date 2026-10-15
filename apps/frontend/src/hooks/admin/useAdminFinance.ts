@@ -14,6 +14,7 @@ export type AdminFinance = {
   currency: string; period: string;
   summary: { grossSales: number; collectedSales: number; pendingPayments: number; cancelledOrders: number; pendingSettlements: number; supplierPayouts: number | null; logisticsPayouts: number | null; refunds: number | null };
   ledger: FinanceEntry[]; exceptions: FinanceException[];
+  reimbursement?: { available: number; pending: number; paidOut: number };
   capabilities: { supplierPayouts: boolean; logisticsPayouts: boolean; refunds: boolean; note: string };
 };
 

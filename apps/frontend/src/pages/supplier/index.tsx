@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { api } from '../../lib/api';
 import { Button } from '@/components/ui/button';
 import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { SalesTrendChart } from '../../components/supplier/SalesTrendChart';
@@ -25,6 +26,13 @@ function DashboardContent() {
   const { info } = useSupplierInfo();
   const { products, loading: productsLoading } = useSupplierProducts();
   const { orders, loading: ordersLoading } = useSupplierOrders();
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    void api<{ available: number }>('/suppliers/reimbursements')
+      .then((data) => setAvailableBalance(data.available))
+      .catch(() => setAvailableBalance(null));
+  }, []);
 
   const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending').length, [orders]);
   const sales = useMemo(
@@ -68,7 +76,11 @@ function DashboardContent() {
         <StatCard label="Listed Products" value={products.length} note="Live count from your catalog" loading={productsLoading} />
         <StatCard label="Pending Orders" value={pendingOrders} note="Orders awaiting action" loading={ordersLoading} />
         <StatCard label="Sales" value={formatNaira(sales)} note="All-time, excluding cancelled" loading={ordersLoading} />
-        <StatCard label="Available Balance" value="₦ —" note="Connect payout wallet" />
+        <StatCard
+          label="Available Balance"
+          value={availableBalance === null ? '₦ —' : formatNaira(availableBalance)}
+          note="Withdraw via Reimbursements"
+        />
       </div>
 
       <div className="grid gap-3.5 lg:grid-cols-[1.4fr_0.8fr]">

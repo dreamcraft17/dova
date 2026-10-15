@@ -12,6 +12,7 @@ import {
   Settings,
   ShoppingCart,
   User,
+  Wallet,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/supplier/products', label: 'Products', icon: Diamond },
   { href: '/supplier/add-product', label: 'Add Product', icon: Plus },
   { href: '/supplier/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/supplier/reimbursements', label: 'Reimbursements', icon: Wallet },
   { href: '/supplier/sales', label: 'Sales & Analytics', icon: BarChart3 },
   { href: '/supplier/profile', label: 'Profile', icon: User },
   { href: '/feedback', label: 'Feedback', icon: Mail, feedback: true },

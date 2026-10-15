@@ -1110,7 +1110,7 @@ describe('AppService', () => {
         const body = { event: 'transfer.success', data: {} };
         const rawBody = Buffer.from(JSON.stringify(body));
         const signature = paystackSignature(rawBody.toString('utf8'), 'sk_test_webhook');
-        await expect(service.handlePaystackWebhook(signature, body, rawBody)).resolves.toEqual({ received: true, ignored: true });
+        await expect(service.handlePaystackWebhook(signature, body, rawBody)).resolves.toEqual({ received: true, handled: false });
       } finally {
         if (previousKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
         else process.env.PAYSTACK_SECRET_KEY = previousKey;

@@ -10,6 +10,7 @@ import { NotificationService } from './notification.service';
 import { FeedbackService } from './feedback.service';
 import { ChatService } from './chat.service';
 import { PaystackService } from './paystack.service';
+import { ReimbursementService } from './reimbursement.service';
 import { UploadStorageService } from './upload-storage.service';
 import { BundleService } from './bundle.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -35,6 +36,7 @@ import { AuditInterceptor } from './audit.interceptor';
     FeedbackService,
     ChatService,
     PaystackService,
+    ReimbursementService,
     UploadStorageService,
     BundleService,
     AuditService,

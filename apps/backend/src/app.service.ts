@@ -10,6 +10,7 @@ import { RedisService } from './redis.service';
 import { NotificationService } from './notification.service';
 import { isEmailProviderConfigured, usesResend, usesSmtp } from './mail.util';
 import { PaystackService } from './paystack.service';
+import { ReimbursementService } from './reimbursement.service';
 import { createHash } from 'crypto';
 import { encryptPayoutValue } from './payout-crypto';
 import { isValidOtpFormat } from 'dova-shared';
@@ -60,7 +61,7 @@ export class AppService {
     }
   }
 
-  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, @Optional() private readonly notifications?: NotificationService) {
+  constructor(private readonly jwt: JwtService, private readonly database: DatabaseService, private readonly redis: RedisService, private readonly paystack: PaystackService, private readonly reimbursement: ReimbursementService, @Optional() private readonly notifications?: NotificationService) {
     const admin = this.makeUser('admin@dova.local', 'DOVA Admin', 'admin', 'admin1234');
     this.users.push(admin);
     const supplierUser = this.makeUser('supplier@dova.local', 'Demo Supplier', 'supplier', 'supplier1234'); this.users.push(supplierUser);
@@ -458,16 +459,85 @@ export class AppService {
   async getPayoutPreferences(userId: string) {
     const supplierId = await this.supplierIdForUser(userId);
     const stored = await this.database.payoutPreferences(supplierId);
-    if (!stored) return { configured: false, bankName: '', accountName: '', accountNumber: '', payoutMethod: 'bank_transfer' };
-    return { configured: true, bankName: stored.bank_name, accountName: stored.account_name, accountNumber: `•••• ${stored.account_number_last4}`, payoutMethod: stored.payout_method, updatedAt: new Date(stored.updated_at).toISOString() };
+    if (!stored) return { configured: false, bankName: '', bankCode: '', accountName: '', accountNumber: '', payoutMethod: 'bank_transfer', paystackRecipientReady: false };
+    return {
+      configured: true,
+      bankName: stored.bank_name,
+      bankCode: stored.bank_code ?? '',
+      accountName: stored.account_name,
+      accountNumber: `•••• ${stored.account_number_last4}`,
+      payoutMethod: stored.payout_method,
+      paystackRecipientReady: Boolean(stored.paystack_recipient_code),
+      updatedAt: new Date(stored.updated_at).toISOString(),
+    };
   }
 
-  async updatePayoutPreferences(userId: string, values: { bankName: string; accountName: string; accountNumber: string }) {
+  async updatePayoutPreferences(userId: string, values: { bankName: string; bankCode: string; accountName: string; accountNumber: string }) {
     if (!/^\d{10}$/.test(values.accountNumber)) throw new BadRequestException('Account number must contain exactly 10 digits');
+    if (!/^\d{3,6}$/.test(values.bankCode.trim())) throw new BadRequestException('Select a valid bank');
     const supplierId = await this.supplierIdForUser(userId);
-    const stored = await this.database.upsertPayoutPreferences(supplierId, { bankName: values.bankName.trim(), accountName: values.accountName.trim(), accountNumberCiphertext: encryptPayoutValue(values.accountNumber), accountNumberLast4: values.accountNumber.slice(-4) });
-    if (!stored) return { configured: true, bankName: values.bankName.trim(), accountName: values.accountName.trim(), accountNumber: `•••• ${values.accountNumber.slice(-4)}`, payoutMethod: 'bank_transfer' };
-    return { configured: true, bankName: stored.bank_name, accountName: stored.account_name, accountNumber: `•••• ${stored.account_number_last4}`, payoutMethod: stored.payout_method, updatedAt: new Date(stored.updated_at).toISOString() };
+    let recipientCode: string | null = null;
+    if (this.paystack.enabled()) {
+      recipientCode = await this.reimbursement.syncPaystackRecipient(supplierId, {
+        bankCode: values.bankCode.trim(),
+        bankName: values.bankName.trim(),
+        accountName: values.accountName.trim(),
+        accountNumber: values.accountNumber,
+      });
+    }
+    const stored = await this.database.upsertPayoutPreferences(supplierId, {
+      bankName: values.bankName.trim(),
+      bankCode: values.bankCode.trim(),
+      accountName: values.accountName.trim(),
+      accountNumberCiphertext: encryptPayoutValue(values.accountNumber),
+      accountNumberLast4: values.accountNumber.slice(-4),
+      paystackRecipientCode: recipientCode,
+    });
+    if (!stored) {
+      return {
+        configured: true,
+        bankName: values.bankName.trim(),
+        bankCode: values.bankCode.trim(),
+        accountName: values.accountName.trim(),
+        accountNumber: `•••• ${values.accountNumber.slice(-4)}`,
+        payoutMethod: 'bank_transfer',
+        paystackRecipientReady: Boolean(recipientCode),
+      };
+    }
+    return {
+      configured: true,
+      bankName: stored.bank_name,
+      bankCode: stored.bank_code,
+      accountName: stored.account_name,
+      accountNumber: `•••• ${stored.account_number_last4}`,
+      payoutMethod: stored.payout_method,
+      paystackRecipientReady: Boolean(stored.paystack_recipient_code),
+      updatedAt: new Date(stored.updated_at).toISOString(),
+    };
+  }
+
+  listPayoutBanks() {
+    return this.reimbursement.listBanks();
+  }
+
+  supplierReimbursementSummary(userId: string) {
+    return this.supplierIdForUser(userId).then((supplierId) => this.reimbursement.supplierSummary(supplierId));
+  }
+
+  requestSupplierReimbursement(userId: string) {
+    return this.supplierIdForUser(userId).then((supplierId) => this.reimbursement.requestWithdrawal(supplierId));
+  }
+
+  adminPendingReimbursements() {
+    return this.reimbursement.listPendingApprovals();
+  }
+
+  adminSendReimbursement(id: string) {
+    return this.reimbursement.adminSendReimbursement(id);
+  }
+
+  adminRejectReimbursement(id: string, reason?: string) {
+    return this.reimbursement.adminRejectReimbursement(id, reason);
   }
 
   async exportAccountData(userId: string) {
@@ -864,6 +934,9 @@ export class AppService {
     if (!this.paystack.verifyWebhookSignature(signature, payload)) {
       throw new UnauthorizedException('Invalid Paystack signature');
     }
+    if (body.event?.startsWith('transfer.')) {
+      return { received: true, ...(await this.reimbursement.handleTransferWebhook(body.event, body.data)) };
+    }
     if (body.event !== 'charge.success') return { received: true, ignored: true };
 
     const charge = this.paystack.chargeFromWebhookData(body.data);
@@ -966,7 +1039,7 @@ export class AppService {
   async adjustSupplierStock(userId: string, productId: string, quantity: number, reason: 'restock' | 'damage') { const s = await this.supplierFor(userId); const stored = await this.database.adjustStock(s.id, productId, quantity, reason); if (stored !== undefined) return { stockQuantity: stored }; const product = this.products.find(p => p.id === productId && p.supplierId === s.id && p.isActive); if (!product) throw new NotFoundException('Product not found'); const delta = reason === 'damage' ? -quantity : quantity; if (product.stockQuantity + delta < 0) throw new BadRequestException('Insufficient stock'); product.stockQuantity += delta; const entry = { id: randomUUID(), productId, supplierId: s.id, quantity: delta, reason, stockAfter: product.stockQuantity, createdAt: new Date().toISOString() }; this.stockAdjustments.unshift(entry); return { stockQuantity: product.stockQuantity }; }
   async supplierStockHistory(userId: string, productId: string) { const s = await this.supplierFor(userId); return (await this.database.stockHistory(s.id, productId)) ?? this.stockAdjustments.filter(x => x.supplierId === s.id && x.productId === productId); }
   async supplierOrders(userId: string) { const s = await this.supplierFor(userId); const stored = await this.database.supplierOrders(s.id); if (stored) return stored; return this.orders.filter(order => order.status !== 'pending').flatMap(order => order.items.filter(item => item.product.supplierId === s.id).map(item => ({ orderId: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName || order.deliveryName, deliveryName: order.deliveryName, deliveryAddress: order.deliveryAddress, createdAt: order.createdAt, itemId: item.id, productName: item.product.name, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.subtotal, status: item.supplierOrderStatus }))); }
-  async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
+  async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); if (status === 'delivered') await this.reimbursement.accrueForDeliveredItem(s.id, itemId); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
   async adminDashboard() { return (await this.database.adminDashboard()) ?? { users: this.users.length, suppliers: this.suppliers.length, products: this.products.length, orders: this.orders.length, pendingSuppliers: this.suppliers.filter(s => s.status === 'pending').length }; }
 
   async adminSystemHealth() {
@@ -1181,7 +1254,13 @@ export class AppService {
   }
 
   async adminFinance() {
-    const stored = await this.database.adminFinance();
+    const payoutNote = this.paystack.enabled()
+      ? 'Supplier reimbursements accrue when order lines are marked delivered; suppliers withdraw via Paystack Transfer.'
+      : 'Paystack is not configured — supplier reimbursements run in mock mode for testing.';
+    const stored = await this.database.adminFinance({
+      supplierPayouts: this.paystack.enabled(),
+      note: payoutNote,
+    });
     if (stored) return stored;
     const orders = this.orders.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const paidStatuses = new Set(['paid', 'processing', 'shipped', 'delivered']);
@@ -1192,7 +1271,14 @@ export class AppService {
       summary: { grossSales: orders.filter((order) => order.status === 'delivered').reduce((sum, order) => sum + order.totalAmount, 0), collectedSales: orders.filter((order) => paidStatuses.has(order.status)).reduce((sum, order) => sum + order.totalAmount, 0), pendingPayments: orders.filter((order) => order.status === 'pending').length, cancelledOrders: orders.filter((order) => order.status === 'cancelled').length, pendingSettlements: orders.filter((order) => ['paid', 'processing', 'shipped'].includes(order.status)).length, supplierPayouts: null, logisticsPayouts: null, refunds: null },
       ledger: orders.slice(0, 100).map((order) => ({ id: order.id, orderNumber: order.orderNumber, customerName: customerName(order), amount: order.totalAmount, orderTotal: order.totalAmount, status: paidStatuses.has(order.status) ? 'success' : order.status, orderStatus: order.status, paymentReference: order.paymentReference, fulfillmentType: order.fulfillmentType ?? 'delivery', createdAt: order.createdAt, verifiedAt: order.paymentVerifiedAt })),
       exceptions,
-      capabilities: { supplierPayouts: false, logisticsPayouts: false, refunds: false, note: 'Payout and refund execution are not wired yet; this screen is read-only until those ledgers and approvals exist.' },
+      capabilities: {
+        supplierPayouts: this.paystack.enabled(),
+        logisticsPayouts: false,
+        refunds: false,
+        note: this.paystack.enabled()
+          ? 'Supplier reimbursements accrue when order lines are marked delivered; suppliers withdraw via Paystack Transfer.'
+          : 'Paystack is not configured — supplier reimbursements run in mock mode for testing.',
+      },
     };
   }
   async adminOrderDetail(id: string) {
@@ -1207,6 +1293,7 @@ export class AppService {
     const stored = await this.database.updateAdminOrderStatus(id, status);
     if (stored !== undefined) {
       if (!stored) throw new BadRequestException('Order status transition is not allowed');
+      if (status === 'delivered') await this.database.accrueReimbursementForDeliveredOrder(id);
       return { id, status };
     }
     const order = this.orders.find((entry) => entry.id === id);

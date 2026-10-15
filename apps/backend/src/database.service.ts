@@ -273,19 +273,249 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
   async payoutPreferences(supplierId: string) {
     if (!this.pool) return undefined;
-    const result = await this.pool.query('SELECT bank_name,account_name,account_number_ciphertext,account_number_last4,payout_method,updated_at FROM supplier_payout_preferences WHERE supplier_id=$1', [supplierId]);
-    return result.rows[0];
-  }
-  async upsertPayoutPreferences(supplierId: string, values: { bankName: string; accountName: string; accountNumberCiphertext: string; accountNumberLast4: string }) {
-    if (!this.pool) return undefined;
     const result = await this.pool.query(
-      `INSERT INTO supplier_payout_preferences (supplier_id,bank_name,account_name,account_number_ciphertext,account_number_last4)
-       VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (supplier_id) DO UPDATE SET bank_name=$2,account_name=$3,account_number_ciphertext=$4,account_number_last4=$5,updated_at=NOW()
-       RETURNING bank_name,account_name,account_number_ciphertext,account_number_last4,payout_method,updated_at`,
-      [supplierId, values.bankName, values.accountName, values.accountNumberCiphertext, values.accountNumberLast4],
+      'SELECT bank_name,bank_code,account_name,account_number_ciphertext,account_number_last4,payout_method,paystack_recipient_code,updated_at FROM supplier_payout_preferences WHERE supplier_id=$1',
+      [supplierId],
     );
     return result.rows[0];
+  }
+  async upsertPayoutPreferences(supplierId: string, values: { bankName: string; bankCode: string; accountName: string; accountNumberCiphertext: string; accountNumberLast4: string; paystackRecipientCode?: string | null }) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `INSERT INTO supplier_payout_preferences (supplier_id,bank_name,bank_code,account_name,account_number_ciphertext,account_number_last4,paystack_recipient_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (supplier_id) DO UPDATE SET
+         bank_name=$2,bank_code=$3,account_name=$4,account_number_ciphertext=$5,account_number_last4=$6,
+         paystack_recipient_code=COALESCE($7, supplier_payout_preferences.paystack_recipient_code),
+         updated_at=NOW()
+       RETURNING bank_name,bank_code,account_name,account_number_ciphertext,account_number_last4,payout_method,paystack_recipient_code,updated_at`,
+      [supplierId, values.bankName, values.bankCode, values.accountName, values.accountNumberCiphertext, values.accountNumberLast4, values.paystackRecipientCode ?? null],
+    );
+    return result.rows[0];
+  }
+  async setPayoutRecipientCode(supplierId: string, recipientCode: string) {
+    if (!this.pool) return;
+    await this.pool.query('UPDATE supplier_payout_preferences SET paystack_recipient_code=$2,updated_at=NOW() WHERE supplier_id=$1', [supplierId, recipientCode]);
+  }
+  async accrueReimbursementForDeliveredOrder(orderId: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,currency,status)
+       SELECT oi.id, oi.order_id, oi.supplier_id, oi.subtotal, 'NGN', 'available'
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       WHERE oi.order_id = $1 AND oi.supplier_order_status = 'delivered'
+         AND o.status IN ('paid','processing','shipped','delivered')
+       ON CONFLICT (order_item_id) DO NOTHING`,
+      [orderId],
+    );
+  }
+  async accrueReimbursementForDeliveredItem(supplierId: string, orderItemId: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,currency,status)
+       SELECT oi.id, oi.order_id, oi.supplier_id, oi.subtotal, 'NGN', 'available'
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       WHERE oi.id = $1 AND oi.supplier_id = $2 AND oi.supplier_order_status = 'delivered'
+         AND o.status IN ('paid','processing','shipped','delivered')
+       ON CONFLICT (order_item_id) DO NOTHING`,
+      [orderItemId, supplierId],
+    );
+  }
+  async supplierReimbursementSummary(supplierId: string) {
+    if (!this.pool) return undefined;
+    const [balances, history] = await Promise.all([
+      this.pool.query(
+        `SELECT
+          COALESCE(SUM(amount) FILTER (WHERE status = 'available'), 0) AS available,
+          COALESCE(SUM(amount) FILTER (WHERE status = 'locked'), 0) AS pending,
+          COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0) AS paid
+         FROM supplier_reimbursement_earnings WHERE supplier_id = $1`,
+        [supplierId],
+      ),
+      this.pool.query(
+        `SELECT id, amount, currency, status, paystack_reference, transfer_code, failure_reason, created_at, updated_at
+         FROM supplier_reimbursements WHERE supplier_id = $1 ORDER BY created_at DESC LIMIT 30`,
+        [supplierId],
+      ),
+    ]);
+    const row = balances.rows[0];
+    return {
+      available: Number(row.available),
+      pending: Number(row.pending),
+      paid: Number(row.paid),
+      currency: 'NGN',
+      history: history.rows.map((r) => ({
+        id: r.id,
+        amount: Number(r.amount),
+        currency: r.currency,
+        status: r.status,
+        reference: r.paystack_reference,
+        transferCode: r.transfer_code || undefined,
+        failureReason: r.failure_reason || undefined,
+        createdAt: new Date(r.created_at).toISOString(),
+        updatedAt: new Date(r.updated_at).toISOString(),
+      })),
+    };
+  }
+  async lockAvailableReimbursement(supplierId: string, reference: string, minAmountMajor: number) {
+    if (!this.pool) return undefined;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const available = await client.query(
+        `SELECT id, amount FROM supplier_reimbursement_earnings
+         WHERE supplier_id = $1 AND status = 'available' ORDER BY created_at FOR UPDATE`,
+        [supplierId],
+      );
+      const lockedIds = available.rows.map((row) => row.id as string);
+      const lockedTotal = available.rows.reduce((sum, row) => sum + Number(row.amount), 0);
+      if (lockedTotal < minAmountMajor) {
+        await client.query('ROLLBACK');
+        return { error: 'insufficient_balance' as const, available: lockedTotal };
+      }
+      if (!lockedIds.length) {
+        await client.query('ROLLBACK');
+        return { error: 'insufficient_balance' as const, available: 0 };
+      }
+      const reimbursement = await client.query(
+        `INSERT INTO supplier_reimbursements (supplier_id, amount, currency, status, paystack_reference)
+         VALUES ($1,$2,'NGN','pending_approval',$3) RETURNING id, amount, paystack_reference`,
+        [supplierId, lockedTotal, reference],
+      );
+      const reimbursementId = reimbursement.rows[0].id;
+      await client.query(
+        `UPDATE supplier_reimbursement_earnings SET status = 'locked', reimbursement_id = $2, updated_at = NOW()
+         WHERE id = ANY($1::uuid[])`,
+        [lockedIds, reimbursementId],
+      );
+      await client.query('COMMIT');
+      return {
+        id: reimbursementId as string,
+        amount: Number(reimbursement.rows[0].amount),
+        reference: reimbursement.rows[0].paystack_reference as string,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async getReimbursementById(id: string) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT sr.*, sp.business_name, u.email AS supplier_email
+       FROM supplier_reimbursements sr
+       JOIN supplier_profiles sp ON sp.id = sr.supplier_id
+       JOIN users u ON u.id = sp.user_id
+       WHERE sr.id = $1`,
+      [id],
+    );
+    return result.rows[0];
+  }
+  async listPendingReimbursementApprovals(limit = 50) {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT sr.id, sr.supplier_id, sr.amount, sr.currency, sr.status, sr.paystack_reference, sr.created_at,
+              sp.business_name, u.full_name AS contact_name, u.email AS supplier_email
+       FROM supplier_reimbursements sr
+       JOIN supplier_profiles sp ON sp.id = sr.supplier_id
+       JOIN users u ON u.id = sp.user_id
+       WHERE sr.status = 'pending_approval'
+       ORDER BY sr.created_at ASC
+       LIMIT $1`,
+      [limit],
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      supplierId: row.supplier_id,
+      businessName: row.business_name,
+      contactName: row.contact_name,
+      supplierEmail: row.supplier_email,
+      amount: Number(row.amount),
+      currency: row.currency,
+      status: row.status,
+      reference: row.paystack_reference,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
+  }
+  async markReimbursementProcessing(reimbursementId: string, transferCode: string, paystackResponse: unknown, status: 'processing' | 'awaiting_otp' = 'processing') {
+    if (!this.pool) return;
+    await this.pool.query(
+      `UPDATE supplier_reimbursements SET status = $4, transfer_code = $2, paystack_response = $3, updated_at = NOW() WHERE id = $1`,
+      [reimbursementId, transferCode, JSON.stringify(paystackResponse), status],
+    );
+  }
+  async markReimbursementSuccess(reference: string, paystackResponse: unknown) {
+    if (!this.pool) return;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const row = await client.query('SELECT id FROM supplier_reimbursements WHERE paystack_reference = $1 FOR UPDATE', [reference]);
+      if (!row.rowCount) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      const reimbursementId = row.rows[0].id;
+      await client.query(
+        `UPDATE supplier_reimbursements SET status = 'success', paystack_response = $2, updated_at = NOW() WHERE id = $1`,
+        [reimbursementId, JSON.stringify(paystackResponse)],
+      );
+      await client.query(
+        `UPDATE supplier_reimbursement_earnings SET status = 'paid', updated_at = NOW() WHERE reimbursement_id = $1`,
+        [reimbursementId],
+      );
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async markReimbursementFailed(reference: string, reason: string, paystackResponse: unknown) {
+    if (!this.pool) return;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const row = await client.query('SELECT id FROM supplier_reimbursements WHERE paystack_reference = $1 FOR UPDATE', [reference]);
+      if (!row.rowCount) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      const reimbursementId = row.rows[0].id;
+      await client.query(
+        `UPDATE supplier_reimbursements SET status = 'failed', failure_reason = $2, paystack_response = $3, updated_at = NOW() WHERE id = $1`,
+        [reimbursementId, reason, JSON.stringify(paystackResponse)],
+      );
+      await client.query(
+        `UPDATE supplier_reimbursement_earnings SET status = 'available', reimbursement_id = NULL, updated_at = NOW()
+         WHERE reimbursement_id = $1 AND status = 'locked'`,
+        [reimbursementId],
+      );
+      await client.query('COMMIT');
+      return true;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+  async adminReimbursementTotals() {
+    if (!this.pool) return undefined;
+    const result = await this.pool.query(
+      `SELECT
+        COALESCE(SUM(amount) FILTER (WHERE status = 'available'), 0) AS available,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'locked'), 0) AS pending,
+        COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0) AS paid_out
+       FROM supplier_reimbursement_earnings`,
+    );
+    const row = result.rows[0];
+    return { available: Number(row.available), pending: Number(row.pending), paidOut: Number(row.paid_out) };
   }
   async requestAccountClosure(userId: string, reason?: string) {
     if (!this.pool) return { requestedAt: new Date().toISOString() };
@@ -971,8 +1201,9 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async adminFinance() {
+  async adminFinance(payoutCapabilities?: { supplierPayouts: boolean; note: string }) {
     if (!this.pool) return undefined;
+    const reimbursementTotals = await this.adminReimbursementTotals();
     const [summaryResult, ledgerResult, exceptionResult] = await Promise.all([
       this.pool.query(`SELECT COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_amount ELSE 0 END), 0) AS gross_sales, COALESCE(SUM(CASE WHEN o.status IN ('paid','processing','shipped','delivered') THEN o.total_amount ELSE 0 END), 0) AS collected_sales, COUNT(*) FILTER (WHERE o.status = 'pending')::int AS pending_payments, COUNT(*) FILTER (WHERE o.status = 'cancelled')::int AS cancelled_orders, COUNT(*) FILTER (WHERE o.status IN ('paid','processing','shipped'))::int AS pending_settlements FROM orders o WHERE o.created_at >= NOW() - INTERVAL '30 days'`),
       this.pool.query(`SELECT o.id, o.order_number, o.status, o.total_amount, o.fulfillment_type, o.payment_reference, o.payment_verified_at, o.created_at, u.full_name AS customer_name, pl.status AS payment_status, pl.amount AS payment_amount, pl.created_at AS payment_created_at FROM orders o JOIN users u ON u.id = o.customer_id LEFT JOIN LATERAL (SELECT status, amount, created_at FROM payment_logs WHERE order_id = o.id ORDER BY created_at DESC LIMIT 1) pl ON TRUE ORDER BY COALESCE(pl.created_at, o.created_at) DESC LIMIT 100`),
@@ -981,10 +1212,25 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const summary = summaryResult.rows[0];
     return {
       currency: 'NGN', period: '30d',
-      summary: { grossSales: Number(summary.gross_sales), collectedSales: Number(summary.collected_sales), pendingPayments: Number(summary.pending_payments), cancelledOrders: Number(summary.cancelled_orders), pendingSettlements: Number(summary.pending_settlements), supplierPayouts: null, logisticsPayouts: null, refunds: null },
+      summary: {
+        grossSales: Number(summary.gross_sales),
+        collectedSales: Number(summary.collected_sales),
+        pendingPayments: Number(summary.pending_payments),
+        cancelledOrders: Number(summary.cancelled_orders),
+        pendingSettlements: Number(summary.pending_settlements),
+        supplierPayouts: reimbursementTotals?.paidOut ?? 0,
+        logisticsPayouts: null,
+        refunds: null,
+      },
+      reimbursement: reimbursementTotals ?? { available: 0, pending: 0, paidOut: 0 },
       ledger: ledgerResult.rows.map((row) => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, amount: Number(row.payment_amount ?? row.total_amount), orderTotal: Number(row.total_amount), status: row.payment_status || row.status, orderStatus: row.status, paymentReference: row.payment_reference || undefined, fulfillmentType: row.fulfillment_type || 'delivery', createdAt: new Date(row.payment_created_at || row.created_at).toISOString(), verifiedAt: row.payment_verified_at ? new Date(row.payment_verified_at).toISOString() : undefined })),
       exceptions: exceptionResult.rows.map((row) => ({ id: row.id, orderId: row.order_id, orderNumber: row.order_number, customerName: row.customer_name, amount: row.amount == null ? undefined : Number(row.amount), status: row.status, paymentReference: row.payment_reference || undefined, detail: typeof row.paystack_response?.gateway_response === 'string' ? row.paystack_response.gateway_response : row.status === 'pending' ? 'Payment has been pending for more than 30 minutes.' : 'Payment requires review.', createdAt: new Date(row.created_at).toISOString() })),
-      capabilities: { supplierPayouts: false, logisticsPayouts: false, refunds: false, note: 'Payout and refund execution are not wired yet; this screen is read-only until those ledgers and approvals exist.' },
+      capabilities: {
+        supplierPayouts: payoutCapabilities?.supplierPayouts ?? false,
+        logisticsPayouts: false,
+        refunds: false,
+        note: payoutCapabilities?.note ?? 'Supplier reimbursements use Paystack Transfers when configured.',
+      },
     };
   }
   async adminSuppliers() {

@@ -65,6 +65,7 @@ export class UpdateNotificationPreferencesDto {
 
 export class UpdatePayoutPreferencesDto {
   @IsString() @MinLength(2) bankName!: string;
+  @IsString() @MinLength(2) @MaxLength(16) bankCode!: string;
   @IsString() @MinLength(2) accountName!: string;
   @IsString() @Length(10, 10) accountNumber!: string;
 }
