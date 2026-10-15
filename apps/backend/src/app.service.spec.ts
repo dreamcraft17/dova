@@ -954,6 +954,32 @@ describe('AppService', () => {
       expect(noMatch.some(o => o.id === order.id)).toBe(false);
     });
 
+    it('counts gross sales only from delivered orders', async () => {
+      const { service } = makeAppService({ database: { adminFinance: jest.fn().mockResolvedValue(undefined) } });
+      const customerId = 'finance-customer';
+
+      await addToCart(service, customerId, service.products[0].id, 1);
+      const pendingOrder = await service.createOrder(customerId, {
+        deliveryName: 'Pending Buyer',
+        deliveryAddress: 'Lagos',
+        deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
+        deliveryZone: 'yenagoa',
+      });
+
+      await addToCart(service, customerId, service.products[0].id, 1);
+      const deliveredOrder = await service.createOrder(customerId, {
+        deliveryName: 'Delivered Buyer',
+        deliveryAddress: 'Lagos',
+        deliveryPhone: '0812345678', deliveryState: 'Bayelsa',
+        deliveryZone: 'yenagoa',
+      });
+      deliveredOrder.status = 'delivered';
+
+      const result = await service.adminFinance();
+      expect(result.summary.grossSales).toBe(deliveredOrder.totalAmount);
+      expect(result.summary.grossSales).not.toBe(pendingOrder.totalAmount + deliveredOrder.totalAmount);
+    });
+
     it('rejects a pending supplier with reason and deactivates the user', async () => {
       const notifications = {
         supplierStatus: jest.fn().mockResolvedValue({ sent: false }),
