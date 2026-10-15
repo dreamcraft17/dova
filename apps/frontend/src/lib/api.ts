@@ -1,6 +1,21 @@
 import { authHeaders, clearTokens, getRefreshToken, isRememberMe, setTokens } from './auth-session';
 
-const API = process.env.NEXT_PUBLIC_API_URL || '/api/gateway';
+/** Same-origin gateway avoids cross-origin fetch failures (mobile/CORS/cookies) on the storefront domain. */
+export function resolveApiBase(): string {
+  const configured = (process.env.NEXT_PUBLIC_API_URL || '/api/gateway').replace(/\/$/, '');
+  if (typeof window === 'undefined') return configured;
+  if (configured.startsWith('http')) {
+    try {
+      const target = new URL(configured);
+      if (target.origin !== window.location.origin) {
+        return '/api/gateway';
+      }
+    } catch {
+      return '/api/gateway';
+    }
+  }
+  return configured.startsWith('/') ? configured : `/${configured}`;
+}
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) {
@@ -66,7 +81,7 @@ function persistAuthTokens(path: string, data: unknown) {
 
 async function refreshSession(): Promise<boolean> {
   const refreshToken = getRefreshToken();
-  const response = await fetch(`${API}/auth/refresh`, {
+  const response = await fetch(`${resolveApiBase()}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -88,16 +103,26 @@ export async function api<T>(path: string, options: RequestInit = {}, retried = 
     const refreshToken = getRefreshToken();
     if (refreshToken) body = JSON.stringify({ refreshToken });
   }
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    body,
-    credentials: 'include',
-    headers: {
-      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
-      ...authHeaders(),
-      ...(options.headers || {}),
-    },
-  });
+  const base = resolveApiBase();
+  let response: Response;
+  try {
+    response = await fetch(`${base}${path}`, {
+      ...options,
+      body,
+      credentials: 'include',
+      headers: {
+        ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+        ...authHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    throw new ApiError(
+      'Cannot reach the server. Check your connection, or ask support to verify the storefront API gateway (Publish Product / save).',
+      0,
+      'NETWORK_ERROR',
+    );
+  }
   const data = await response.json().catch(() => ({}));
 
   if (response.status === 401 && !retried && !AUTH_NO_RETRY.has(path)) {

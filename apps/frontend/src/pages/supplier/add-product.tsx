@@ -25,7 +25,8 @@ function AddProductContent() {
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [imageUrlInput, setImageUrlInput] = useState('');
-  const [message, setMessage] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
 
@@ -58,7 +59,7 @@ function AddProductContent() {
           setForm((current) => ({ ...current, categoryId: current.categoryId || cats[0].id }));
         }
       } catch (err) {
-        setMessage((err as Error).message);
+        setLoadError((err as Error).message);
       } finally {
         setLoading(false);
       }
@@ -101,16 +102,17 @@ function AddProductContent() {
       const parsed = new URL(url);
       if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
     } catch {
-      setMessage('Image URL must be a valid http(s) link.');
+      setSubmitError('Image URL must be a valid http(s) link.');
       return;
     }
+    setSubmitError('');
     setExistingImageUrls((current) => (current.includes(url) ? current : [...current, url]));
     setImageUrlInput('');
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    setMessage('');
+    setSubmitError('');
     setSubmitBusy(true);
     try {
       const path = editingId ? `/suppliers/products/${editingId}` : '/suppliers/products';
@@ -126,7 +128,7 @@ function AddProductContent() {
       await api(path, { method: editingId ? 'PUT' : 'POST', body });
       await router.push('/supplier/products');
     } catch (err) {
-      setMessage((err as Error).message);
+      setSubmitError((err as Error).message);
     } finally {
       setSubmitBusy(false);
     }
@@ -153,6 +155,12 @@ function AddProductContent() {
         Prices start at ₦1,000. Products with low stock are flagged automatically, and removed products stay in your
         catalog under “Hidden” until you reactivate them.
       </div>
+
+      {loadError ? (
+        <p className="rounded-[13px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+          Could not load categories: {loadError}
+        </p>
+      ) : null}
 
       <SupplierCard className="p-6">
         {loading ? (
@@ -322,10 +330,13 @@ function AddProductContent() {
                     Add
                   </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Paste a public image link — no upload happens until you tap Publish Product. Prefer &quot;Add images&quot; from your phone gallery if the link fails to preview.
+                </p>
               </div>
             </div>
 
-            {message ? <p className="mt-4 text-xs text-destructive">{message}</p> : null}
+            {submitError ? <p className="mt-4 text-xs text-destructive">{submitError}</p> : null}
 
             <div className="mt-5 flex justify-end gap-2">
               <Button asChild variant="outline" className={buttonStyles.light}>
