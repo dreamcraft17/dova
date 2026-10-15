@@ -25,4 +25,23 @@ describe('UploadStorageService', () => {
     delete process.env.UPLOAD_DIR;
     delete process.env.API_PUBLIC_URL;
   });
+
+  it('imports external image URLs and stores them locally', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dova-upload-'));
+    process.env.UPLOAD_DIR = dir;
+    process.env.API_PUBLIC_URL = 'https://api.example.test';
+
+    const storage = new UploadStorageService();
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(PNG, { status: 200, headers: { 'content-type': 'image/png' } }),
+    );
+
+    const url = await storage.importProductImageFromUrl('https://cdn.example.test/photo.png');
+    expect(url).toMatch(/^https:\/\/api\.example\.test\/uploads\/products\//);
+    expect(fetchMock).toHaveBeenCalled();
+
+    fetchMock.mockRestore();
+    delete process.env.UPLOAD_DIR;
+    delete process.env.API_PUBLIC_URL;
+  });
 });
