@@ -38,6 +38,33 @@ export type PaystackChargeExpected = {
   currency: string;
 };
 
+/** https://paystack.com/docs/api/transfer-recipient/ */
+export type PaystackTransferRecipient = {
+  recipient_code: string;
+  type: string;
+  name: string;
+  details?: { account_number?: string; bank_code?: string; bank_name?: string };
+};
+
+/** https://paystack.com/docs/api/transfer/ */
+export type PaystackTransferData = {
+  reference: string;
+  transfer_code: string;
+  amount: number;
+  currency: string;
+  status: string;
+  recipient?: string;
+  reason?: string;
+};
+
+export type PaystackBank = {
+  name: string;
+  slug: string;
+  code: string;
+  currency: string;
+  type: string;
+};
+
 type PaystackApiResponse<T> = {
   status: boolean;
   message: string;
@@ -253,5 +280,122 @@ export class PaystackService {
     const result = raw as PaystackApiResponse<PaystackVerifyData>;
     if (!response.ok || !result.status || !result.data) return { ok: false, raw };
     return { ok: true, data: result.data, raw };
+  }
+
+  /** https://paystack.com/docs/api/miscellaneous/#bank */
+  async listBanks(country = 'nigeria'): Promise<PaystackBank[]> {
+    const secret = this.secretKey();
+    if (!secret) return [];
+    const response = await fetch(`${PAYSTACK_API_BASE}/bank?country=${encodeURIComponent(country)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+    });
+    const result = (await response.json()) as PaystackApiResponse<PaystackBank[]>;
+    if (!response.ok || !result.status || !Array.isArray(result.data)) return [];
+    return result.data;
+  }
+
+  /** https://paystack.com/docs/api/transfer-recipient/#create */
+  async createTransferRecipient(input: {
+    name: string;
+    accountNumber: string;
+    bankCode: string;
+    currency?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<PaystackTransferRecipient> {
+    const secret = this.secretKey();
+    if (!secret) throw new BadRequestException('Paystack is not configured');
+
+    const response = await fetch(`${PAYSTACK_API_BASE}/transferrecipient`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'nuban',
+        name: input.name,
+        account_number: input.accountNumber,
+        bank_code: input.bankCode,
+        currency: input.currency ?? this.currency(),
+        metadata: input.metadata,
+      }),
+      signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+    });
+    const result = (await response.json()) as PaystackApiResponse<PaystackTransferRecipient>;
+    if (!response.ok || !result.status || !result.data?.recipient_code) {
+      throw new BadRequestException(result.message || 'Could not register payout account with Paystack');
+    }
+    return result.data;
+  }
+
+  /** https://paystack.com/docs/api/transfer/#initiate */
+  async initiateTransfer(input: {
+    amountSubunit: number;
+    recipientCode: string;
+    reference: string;
+    reason?: string;
+  }): Promise<PaystackTransferData> {
+    const secret = this.secretKey();
+    if (!secret) throw new BadRequestException('Paystack is not configured');
+    if (!/^[a-z0-9_-]{16,50}$/i.test(input.reference)) {
+      throw new BadRequestException('Invalid transfer reference format');
+    }
+
+    const response = await fetch(`${PAYSTACK_API_BASE}/transfer`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source: 'balance',
+        amount: input.amountSubunit,
+        recipient: input.recipientCode,
+        reference: input.reference,
+        reason: input.reason ?? 'DOVA supplier reimbursement',
+        currency: this.currency(),
+      }),
+      signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+    });
+    const result = (await response.json()) as PaystackApiResponse<PaystackTransferData>;
+    if (!response.ok || !result.status || !result.data?.reference) {
+      throw new BadRequestException(result.message || 'Transfer initiation failed');
+    }
+    return result.data;
+  }
+
+  /** https://paystack.com/docs/api/transfer/#verify */
+  async verifyTransfer(reference: string): Promise<{ ok: boolean; data?: PaystackTransferData; raw: unknown }> {
+    const secret = this.secretKey();
+    if (!secret) return { ok: false, raw: null };
+    const response = await fetch(`${PAYSTACK_API_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(PAYSTACK_TIMEOUT_MS),
+    });
+    const raw = await response.json();
+    const result = raw as PaystackApiResponse<PaystackTransferData>;
+    if (!response.ok || !result.status || !result.data) return { ok: false, raw };
+    return { ok: true, data: result.data, raw };
+  }
+
+  transferFromWebhookData(data: unknown): PaystackTransferData | undefined {
+    if (!data || typeof data !== 'object') return undefined;
+    const row = data as Record<string, unknown>;
+    const reference = typeof row.reference === 'string' ? row.reference : undefined;
+    const transfer_code = typeof row.transfer_code === 'string' ? row.transfer_code : undefined;
+    const amount = Number(row.amount);
+    const currency = typeof row.currency === 'string' ? row.currency : undefined;
+    const status = typeof row.status === 'string' ? row.status : undefined;
+    if (!reference || !transfer_code || !Number.isFinite(amount) || !currency || !status) return undefined;
+    return { reference, transfer_code, amount, currency, status };
+  }
+
+  isSuccessfulTransfer(data: PaystackTransferData | undefined): boolean {
+    return (data?.status ?? '').toLowerCase() === 'success';
+  }
+
+  isFailedTransferStatus(status: string | undefined): boolean {
+    return ['failed', 'reversed', 'abandoned'].includes((status ?? '').toLowerCase());
+  }
+
+  buildReimbursementReference(supplierId: string): string {
+    const compact = supplierId.replace(/-/g, '').slice(0, 12);
+    const stamp = Date.now().toString(36);
+    return `dova_reimb_${compact}_${stamp}`.toLowerCase().slice(0, 50);
   }
 }

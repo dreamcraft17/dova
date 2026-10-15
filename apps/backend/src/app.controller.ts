@@ -363,6 +363,20 @@ export class AppController {
     return this.service.supplierStockHistory(user.id, id);
   }
 
+  @Public()
+  @Get('payments/banks') listPayoutBanks() { return this.service.listPayoutBanks(); }
+
+  @Roles('supplier')
+  @Get('suppliers/reimbursements') supplierReimbursements(@CurrentUser() user: StoredUser) {
+    return this.service.supplierReimbursementSummary(user.id);
+  }
+
+  @Roles('supplier')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('suppliers/reimbursements/withdraw') supplierReimbursementWithdraw(@CurrentUser() user: StoredUser) {
+    return this.service.requestSupplierReimbursement(user.id);
+  }
+
   @Roles('supplier')
   @Get('suppliers/orders') supplierOrders(@CurrentUser() user: StoredUser) { return this.service.supplierOrders(user.id); }
 
@@ -496,6 +510,22 @@ export class AppController {
 
   @Roles('admin')
   @Get('admin/finance') adminFinance() { return this.service.adminFinance(); }
+
+  @Roles('admin')
+  @Get('admin/reimbursements/pending') adminPendingReimbursements() {
+    return this.service.adminPendingReimbursements();
+  }
+
+  @Roles('admin')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('admin/reimbursements/:id/send') adminSendReimbursement(@Param('id') id: string) {
+    return this.service.adminSendReimbursement(id);
+  }
+
+  @Roles('admin')
+  @Post('admin/reimbursements/:id/reject') adminRejectReimbursement(@Param('id') id: string, @Body() body: { reason?: string }) {
+    return this.service.adminRejectReimbursement(id, body?.reason);
+  }
 
   @Roles('admin')
   @Get('admin/analytics') adminAnalytics(@Query('days') days = '30') {

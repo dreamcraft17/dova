@@ -87,11 +87,24 @@ export function makeAppService(overrides?: {
   const database = makeDatabaseDoubles(overrides?.database);
   const redis = { enabled: false, healthCheck: jest.fn().mockResolvedValue({ configured: false, ok: true, reason: 'cache disabled' }), set: jest.fn(), get: jest.fn(), del: jest.fn() };
   const notifications = { ...makeNotificationDoubles(), ...overrides?.notifications };
+  const reimbursement = {
+    accrueForDeliveredItem: jest.fn().mockResolvedValue(undefined),
+    supplierSummary: jest.fn().mockResolvedValue({ available: 0, pending: 0, paid: 0, currency: 'NGN', minWithdrawal: 1000, payoutsEnabled: false, history: [] }),
+    syncPaystackRecipient: jest.fn().mockResolvedValue(null),
+    requestWithdrawal: jest.fn(),
+    listBanks: jest.fn().mockResolvedValue([]),
+    handleTransferWebhook: jest.fn().mockResolvedValue({ handled: false }),
+    listPendingApprovals: jest.fn().mockResolvedValue([]),
+    adminSendReimbursement: jest.fn(),
+    adminRejectReimbursement: jest.fn(),
+    autoPayoutEnabled: jest.fn().mockReturnValue(false),
+  };
   const service = new AppService(
     new JwtService({ secret: 'unit-test-secret' }),
     database as never,
     redis as never,
     new PaystackService(),
+    reimbursement as never,
     notifications as never,
   );
   return { service, database, redis, notifications };

@@ -15,7 +15,16 @@ type NotificationPreferences = {
   marketingUpdates: boolean;
 };
 type Session = { id: string; createdAt: string; expiresAt: string; current: boolean };
-type PayoutPreferences = { configured: boolean; bankName: string; accountName: string; accountNumber: string; payoutMethod: string };
+type PayoutBank = { code: string; name: string; slug: string };
+type PayoutPreferences = {
+  configured: boolean;
+  bankName: string;
+  bankCode: string;
+  accountName: string;
+  accountNumber: string;
+  payoutMethod: string;
+  paystackRecipientReady?: boolean;
+};
 
 function SettingRow({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
@@ -51,7 +60,8 @@ function SettingsContent() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionMessage, setSessionMessage] = useState('');
   const [payout, setPayout] = useState<PayoutPreferences | null>(null);
-  const [payoutForm, setPayoutForm] = useState({ bankName: '', accountName: '', accountNumber: '' });
+  const [banks, setBanks] = useState<PayoutBank[]>([]);
+  const [payoutForm, setPayoutForm] = useState({ bankCode: '', bankName: '', accountName: '', accountNumber: '' });
   const [payoutMessage, setPayoutMessage] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
   const [accountMessage, setAccountMessage] = useState('');
@@ -59,7 +69,11 @@ function SettingsContent() {
   useEffect(() => {
     void api<NotificationPreferences>('/settings/notifications').then(setNotifications).catch((error) => setNotificationError(error instanceof Error ? error.message : 'Unable to load notification settings'));
     void api<Session[]>('/settings/sessions').then(setSessions).catch(() => undefined);
-    void api<PayoutPreferences>('/settings/payout').then((data) => { setPayout(data); setPayoutForm({ bankName: data.bankName, accountName: data.accountName, accountNumber: '' }); }).catch(() => undefined);
+    void api<PayoutBank[]>('/payments/banks').then(setBanks).catch(() => undefined);
+    void api<PayoutPreferences>('/settings/payout').then((data) => {
+      setPayout(data);
+      setPayoutForm({ bankCode: data.bankCode ?? '', bankName: data.bankName, accountName: data.accountName, accountNumber: '' });
+    }).catch(() => undefined);
   }, []);
 
   async function revokeSession(id: string) {
@@ -78,7 +92,13 @@ function SettingsContent() {
     setSavingPayout(true); setPayoutMessage('');
     try {
       const data = await api<PayoutPreferences>('/settings/payout', { method: 'PATCH', body: JSON.stringify(payoutForm) });
-      setPayout(data); setPayoutForm({ bankName: data.bankName, accountName: data.accountName, accountNumber: '' }); setPayoutMessage('Payout preferences saved securely.');
+      setPayout(data);
+      setPayoutForm({ bankCode: data.bankCode ?? '', bankName: data.bankName, accountName: data.accountName, accountNumber: '' });
+      setPayoutMessage(
+        data.paystackRecipientReady
+          ? 'Payout bank saved and registered with Paystack for reimbursements.'
+          : 'Payout preferences saved securely.',
+      );
     } catch (error) { setPayoutMessage(error instanceof Error ? error.message : 'Unable to save payout preferences.'); }
     finally { setSavingPayout(false); }
   }
@@ -156,7 +176,31 @@ function SettingsContent() {
           </p>
           {payout?.configured ? <p className="mb-3 text-[11px] text-[var(--emerald)]">{payout.bankName} · {payout.accountName} · {payout.accountNumber}</p> : null}
           <form className="space-y-2.5" onSubmit={savePayout}>
-            <input required value={payoutForm.bankName} onChange={(event) => setPayoutForm({ ...payoutForm, bankName: event.target.value })} placeholder="Bank name" className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
+            <select
+              required
+              value={payoutForm.bankCode}
+              onChange={(event) => {
+                const bank = banks.find((entry) => entry.code === event.target.value);
+                setPayoutForm({ ...payoutForm, bankCode: event.target.value, bankName: bank?.name ?? '' });
+              }}
+              className="h-10 w-full rounded-[10px] border border-border px-3 text-xs"
+            >
+              <option value="">{banks.length ? 'Select bank' : 'Loading banks…'}</option>
+              {banks.map((bank) => (
+                <option key={bank.code} value={bank.code}>
+                  {bank.name}
+                </option>
+              ))}
+            </select>
+            {!banks.length ? (
+              <input
+                required
+                value={payoutForm.bankName}
+                onChange={(event) => setPayoutForm({ ...payoutForm, bankName: event.target.value })}
+                placeholder="Bank name (if bank list unavailable)"
+                className="h-10 w-full rounded-[10px] border border-border px-3 text-xs"
+              />
+            ) : null}
             <input required value={payoutForm.accountName} onChange={(event) => setPayoutForm({ ...payoutForm, accountName: event.target.value })} placeholder="Account name" className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
             <input required inputMode="numeric" pattern="[0-9]{10}" maxLength={10} value={payoutForm.accountNumber} onChange={(event) => setPayoutForm({ ...payoutForm, accountNumber: event.target.value.replace(/\D/g, '') })} placeholder={payout?.configured ? 'Enter 10-digit number to replace' : '10-digit account number'} className="h-10 w-full rounded-[10px] border border-border px-3 text-xs" />
             <Button type="submit" variant="outline" className={buttonStyles.light} disabled={savingPayout}>{savingPayout ? 'Saving…' : 'Save payout details'}</Button>
