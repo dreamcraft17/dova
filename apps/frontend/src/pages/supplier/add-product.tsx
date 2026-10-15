@@ -8,13 +8,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SupplierGate } from '../../components/supplier/SupplierGate';
 import { PageHead, SupplierCard, buttonStyles, fieldStyles } from '../../components/supplier/ui';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import type { Category, Product } from 'dova-shared';
 import { MAX_PRODUCT_IMAGES } from 'dova-shared';
 
 const empty = { name: '', description: '', price: 1000, quantity: 1, categoryId: '', unitLabel: '' };
 
 type PendingImage = { file: File; previewUrl: string };
+
+function normalizeImageUrl(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(withScheme);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 function AddProductContent() {
   const router = useRouter();
@@ -26,6 +39,7 @@ function AddProductContent() {
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [imageUrlError, setImageUrlError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -96,16 +110,13 @@ function AddProductContent() {
   }
 
   function addImageUrl() {
-    const url = imageUrlInput.trim();
-    if (!url || atImageLimit) return;
-    try {
-      const parsed = new URL(url);
-      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
-    } catch {
-      setSubmitError('Image URL must be a valid http(s) link.');
+    if (atImageLimit) return;
+    const url = normalizeImageUrl(imageUrlInput);
+    if (!url) {
+      setImageUrlError('Enter a valid image link (https://…).');
       return;
     }
-    setSubmitError('');
+    setImageUrlError('');
     setExistingImageUrls((current) => (current.includes(url) ? current : [...current, url]));
     setImageUrlInput('');
   }
@@ -128,7 +139,15 @@ function AddProductContent() {
       await api(path, { method: editingId ? 'PUT' : 'POST', body });
       await router.push('/supplier/products');
     } catch (err) {
-      setSubmitError((err as Error).message);
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error && err.message === 'Failed to fetch'
+            ? 'Cannot reach the server. Check your connection and try again, or upload photos from your gallery.'
+            : err instanceof Error
+              ? err.message
+              : 'Could not save the product.';
+      setSubmitError(message);
     } finally {
       setSubmitBusy(false);
     }
@@ -259,7 +278,7 @@ function AddProductContent() {
                     {existingImageUrls.map((url, index) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <div key={url} className="group relative aspect-square overflow-hidden rounded-[10px] border border-[rgba(8,127,91,0.2)]">
-                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        <img src={url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                         {index === 0 ? (
                           <span className="absolute left-1 top-1 rounded bg-[var(--forest)] px-1.5 py-0.5 text-[8px] font-bold text-white">Cover</span>
                         ) : null}
@@ -321,7 +340,16 @@ function AddProductContent() {
                   <Input
                     id="product-image-url"
                     value={imageUrlInput}
-                    onChange={(e) => setImageUrlInput(e.target.value)}
+                    onChange={(e) => {
+                      setImageUrlInput(e.target.value);
+                      if (imageUrlError) setImageUrlError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addImageUrl();
+                      }
+                    }}
                     placeholder="https://..."
                     disabled={atImageLimit}
                     className={fieldStyles.control}
@@ -330,8 +358,9 @@ function AddProductContent() {
                     Add
                   </Button>
                 </div>
+                {imageUrlError ? <p className="text-xs text-destructive">{imageUrlError}</p> : null}
                 <p className="text-[10px] text-muted-foreground">
-                  Paste a public image link — no upload happens until you tap Publish Product. Prefer &quot;Add images&quot; from your phone gallery if the link fails to preview.
+                  Tap <strong>Add</strong> (not Publish) to attach a link. The image is copied to DOVA when you publish. Direct .jpg / .png links work best; Google Drive share links often fail — use &quot;Add images&quot; from your gallery instead.
                 </p>
               </div>
             </div>

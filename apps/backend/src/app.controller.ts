@@ -51,11 +51,12 @@ export class AppController {
 
   private async applyProductImages(b: ProductDto, files?: ProductImageFields) {
     const kept = Array.isArray(b.imageUrls) ? b.imageUrls : (b.imageUrl ? [b.imageUrl] : []);
-    kept.forEach((url) => this.uploads.validateExternalImageUrl(url));
+    const mirrored = [];
+    for (const url of kept) mirrored.push(await this.uploads.resolveProductImageUrl(url));
     const toUpload = [...(files?.image ?? []), ...(files?.images ?? [])];
     const uploaded = [];
     for (const file of toUpload) uploaded.push(await this.uploads.saveProductImage(file));
-    const all = [...kept, ...uploaded].slice(0, MAX_PRODUCT_IMAGES);
+    const all = [...mirrored, ...uploaded].slice(0, MAX_PRODUCT_IMAGES);
     b.imageUrls = all;
     b.imageUrl = all[0];
     return b;

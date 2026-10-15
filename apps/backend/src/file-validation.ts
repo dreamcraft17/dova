@@ -59,6 +59,10 @@ export function extensionForMime(mime: string): string {
   }
 }
 
+export function sniffImageMime(buffer: Buffer): string | undefined {
+  return detectImageMime(buffer);
+}
+
 export function assertExternalImageUrl(url: string): void {
   let parsed: URL;
   try {
