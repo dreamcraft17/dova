@@ -27,9 +27,9 @@ type ReimbursementSummary = {
   history: ReimbursementHistory[];
 };
 
-function statusTone(status: string): 'green' | 'amber' | 'red' | 'gray' {
+function statusTone(status: string): 'green' | 'yellow' | 'red' | 'gray' {
   if (status === 'success') return 'green';
-  if (status === 'processing' || status === 'pending_transfer' || status === 'pending_approval' || status === 'awaiting_otp') return 'amber';
+  if (status === 'processing' || status === 'pending_transfer' || status === 'pending_approval' || status === 'awaiting_otp') return 'yellow';
   if (status === 'failed') return 'red';
   return 'gray';
 }
