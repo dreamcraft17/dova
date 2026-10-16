@@ -1008,6 +1008,73 @@ describe('AppService', () => {
     });
   });
 
+  describe('promotions', () => {
+    it('has no active promotion by default', async () => {
+      const { service } = makeService();
+      expect(await service.getActivePromotion()).toBeNull();
+      expect(await service.listPromotions()).toEqual([]);
+    });
+
+    it('creates a promotion and surfaces it as the active one', async () => {
+      const { service } = makeService();
+      const promo = await service.createPromotion({
+        title: '12.12 Harvest Sale',
+        imageUrl: 'https://cdn.example.com/promo.jpg',
+        linkUrl: 'https://dovachain.com/marketplace',
+      });
+      expect(promo.isActive).toBe(true);
+      expect(await service.getActivePromotion()).toEqual(promo);
+      expect(await service.listPromotions()).toEqual([promo]);
+    });
+
+    it('rejects a promotion missing a title or image', async () => {
+      const { service } = makeService();
+      await expect(service.createPromotion({ title: '', imageUrl: 'https://cdn.example.com/a.jpg' })).rejects.toThrow(BadRequestException);
+      await expect(service.createPromotion({ title: 'No image' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('updates a promotion in place', async () => {
+      const { service } = makeService();
+      const promo = await service.createPromotion({ title: 'Original', imageUrl: 'https://cdn.example.com/a.jpg' });
+      const updated = await service.updatePromotion(promo.id, { title: 'Updated title', imageUrl: 'https://cdn.example.com/b.jpg' });
+      expect(updated.title).toBe('Updated title');
+      expect(updated.imageUrl).toBe('https://cdn.example.com/b.jpg');
+      expect(updated.id).toBe(promo.id);
+    });
+
+    it('throws when updating a promotion that does not exist', async () => {
+      const { service } = makeService();
+      await expect(service.updatePromotion('missing-id', { title: 'x', imageUrl: 'https://cdn.example.com/a.jpg' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('deactivating the only promotion clears the active promotion', async () => {
+      const { service } = makeService();
+      const promo = await service.createPromotion({ title: 'Flash Sale', imageUrl: 'https://cdn.example.com/a.jpg' });
+      await service.setPromotionActive(promo.id, false);
+      expect(await service.getActivePromotion()).toBeNull();
+      const [stored] = await service.listPromotions();
+      expect(stored.id).toBe(promo.id);
+      expect(stored.isActive).toBe(false);
+    });
+
+    it('deletes a promotion', async () => {
+      const { service } = makeService();
+      const promo = await service.createPromotion({ title: 'To delete', imageUrl: 'https://cdn.example.com/a.jpg' });
+      await service.deletePromotion(promo.id);
+      expect(await service.listPromotions()).toEqual([]);
+    });
+
+    it('throws when deleting a promotion that does not exist', async () => {
+      const { service } = makeService();
+      await expect(service.deletePromotion('missing-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws when toggling a promotion that does not exist', async () => {
+      const { service } = makeService();
+      await expect(service.setPromotionActive('missing-id', true)).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('Paystack webhook security', () => {
     function paystackSignature(payload: string, secret: string) {
       return createHmac('sha512', secret).update(payload).digest('hex');
