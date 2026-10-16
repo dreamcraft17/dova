@@ -509,6 +509,11 @@ export class AppController {
   }
 
   @Roles('admin')
+  @Put('admin/orders/:id/status') updateAdminOrderStatus(@Param('id') id: string, @Body() body: OrderStatusDto) {
+    return this.service.updateAdminOrderStatus(id, body.status);
+  }
+
+  @Roles('admin')
   @Get('admin/finance') adminFinance() { return this.service.adminFinance(); }
 
   @Roles('admin')
