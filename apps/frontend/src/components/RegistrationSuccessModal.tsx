@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { isRegistrationSuccessBackdropClick, isRegistrationSuccessContinueKey } from '../lib/registration-success';
+
+const WHATSAPP_COMMUNITY_URL = 'https://chat.whatsapp.com/Dna6yvE6ETjDqOUGWeu3Bv';
 
 type RegistrationSuccessModalProps = {
   open: boolean;
@@ -58,11 +60,20 @@ export function RegistrationSuccessModal({ open, message, onContinue }: Registra
         <p id="registration-success-message" className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
           {message}
         </p>
+        <a
+          href={WHATSAPP_COMMUNITY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-[#25D366] bg-[#eafaf1] text-[13px] font-black text-[#1f8d4e] hover:bg-[#dcf5e6]"
+        >
+          <MessageCircle className="size-4" />
+          Join our community on WhatsApp
+        </a>
         <Button
           ref={continueRef}
           type="button"
           onClick={onContinue}
-          className="mt-6 h-11 w-full rounded-[12px] bg-[var(--deep)] text-[13px] font-black text-white hover:bg-[var(--forest)]"
+          className="mt-3 h-11 w-full rounded-[12px] bg-[var(--deep)] text-[13px] font-black text-white hover:bg-[var(--forest)]"
         >
           Continue to products
         </Button>
