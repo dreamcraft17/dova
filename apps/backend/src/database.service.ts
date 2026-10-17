@@ -17,6 +17,7 @@ import {
   Product,
   Promotion,
   Role,
+  SupplierStatus,
   User,
   DeliveryZone,
   deliveryFeeFor,
@@ -571,6 +572,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       imageUrls: Array.isArray(row.image_urls) && row.image_urls.length ? row.image_urls.filter(Boolean) : undefined,
       unitLabel: row.unit_label || undefined,
       isActive: row.is_active,
+      approvalStatus: row.approval_status as SupplierStatus,
+      rejectionReason: row.rejection_reason || undefined,
     };
   }
 
@@ -589,7 +592,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const found = await this.pool.query('SELECT id FROM products WHERE LOWER(name) = LOWER($1) LIMIT 1', [item.name]);
       if (found.rows.length) continue;
       await this.pool.query(
-        'INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        "INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url,approval_status) VALUES ($1,$2,$3,$4,$5,$6,$7,'approved')",
         [
           supplier.rows[0].id,
           item.name,
@@ -605,8 +608,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if (inserted.length) console.info('[Catalog] inserted missing seed products:', inserted.join(', '));
     return { inserted };
   }
-  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { if (!this.pool) return undefined; const values: unknown[] = []; const filters = ['p.is_active = TRUE', 'p.stock_quantity > 0']; if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(p.name) LIKE $${values.length}`); } if (categoryId) { values.push(categoryId); filters.push(`p.category_id = $${values.length}`); } const where = filters.join(' AND '); const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM products p WHERE ${where}`, values); values.push(limit, (page - 1) * limit); const result = await this.pool.query(`SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ${where} ORDER BY p.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values); return { data: result.rows.map(row => this.mapProduct(row)), pagination: { page, limit, total: totalResult.rows[0].total } }; }
-  async findProduct(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.is_active=TRUE AND p.stock_quantity>0', [id]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
+  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { if (!this.pool) return undefined; const values: unknown[] = []; const filters = ['p.is_active = TRUE', 'p.stock_quantity > 0', "p.approval_status = 'approved'"]; if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`LOWER(p.name) LIKE $${values.length}`); } if (categoryId) { values.push(categoryId); filters.push(`p.category_id = $${values.length}`); } const where = filters.join(' AND '); const totalResult = await this.pool.query(`SELECT COUNT(*)::int AS total FROM products p WHERE ${where}`, values); values.push(limit, (page - 1) * limit); const result = await this.pool.query(`SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE ${where} ORDER BY p.created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`, values); return { data: result.rows.map(row => this.mapProduct(row)), pagination: { page, limit, total: totalResult.rows[0].total } }; }
+  async findProduct(id: string) { if (!this.pool) return undefined; const result = await this.pool.query("SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.is_active=TRUE AND p.stock_quantity>0 AND p.approval_status='approved'", [id]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async findSupplierProduct(supplierId: string, productId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*, s.business_name, c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id WHERE p.id=$1 AND p.supplier_id=$2', [productId, supplierId]); return result.rows[0] ? this.mapProduct(result.rows[0]) : undefined; }
   async categories() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT id,name FROM categories ORDER BY name'); return result.rows as Category[]; }
 
@@ -856,6 +859,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           categoryName: 'Bundle',
           imageUrl: row.image_url || undefined,
           isActive: true,
+          approvalStatus: 'approved',
         },
         quantity,
         subtotal: Number(row.bundle_price) * quantity,
@@ -1351,6 +1355,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async setUserActive(userId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE users SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, userId]); }
   async adminProducts() { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC'); return result.rows.map(row => this.mapProduct(row)); }
   async setProductActive(productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, productId]); }
+  async setProductApprovalStatus(productId: string, status: string, reason?: string, adminId?: string) {
+    if (!this.pool) return;
+    await this.pool.query(
+      `UPDATE products SET approval_status=$1::varchar, rejection_reason=$2,
+         approved_at = CASE WHEN $1::varchar='approved' THEN NOW() ELSE NULL END,
+         approved_by = CASE WHEN $1::varchar='approved' THEN $3 ELSE NULL END,
+         updated_at=NOW() WHERE id=$4`,
+      [status, reason ?? null, adminId ?? null, productId],
+    );
+  }
   async bulkSetProductsActive(productIds: string[], active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=ANY($2::uuid[])', [active, productIds]); }
   async adminOrders(status = '', search = '') { if (!this.pool) return undefined; const values: unknown[] = []; const filters: string[] = ["o.status IN ('paid','processing','shipped','delivered')"]; if (status) { values.push(status); filters.push(`o.status=$${values.length}`); } if (search) { values.push(`%${search.toLowerCase()}%`); filters.push(`(LOWER(o.order_number) LIKE $${values.length} OR LOWER(u.full_name) LIKE $${values.length})`); } const where = `WHERE ${filters.join(' AND ')}`; const result = await this.pool.query(`SELECT o.*,u.full_name AS customer_name FROM orders o JOIN users u ON u.id=o.customer_id ${where} ORDER BY o.created_at DESC`, values); return result.rows.map(row => ({ id: row.id, orderNumber: row.order_number, customerName: row.customer_name, status: row.status, totalAmount: Number(row.total_amount), createdAt: new Date(row.created_at).toISOString() })); }
   async adminAnalytics(since: Date) {

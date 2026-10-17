@@ -181,6 +181,10 @@ export class SupplierRejectDto {
   @IsString() @MinLength(3) reason!: string;
 }
 
+export class ProductRejectDto {
+  @IsString() @MinLength(3) reason!: string;
+}
+
 export class AdminUpdateUserDto {
   @IsString() @MinLength(2) fullName!: string;
   @IsEmail() email!: string;

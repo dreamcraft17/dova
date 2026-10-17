@@ -54,5 +54,21 @@ export function useAdminProducts() {
     [load],
   );
 
-  return { products, loading, error, actionBusy, reload: load, toggleActive, bulkSetActive };
+  const decide = useCallback(
+    async (id: string, action: 'approve' | 'reject', reason?: string) => {
+      setActionBusy(true);
+      try {
+        await api(`/admin/products/${id}/${action}`, {
+          method: 'POST',
+          body: action === 'reject' ? JSON.stringify({ reason }) : undefined,
+        });
+        await load();
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [load],
+  );
+
+  return { products, loading, error, actionBusy, reload: load, toggleActive, bulkSetActive, decide };
 }

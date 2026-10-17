@@ -63,6 +63,7 @@ export class SupplierService {
       categoryName: category.name,
       imageUrl: body.imageUrl,
       isActive: true,
+      approvalStatus: 'pending',
     };
     this.state.products.unshift(product);
     return product;
