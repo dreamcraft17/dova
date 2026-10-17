@@ -23,8 +23,8 @@ type AuthCardProps = {
 export function AuthBrand({ portal }: { portal: string }) {
   return (
     <Link href="/" className="flex items-center gap-3">
-      <span className="grid size-[50px] shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--gold)] to-[var(--gold2)] text-2xl font-black text-[var(--deep)] shadow-[0_8px_25px_rgba(0,0,0,0.13)]">
-        D
+      <span className="grid size-[50px] shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--gold)] to-[var(--gold2)] p-1 shadow-[0_8px_25px_rgba(0,0,0,0.13)]">
+        <img src="/dova-chain-logo.svg" alt="DOVA logo" className="size-full object-contain" />
       </span>
       <span className="leading-tight">
         <strong className="block text-lg font-black tracking-wide text-[var(--deep)]">DOVA CHAIN</strong>
