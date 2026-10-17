@@ -100,6 +100,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       email: row.email,
       fullName: row.full_name,
       phoneNumber: row.phone_number || undefined,
+      whatsappNumber: row.whatsapp_number || undefined,
       role: row.role as Role,
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
@@ -124,8 +125,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async insertUser(user: StoredUser) {
     if (!this.pool) return;
     await this.pool.query(
-      'INSERT INTO users (id,email,password_hash,full_name,role,is_active,created_at,updated_at,email_verified_at,otp_attempts,otp_resend_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9,$10)',
-      [user.id, user.email, user.passwordHash, user.fullName, user.role, user.isActive, user.createdAt, user.emailVerifiedAt || null, user.otpAttempts ?? 0, user.otpResendCount ?? 0],
+      'INSERT INTO users (id,email,password_hash,full_name,phone_number,whatsapp_number,role,is_active,created_at,updated_at,email_verified_at,otp_attempts,otp_resend_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,$11,$12)',
+      [
+        user.id,
+        user.email,
+        user.passwordHash,
+        user.fullName,
+        user.phoneNumber || null,
+        user.whatsappNumber || null,
+        user.role,
+        user.isActive,
+        user.createdAt,
+        user.emailVerifiedAt || null,
+        user.otpAttempts ?? 0,
+        user.otpResendCount ?? 0,
+      ],
     );
   }
   async updatePendingUser(userId: string, fullName: string, passwordHash: string) {
@@ -1107,7 +1121,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async logPayment(orderId: string, reference: string, amount: number, status: string, response?: unknown) { if (this.pool) await this.pool.query('INSERT INTO payment_logs (order_id,payment_reference,amount,status,paystack_response) VALUES ($1,$2,$3,$4,$5)', [orderId, reference, amount, status, response ? JSON.stringify(response) : null]); }
   async findSupplierByUser(userId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM supplier_profiles WHERE user_id=$1 LIMIT 1', [userId]); const row = result.rows[0]; return row ? { id: row.id, userId: row.user_id, businessName: row.business_name, phone: row.business_phone || '', status: row.verification_status, documentUrl: row.verification_doc_url, rejectionReason: row.rejection_reason } : undefined; }
   async findSupplierById(id: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT * FROM supplier_profiles WHERE id=$1 LIMIT 1', [id]); const row = result.rows[0]; return row ? { id: row.id, userId: row.user_id, businessName: row.business_name, phone: row.business_phone || '', status: row.verification_status, documentUrl: row.verification_doc_url, rejectionReason: row.rejection_reason } : undefined; }
-  async insertSupplierProfile(profile: any) { if (this.pool) await this.pool.query('INSERT INTO supplier_profiles (id,user_id,business_name,business_phone,verification_status,verification_doc_url) VALUES ($1,$2,$3,$4,$5,$6)', [profile.id, profile.userId, profile.businessName, profile.phone, profile.status, profile.documentUrl || null]); }
+  async insertSupplierProfile(profile: any) { if (this.pool) await this.pool.query('INSERT INTO supplier_profiles (id,user_id,business_name,business_phone,business_whatsapp,verification_status,verification_doc_url) VALUES ($1,$2,$3,$4,$5,$6,$7)', [profile.id, profile.userId, profile.businessName, profile.phone, profile.whatsapp || null, profile.status, profile.documentUrl || null]); }
   async listSupplierProducts(supplierId: string) { if (!this.pool) return undefined; const result = await this.pool.query('SELECT p.*,s.business_name,c.name AS category_name FROM products p JOIN supplier_profiles s ON s.id=p.supplier_id AND s.id=$1 JOIN categories c ON c.id=p.category_id WHERE p.supplier_id=$1 ORDER BY p.created_at DESC', [supplierId]); return result.rows.map(row => this.mapProduct(row)); }
   async setSupplierProductActive(supplierId: string, productId: string, active: boolean) { if (this.pool) await this.pool.query('UPDATE products SET is_active=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3', [active, productId, supplierId]); }
   async createSupplierProduct(supplierId: string, body: any) { if (!this.pool) return undefined; const imageUrls = Array.isArray(body.imageUrls) ? body.imageUrls : []; const result = await this.pool.query('INSERT INTO products (supplier_id,name,description,price,stock_quantity,category_id,image_url,image_urls,unit_label) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id', [supplierId, body.name, body.description, body.price, body.quantity, body.categoryId, body.imageUrl || null, imageUrls, body.unitLabel?.trim() || null]); return this.findSupplierProduct(supplierId, result.rows[0].id); }
@@ -1270,12 +1284,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
   async adminUsers() {
     if (!this.pool) return undefined;
-    const result = await this.pool.query('SELECT id,email,full_name,phone_number,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
+    const result = await this.pool.query('SELECT id,email,full_name,phone_number,whatsapp_number,role,is_active,email_verified_at,created_at FROM users ORDER BY created_at DESC');
     return result.rows.map(row => ({
       id: row.id,
       email: row.email,
       fullName: row.full_name,
       phoneNumber: row.phone_number || undefined,
+      whatsappNumber: row.whatsapp_number || undefined,
       role: row.role,
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,
@@ -1284,7 +1299,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
   async adminUserById(userId: string) {
     if (!this.pool) return undefined;
-    const result = await this.pool.query('SELECT id,email,full_name,phone_number,role,is_active,email_verified_at,created_at FROM users WHERE id=$1 LIMIT 1', [userId]);
+    const result = await this.pool.query('SELECT id,email,full_name,phone_number,whatsapp_number,role,is_active,email_verified_at,created_at FROM users WHERE id=$1 LIMIT 1', [userId]);
     if (!result.rowCount) return undefined;
     const row = result.rows[0];
     const orders = await this.pool.query('SELECT COUNT(*)::int AS count FROM orders WHERE customer_id=$1', [userId]);
@@ -1302,6 +1317,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       email: row.email,
       fullName: row.full_name,
       phoneNumber: row.phone_number || undefined,
+      whatsappNumber: row.whatsapp_number || undefined,
       role: row.role,
       isActive: row.is_active,
       emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at).toISOString() : undefined,

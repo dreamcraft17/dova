@@ -84,13 +84,15 @@ export class AppService {
       });
     });
   }
-  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean; emailVerified?: boolean }): UserRecord {
+  private makeUser(email: string, fullName: string, role: Role, password: string, opts?: { active?: boolean; emailVerified?: boolean; phoneNumber?: string; whatsappNumber?: string }): UserRecord {
     const isActive = opts?.active ?? true;
     const emailVerified = opts?.emailVerified ?? isActive;
     return {
       id: randomUUID(),
       email,
       fullName,
+      phoneNumber: opts?.phoneNumber,
+      whatsappNumber: opts?.whatsappNumber,
       role,
       isActive,
       emailVerifiedAt: emailVerified ? new Date().toISOString() : undefined,
@@ -1359,9 +1361,12 @@ export class AppService {
     if (await this.findUser(normalizedEmail) || this.suppliers.some((s) => this.users.find((u) => u.id === s.userId)?.email === normalizedEmail)) {
       throw new BadRequestException('Email already registered');
     }
-    const user = this.makeUser(normalizedEmail, body.contactName || body.businessName, 'supplier', body.password);
+    const user = this.makeUser(normalizedEmail, body.contactName || body.businessName, 'supplier', body.password, {
+      phoneNumber: body.phone,
+      whatsappNumber: body.whatsapp,
+    });
     this.users.push(user);
-    const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl };
+    const supplier = { id: randomUUID(), userId: user.id, businessName: body.businessName, phone: body.phone || '', whatsapp: body.whatsapp || '', status: 'pending' as SupplierStatus, documentUrl: body.documentUrl };
     this.suppliers.push(supplier);
     await this.database.insertUser(user);
     await this.database.insertSupplierProfile(supplier);

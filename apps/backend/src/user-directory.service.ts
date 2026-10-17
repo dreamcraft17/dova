@@ -18,7 +18,7 @@ export class UserDirectoryService {
     fullName: string,
     role: Role,
     password: string,
-    opts?: { active?: boolean; emailVerified?: boolean },
+    opts?: { active?: boolean; emailVerified?: boolean; phoneNumber?: string; whatsappNumber?: string },
   ): UserRecord {
     const isActive = opts?.active ?? true;
     const emailVerified = opts?.emailVerified ?? isActive;
@@ -26,6 +26,8 @@ export class UserDirectoryService {
       id: randomUUID(),
       email,
       fullName,
+      phoneNumber: opts?.phoneNumber,
+      whatsappNumber: opts?.whatsappNumber,
       role,
       isActive,
       emailVerifiedAt: emailVerified ? new Date().toISOString() : undefined,
