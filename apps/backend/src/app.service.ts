@@ -81,6 +81,7 @@ export class AppService {
         categoryName: category.name,
         imageUrl: productImageUrl(item.name, item.categoryName),
         isActive: true,
+        approvalStatus: 'approved',
       });
     });
   }
@@ -582,11 +583,11 @@ export class AppService {
   async listCategories() { return (await this.database.categories()) ?? this.categories; }
   async databaseOrders(userId: string) { return this.database.listOrders(userId); }
   async databaseOrder(userId: string, orderId: string) { return this.database.findOrder(userId, orderId); }
-  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { const stored = await this.database.listProducts(search, categoryId, page, limit); if (stored) return stored; const all = this.products.filter(p => p.isActive && p.stockQuantity > 0 && (!search || p.name.toLowerCase().includes(search.toLowerCase())) && (!categoryId || p.categoryId === categoryId)); const start = (page - 1) * limit; return { data: all.slice(start, start + limit), pagination: { page, limit, total: all.length } }; }
+  async listProducts(search = '', categoryId = '', page = 1, limit = 50) { const stored = await this.database.listProducts(search, categoryId, page, limit); if (stored) return stored; const all = this.products.filter(p => p.isActive && p.stockQuantity > 0 && p.approvalStatus === 'approved' && (!search || p.name.toLowerCase().includes(search.toLowerCase())) && (!categoryId || p.categoryId === categoryId)); const start = (page - 1) * limit; return { data: all.slice(start, start + limit), pagination: { page, limit, total: all.length } }; }
   async product(id: string) {
     if (!isUuid(id)) throw new NotFoundException('Product not found');
     const stored = await this.database.findProduct(id);
-    const p = stored ?? this.products.find(x => x.id === id && x.isActive && x.stockQuantity > 0);
+    const p = stored ?? this.products.find(x => x.id === id && x.isActive && x.stockQuantity > 0 && x.approvalStatus === 'approved');
     if (!p) throw new NotFoundException('Product not found');
     return p;
   }
@@ -968,7 +969,7 @@ export class AppService {
   async supplierFor(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s || s.status !== 'approved') throw new ForbiddenException('Supplier approval required'); return s; }
   async supplierStatus(userId: string) { const stored = await this.database.findSupplierByUser(userId); const s = stored ?? this.suppliers.find(x => x.userId === userId); if (!s) throw new NotFoundException('Supplier application not found'); return { id: s.id, businessName: s.businessName, status: s.status, rejectionReason: (s as any).rejectionReason, documentUrl: s.documentUrl }; }
   async supplierProducts(userId: string) { const s = await this.supplierFor(userId); if (this.database.enabled) return (await this.database.listSupplierProducts(s.id)) ?? []; return this.products.filter(p => p.supplierId === s.id); }
-  async addSupplierProduct(userId: string, body: any) { const s = await this.supplierFor(userId); this.validateProduct(body); const stored = await this.database.createSupplierProduct(s.id, body); if (stored) return stored; const category = this.categories.find(c => c.id === body.categoryId); if (!category) throw new BadRequestException('Invalid category'); const product: Product = { id: randomUUID(), supplierId: s.id, supplierName: s.businessName, name: body.name, description: body.description, price: Number(body.price), stockQuantity: Number(body.quantity), categoryId: category.id, categoryName: category.name, imageUrl: body.imageUrl, imageUrls: Array.isArray(body.imageUrls) ? body.imageUrls : undefined, unitLabel: body.unitLabel?.trim() || undefined, isActive: true }; this.products.unshift(product); return product; }
+  async addSupplierProduct(userId: string, body: any) { const s = await this.supplierFor(userId); this.validateProduct(body); const stored = await this.database.createSupplierProduct(s.id, body); if (stored) return stored; const category = this.categories.find(c => c.id === body.categoryId); if (!category) throw new BadRequestException('Invalid category'); const product: Product = { id: randomUUID(), supplierId: s.id, supplierName: s.businessName, name: body.name, description: body.description, price: Number(body.price), stockQuantity: Number(body.quantity), categoryId: category.id, categoryName: category.name, imageUrl: body.imageUrl, imageUrls: Array.isArray(body.imageUrls) ? body.imageUrls : undefined, unitLabel: body.unitLabel?.trim() || undefined, isActive: true, approvalStatus: 'pending' }; this.products.unshift(product); return product; }
   async updateSupplierProduct(userId: string, productId: string, body: any) { const s = await this.supplierFor(userId); this.validateProduct(body); const stored = await this.database.updateSupplierProduct(s.id, productId, body); if (stored) return stored; const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (!product) throw new NotFoundException('Product not found'); const category = this.categories.find(c => c.id === body.categoryId); if (!category) throw new BadRequestException('Invalid category'); Object.assign(product, { name: body.name, description: body.description, price: Number(body.price), stockQuantity: Number(body.quantity), categoryId: category.id, categoryName: category.name, imageUrl: body.imageUrl ?? product.imageUrl, imageUrls: Array.isArray(body.imageUrls) ? body.imageUrls : product.imageUrls, unitLabel: body.unitLabel?.trim() || product.unitLabel, isActive: product.isActive }); return product; }
   async removeSupplierProduct(userId: string, productId: string) { const s = await this.supplierFor(userId); await this.database.deleteSupplierProduct(s.id, productId); const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (!product && !this.database.enabled) throw new NotFoundException('Product not found'); if (product) product.isActive = false; return { message: 'Product removed' }; }
   async setSupplierProductActive(userId: string, productId: string) { const s = await this.supplierFor(userId); await this.database.setSupplierProductActive(s.id, productId, true); const product = this.products.find(p => p.id === productId && p.supplierId === s.id); if (product) product.isActive = true; return { message: 'Product activated' }; }
@@ -1240,6 +1241,20 @@ export class AppService {
   }
   async adminProducts() { return (await this.database.adminProducts()) ?? this.products; }
   async setProductActive(id: string, active: boolean) { await this.database.setProductActive(id, active); const product = this.products.find(p => p.id === id); if (product) product.isActive = active; return { id, isActive: active }; }
+  async approveProduct(id: string, adminId: string) {
+    await this.database.setProductApprovalStatus(id, 'approved', undefined, adminId);
+    const product = this.products.find((p) => p.id === id);
+    if (product) { product.approvalStatus = 'approved'; product.rejectionReason = undefined; }
+    if (!product && !this.database.enabled) throw new NotFoundException('Product not found');
+    return { id, approvalStatus: 'approved' };
+  }
+  async rejectProduct(id: string, reason: string, adminId: string) {
+    await this.database.setProductApprovalStatus(id, 'rejected', reason, adminId);
+    const product = this.products.find((p) => p.id === id);
+    if (product) { product.approvalStatus = 'rejected'; product.rejectionReason = reason; }
+    if (!product && !this.database.enabled) throw new NotFoundException('Product not found');
+    return { id, approvalStatus: 'rejected', reason };
+  }
   async bulkSetProductsActive(ids: string[], active: boolean) {
     await this.database.bulkSetProductsActive(ids, active);
     const idSet = new Set(ids);

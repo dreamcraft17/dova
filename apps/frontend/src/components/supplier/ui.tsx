@@ -189,6 +189,8 @@ export function OrderStatusBadge({ status }: { status: string }) {
 }
 
 export function ProductStatusBadge({ product }: { product: Product }) {
+  if (product.approvalStatus === 'pending') return <StatusPill tone="yellow">Pending Review</StatusPill>;
+  if (product.approvalStatus === 'rejected') return <StatusPill tone="red">Rejected</StatusPill>;
   const tab = getProductTab(product);
   if (tab === 'hidden') return <StatusPill tone="gray">Hidden</StatusPill>;
   if (tab === 'low_stock') return <StatusPill tone="yellow">Low Stock</StatusPill>;

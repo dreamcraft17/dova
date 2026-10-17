@@ -37,6 +37,7 @@ export class BundleService {
       categoryName: bundle.categoryName || BUNDLE_AS_PRODUCT_CATEGORY,
       imageUrl: bundle.imageUrl,
       isActive: true,
+      approvalStatus: 'approved',
     };
   }
 
@@ -49,7 +50,7 @@ export class BundleService {
     } catch {
       return {
         id: productId, supplierId: '', supplierName: '', name: 'Unavailable product', description: '',
-        price: 0, stockQuantity: 0, categoryId: '', categoryName: '', isActive: false,
+        price: 0, stockQuantity: 0, categoryId: '', categoryName: '', isActive: false, approvalStatus: 'approved',
       };
     }
   }

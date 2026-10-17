@@ -12,19 +12,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAdminProducts } from '../../hooks/admin/useAdminProducts';
 import { getProductTab } from 'dova-shared';
 
-type ProductTab = 'available' | 'low_stock' | 'hidden';
+type ProductTab = 'pending_approval' | 'available' | 'low_stock' | 'hidden';
 
 function ProductsContent() {
-  const { products, loading, error, actionBusy, reload, toggleActive, bulkSetActive } = useAdminProducts();
-  const [tab, setTab] = useState<ProductTab>('available');
+  const { products, loading, error, actionBusy, reload, toggleActive, bulkSetActive, decide } = useAdminProducts();
+  const [tab, setTab] = useState<ProductTab>('pending_approval');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const counts = useMemo(
     () => ({
-      available: products.filter((p) => getProductTab(p) === 'available').length,
-      low_stock: products.filter((p) => getProductTab(p) === 'low_stock').length,
-      hidden: products.filter((p) => getProductTab(p) === 'hidden').length,
+      pending_approval: products.filter((p) => p.approvalStatus === 'pending').length,
+      available: products.filter((p) => p.approvalStatus === 'approved' && getProductTab(p) === 'available').length,
+      low_stock: products.filter((p) => p.approvalStatus === 'approved' && getProductTab(p) === 'low_stock').length,
+      hidden: products.filter((p) => p.approvalStatus === 'approved' && getProductTab(p) === 'hidden').length,
     }),
     [products],
   );
@@ -32,9 +33,15 @@ function ProductsContent() {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products
-      .filter((p) => getProductTab(p) === tab)
+      .filter((p) => (tab === 'pending_approval' ? p.approvalStatus === 'pending' : p.approvalStatus === 'approved' && getProductTab(p) === tab))
       .filter((p) => !q || p.name.toLowerCase().includes(q) || p.supplierName.toLowerCase().includes(q));
   }, [products, tab, search]);
+
+  function rejectProduct(id: string) {
+    const reason = window.prompt('Rejection reason');
+    if (!reason) return;
+    void decide(id, 'reject', reason);
+  }
 
   const visibleIds = visible.map((p) => p.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -78,8 +85,9 @@ function ProductsContent() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {[
+          { key: 'pending_approval' as const, label: 'Pending Approval' },
           { key: 'available' as const, label: 'Available' },
           { key: 'low_stock' as const, label: 'Low Stock' },
           { key: 'hidden' as const, label: 'Hidden' },
@@ -95,6 +103,7 @@ function ProductsContent() {
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <Tabs value={tab} onValueChange={(v: string) => { setTab(v as ProductTab); setSelected(new Set()); }}>
             <TabsList>
+              <TabsTrigger value="pending_approval">Pending Approval ({counts.pending_approval})</TabsTrigger>
               <TabsTrigger value="available">Available ({counts.available})</TabsTrigger>
               <TabsTrigger value="low_stock">Low Stock ({counts.low_stock})</TabsTrigger>
               <TabsTrigger value="hidden">Hidden ({counts.hidden})</TabsTrigger>
@@ -108,7 +117,7 @@ function ProductsContent() {
           />
         </div>
 
-        {someSelected ? (
+        {someSelected && tab !== 'pending_approval' ? (
           <div className="mb-4 flex items-center gap-3 rounded-lg bg-accent/20 px-4 py-2.5 text-sm">
             <span className="font-semibold">{selectedCount} selected</span>
             <Button size="sm" disabled={actionBusy} onClick={() => void bulkSetActive(Array.from(selected), true).then(() => setSelected(new Set()))}>
@@ -123,12 +132,14 @@ function ProductsContent() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                  onCheckedChange={toggleAllVisible}
-                />
-              </TableHead>
+              {tab !== 'pending_approval' ? (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleAllVisible}
+                  />
+                </TableHead>
+              ) : null}
               <TableHead>Product</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Stock</TableHead>
@@ -146,19 +157,36 @@ function ProductsContent() {
             ) : (
               visible.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell>
-                    <Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggleOne(p.id)} />
-                  </TableCell>
+                  {tab !== 'pending_approval' ? (
+                    <TableCell>
+                      <Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggleOne(p.id)} />
+                    </TableCell>
+                  ) : null}
                   <TableCell className="font-bold">{p.name}</TableCell>
                   <TableCell>{p.supplierName}</TableCell>
                   <TableCell>{p.stockQuantity}</TableCell>
                   <TableCell>
-                    <StatusBadge tone={p.isActive ? 'green' : 'gray'}>{p.isActive ? 'Active' : 'Hidden'}</StatusBadge>
+                    {tab === 'pending_approval' ? (
+                      <StatusBadge tone="yellow">Pending Approval</StatusBadge>
+                    ) : (
+                      <StatusBadge tone={p.isActive ? 'green' : 'gray'}>{p.isActive ? 'Active' : 'Hidden'}</StatusBadge>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" disabled={actionBusy} onClick={() => void toggleActive(p)}>
-                      {p.isActive ? 'Deactivate' : 'Set to Active'}
-                    </Button>
+                    {tab === 'pending_approval' ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" disabled={actionBusy} onClick={() => void decide(p.id, 'approve')}>
+                          Approve
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={actionBusy} onClick={() => rejectProduct(p.id)}>
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" disabled={actionBusy} onClick={() => void toggleActive(p)}>
+                        {p.isActive ? 'Deactivate' : 'Set to Active'}
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

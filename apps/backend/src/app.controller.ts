@@ -4,7 +4,7 @@ import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { MAX_PRODUCT_IMAGES } from 'dova-shared';
 import { AppService } from './app.service';
-import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto, UpdatePayoutPreferencesDto, RequestAccountClosureDto } from './auth.dto';
+import { BulkProductActiveDto, CartAddDto, CartUpdateDto, ChangePasswordDto, ContactDto, CreateOrderDto, LoginDto, OrderStatusDto, PaymentInitializeDto, ProductDto, ProductRejectDto, RefreshTokenDto, RegisterDto, SendRegistrationCodeDto, AdminResetPasswordDto, AdminUpdateUserDto, StockDto, SupplierRegisterDto, SupplierRejectDto, VerifyOtpDto, ResendOtpDto, ForgotPasswordDto, ResetPasswordDto, UpdateProfileDto, UpdateNotificationPreferencesDto, UpdatePayoutPreferencesDto, RequestAccountClosureDto } from './auth.dto';
 import type { UploadedFilePayload } from './upload-storage.service';
 import { AddBundleToCartDto, BundleActiveDto, CreateBundleDto, UpdateBundleDto } from './bundle.dto';
 import { BundleService } from './bundle.service';
@@ -442,6 +442,16 @@ export class AppController {
   @Roles('admin')
   @Put('admin/products/:id/active') productActive(@Param('id') id: string, @Body('active') active: boolean) {
     return this.service.setProductActive(id, Boolean(active));
+  }
+
+  @Roles('admin')
+  @Post('admin/products/:id/approve') approveProduct(@Param('id') id: string, @CurrentUser() actor: StoredUser) {
+    return this.service.approveProduct(id, actor.id);
+  }
+
+  @Roles('admin')
+  @Post('admin/products/:id/reject') rejectProduct(@Param('id') id: string, @Body() b: ProductRejectDto, @CurrentUser() actor: StoredUser) {
+    return this.service.rejectProduct(id, b.reason, actor.id);
   }
 
   @Roles('admin')
