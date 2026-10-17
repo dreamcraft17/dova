@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Lock, Mail, User as UserIcon } from 'lucide-react';
+import { Lock, Mail, MessageCircle, Phone, User as UserIcon } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
 import { RegistrationSuccessModal } from '../../components/RegistrationSuccessModal';
 import { AuthAside } from '../../components/auth/AuthAside';
@@ -9,6 +9,9 @@ import { AuthCard, type AuthStep } from '../../components/auth/AuthCard';
 import { AuthField, AuthOtpField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
 import { AuthMessage, AuthSecondaryButton, AuthSubmit } from '../../components/auth/AuthControls';
+import { DEFAULT_PHONE_VALUE, PhoneInput, formatE164, type PhoneValue } from '../../components/auth/PhoneInput';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { ApiError, api, configureLoginPersistence } from '../../lib/api';
 import type { User } from 'dova-shared';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +24,9 @@ export default function Register() {
     password: '',
     confirmPassword: '',
   });
+  const [phone, setPhone] = useState<PhoneValue>(DEFAULT_PHONE_VALUE);
+  const [whatsapp, setWhatsapp] = useState<PhoneValue>(DEFAULT_PHONE_VALUE);
+  const [sameAsPhone, setSameAsPhone] = useState(true);
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -72,11 +78,25 @@ export default function Register() {
     return () => window.clearTimeout(timer);
   }, [showSuccessModal, continueAfterRegistration]);
 
+  function handlePhoneChange(next: PhoneValue) {
+    setPhone(next);
+    if (sameAsPhone) setWhatsapp(next);
+  }
+
+  function handleSameAsPhoneChange(checked: boolean) {
+    setSameAsPhone(checked);
+    if (checked) setWhatsapp(phone);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match.');
+      return;
+    }
+    if (phone.number.length < 6 || whatsapp.number.length < 6) {
+      setError('Enter a valid phone number and WhatsApp number.');
       return;
     }
     if (code.length !== 6) {
@@ -88,7 +108,13 @@ export default function Register() {
       configureLoginPersistence(true);
       const session = await api<{ user: User; message?: string }>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ ...form, code, rememberMe: true }),
+        body: JSON.stringify({
+          ...form,
+          phoneNumber: formatE164(phone),
+          whatsappNumber: formatE164(whatsapp),
+          code,
+          rememberMe: true,
+        }),
       });
       establishSession(session.user);
       const message = session.message ?? 'Your account was created successfully.';
@@ -159,6 +185,33 @@ export default function Register() {
               setCode('');
               setCodeSent(false);
             }}
+          />
+          <PhoneInput
+            id="register-phone"
+            label="Phone number"
+            icon={<Phone className="size-4" />}
+            required
+            value={phone}
+            onChange={handlePhoneChange}
+          />
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="register-same-as-phone"
+              checked={sameAsPhone}
+              onCheckedChange={(checked) => handleSameAsPhoneChange(checked === true)}
+            />
+            <Label htmlFor="register-same-as-phone" className="text-[11px] font-semibold text-muted-foreground">
+              WhatsApp number is the same as phone number
+            </Label>
+          </div>
+          <PhoneInput
+            id="register-whatsapp"
+            label="WhatsApp number"
+            icon={<MessageCircle className="size-4" />}
+            required
+            disabled={sameAsPhone}
+            value={whatsapp}
+            onChange={setWhatsapp}
           />
           <AuthOtpField
             id="register-code"

@@ -150,14 +150,28 @@ export class RegistrationService {
   }
 
   async register(body: any) {
-    const { fullName, email, password, confirmPassword, code, rememberMe } = body;
-    if (!fullName || !email || !/^\S+@\S+\.\S+$/.test(email) || !password || password !== confirmPassword || password.length < 8) {
+    const { fullName, email, password, confirmPassword, code, rememberMe, phoneNumber, whatsappNumber } = body;
+    if (
+      !fullName ||
+      !email ||
+      !/^\S+@\S+\.\S+$/.test(email) ||
+      !password ||
+      password !== confirmPassword ||
+      password.length < 8 ||
+      !phoneNumber ||
+      !whatsappNumber
+    ) {
       throw new BadRequestException('Invalid registration data');
     }
     const normalizedEmail = email.toLowerCase();
     if (await this.users.findUser(normalizedEmail)) throw new BadRequestException('Email already registered');
     await this.consumeRegistrationOtp(normalizedEmail, code);
-    const user = this.users.makeUser(normalizedEmail, fullName, 'customer', password, { active: true, emailVerified: true });
+    const user = this.users.makeUser(normalizedEmail, fullName, 'customer', password, {
+      active: true,
+      emailVerified: true,
+      phoneNumber,
+      whatsappNumber,
+    });
     this.state.users.push(user);
     await this.database.insertUser(user);
     await this.database.verifyUserEmail(user.id);

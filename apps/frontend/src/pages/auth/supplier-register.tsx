@@ -1,13 +1,16 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Building2, FileUp, Lock, Mail, Phone, User as UserIcon } from 'lucide-react';
+import { Building2, FileUp, Lock, Mail, MessageCircle, Phone, User as UserIcon } from 'lucide-react';
 import { AuthShell } from '../../components/AuthShell';
 import { AuthAside } from '../../components/auth/AuthAside';
 import { AuthCard } from '../../components/auth/AuthCard';
 import { AuthField } from '../../components/auth/AuthField';
 import { AuthPasswordField } from '../../components/auth/AuthPasswordField';
 import { AuthMessage, AuthSubmit } from '../../components/auth/AuthControls';
+import { DEFAULT_PHONE_VALUE, PhoneInput, formatE164, type PhoneValue } from '../../components/auth/PhoneInput';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { api } from '../../lib/api';
 
 export default function SupplierRegister() {
@@ -16,21 +19,39 @@ export default function SupplierRegister() {
     businessName: '',
     contactName: '',
     email: '',
-    phone: '',
     password: '',
   });
+  const [phone, setPhone] = useState<PhoneValue>(DEFAULT_PHONE_VALUE);
+  const [whatsapp, setWhatsapp] = useState<PhoneValue>(DEFAULT_PHONE_VALUE);
+  const [sameAsPhone, setSameAsPhone] = useState(true);
   const [file, setFile] = useState<File>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState('');
 
+  function handlePhoneChange(next: PhoneValue) {
+    setPhone(next);
+    if (sameAsPhone) setWhatsapp(next);
+  }
+
+  function handleSameAsPhoneChange(checked: boolean) {
+    setSameAsPhone(checked);
+    if (checked) setWhatsapp(phone);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    if (phone.number.length < 6 || whatsapp.number.length < 6) {
+      setError('Enter a valid phone number and WhatsApp number.');
+      return;
+    }
     setBusy(true);
     try {
       const body = new FormData();
       Object.entries(form).forEach(([key, value]) => body.append(key, value));
+      body.append('phone', formatE164(phone));
+      body.append('whatsapp', formatE164(whatsapp));
       if (file) body.append('verificationDocs', file);
       const result = await api<{ message: string }>('/suppliers/register', {
         method: 'POST',
@@ -96,16 +117,32 @@ export default function SupplierRegister() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
-          <AuthField
+          <PhoneInput
             id="supplier-phone"
             label="Phone number"
-            type="tel"
-            required
-            autoComplete="tel"
-            placeholder="+234 ..."
             icon={<Phone className="size-4" />}
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            required
+            value={phone}
+            onChange={handlePhoneChange}
+          />
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="supplier-same-as-phone"
+              checked={sameAsPhone}
+              onCheckedChange={(checked) => handleSameAsPhoneChange(checked === true)}
+            />
+            <Label htmlFor="supplier-same-as-phone" className="text-[11px] font-semibold text-muted-foreground">
+              WhatsApp number is the same as phone number
+            </Label>
+          </div>
+          <PhoneInput
+            id="supplier-whatsapp"
+            label="WhatsApp number"
+            icon={<MessageCircle className="size-4" />}
+            required
+            disabled={sameAsPhone}
+            value={whatsapp}
+            onChange={setWhatsapp}
           />
           <AuthPasswordField
             id="supplier-password"

@@ -1,12 +1,16 @@
-import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, IsUrl, Length, Matches, MaxLength, Min, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MAX_PRODUCT_IMAGES } from 'dova-shared';
+
+const PHONE_E164 = /^\+[1-9]\d{6,14}$/;
 
 export class RegisterDto {
   @IsString() @MinLength(2) fullName!: string;
   @IsEmail() email!: string;
   @IsString() @MinLength(8) password!: string;
   @IsString() @MinLength(8) confirmPassword!: string;
+  @IsString() @Matches(PHONE_E164, { message: 'Enter a valid phone number' }) phoneNumber!: string;
+  @IsString() @Matches(PHONE_E164, { message: 'Enter a valid WhatsApp number' }) whatsappNumber!: string;
   @IsString() @Length(6, 6) code!: string;
   @IsOptional()
   @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
@@ -80,7 +84,8 @@ export class SupplierRegisterDto {
   @IsOptional() @IsString() contactName?: string;
   @IsEmail() email!: string;
   @IsString() @MinLength(8) password!: string;
-  @IsOptional() @IsString() phone?: string;
+  @IsString() @Matches(PHONE_E164, { message: 'Enter a valid phone number' }) phone!: string;
+  @IsString() @Matches(PHONE_E164, { message: 'Enter a valid WhatsApp number' }) whatsapp!: string;
   @IsOptional() @IsString() documentUrl?: string;
 }
 
