@@ -69,7 +69,7 @@ export function PhoneInput({ id, label, icon, required, disabled, error, value, 
               {flagEmoji(value.iso2)} {value.dialCode}
             </SelectValue>
           </SelectTrigger>
-          <SelectContent position="popper" align="start" sideOffset={4} className="max-h-80 w-72 p-0">
+          <SelectContent position="popper" align="start" sideOffset={4} className="w-72 p-0">
             <div className="sticky top-0 z-10 border-b border-border bg-popover p-1.5">
               <input
                 ref={searchInputRef}

@@ -11,6 +11,25 @@
  * template's `.admin-app` palette in src/styles/admin.css.
  */
 
+/*
+ * Radix UI (Select/Dialog/Dropdown/Sheet, etc.) renders its floating content
+ * through a Portal appended to `document.body`, outside the `.admin-app`
+ * wrapper's DOM subtree — so it never inherits the tokens below, and ends up
+ * with a transparent `bg-popover`/`border-border`. These :root fallbacks
+ * (mirroring `.admin-app`'s own values) only matter for that portaled
+ * content; they don't repaint `bg-background`/`text-foreground` anywhere
+ * since the storefront doesn't use those utility classes.
+ */
+:root {
+  --popover: #ffffff;
+  --popover-foreground: #12231c;
+  --border: #dde6e0;
+  --input: #dde6e0;
+  --ring: #0ba66f;
+  --accent: #d4af37;
+  --accent-foreground: #052a1f;
+}
+
 @theme inline {
   --font-heading: var(--font-unbounded);
   --font-sans: var(--font-inter);
