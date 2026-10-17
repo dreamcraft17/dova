@@ -72,12 +72,6 @@ export default function Register() {
     void router.push('/marketplace');
   }, [router]);
 
-  useEffect(() => {
-    if (!showSuccessModal) return;
-    const timer = window.setTimeout(continueAfterRegistration, 4000);
-    return () => window.clearTimeout(timer);
-  }, [showSuccessModal, continueAfterRegistration]);
-
   function handlePhoneChange(next: PhoneValue) {
     setPhone(next);
     if (sameAsPhone) setWhatsapp(next);
