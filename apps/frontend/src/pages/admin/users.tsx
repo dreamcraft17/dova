@@ -23,6 +23,20 @@ function UsersContent() {
     return users.filter((u) => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
   }, [users, search]);
 
+  const userSummary = useMemo(() => {
+    const excludedRoles = new Set(['admin', 'superadmin']);
+    const nonAdminUsers = users.filter((u) => !excludedRoles.has(String(u.role).toLowerCase()));
+    const byRole = nonAdminUsers.reduce<Record<string, number>>((counts, user) => {
+      const role = String(user.role).toLowerCase();
+      counts[role] = (counts[role] ?? 0) + 1;
+      return counts;
+    }, {});
+
+    return { total: nonAdminUsers.length, byRole };
+  }, [users]);
+
+  const roleLabel = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
+
   return (
     <div className="space-y-6">
       <div>
@@ -39,6 +53,26 @@ function UsersContent() {
           </button>
         </Card>
       ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="User summary">
+        <Card className="border-primary/15 bg-gradient-to-br from-primary/[0.08] to-transparent p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Total users</p>
+          <p className="mt-2 text-3xl font-black tracking-tight text-primary">
+            {loading ? '—' : userSummary.total.toLocaleString('en-NG')}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Excluding admin and superadmin</p>
+        </Card>
+
+        {Object.entries(userSummary.byRole)
+          .sort(([roleA], [roleB]) => roleA.localeCompare(roleB))
+          .map(([role, count]) => (
+            <Card key={role} className="p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{roleLabel(role)}</p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-primary">{count.toLocaleString('en-NG')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Users with this role</p>
+            </Card>
+          ))}
+      </div>
 
       <Card className="p-5">
         <Input
