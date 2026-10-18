@@ -3,6 +3,7 @@ import { Pool, PoolClient } from 'pg';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomUUID } from 'crypto';
 import { bcryptCost } from './bcrypt-cost';
+import { supplierShareRate } from './commission';
 import {
   allocateBundlePrice,
   Bundle,
@@ -314,28 +315,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
   async accrueReimbursementForDeliveredOrder(orderId: string) {
     if (!this.pool) return;
+    const rate = supplierShareRate();
     await this.pool.query(
-      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,currency,status)
-       SELECT oi.id, oi.order_id, oi.supplier_id, oi.subtotal, 'NGN', 'available'
+      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,platform_fee_amount,currency,status)
+       SELECT oi.id, oi.order_id, oi.supplier_id,
+         ROUND(oi.subtotal * $2::numeric, 2),
+         oi.subtotal - ROUND(oi.subtotal * $2::numeric, 2),
+         'NGN', 'available'
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
        WHERE oi.order_id = $1 AND oi.supplier_order_status = 'delivered'
          AND o.status IN ('paid','processing','shipped','delivered')
        ON CONFLICT (order_item_id) DO NOTHING`,
-      [orderId],
+      [orderId, rate],
     );
   }
   async accrueReimbursementForDeliveredItem(supplierId: string, orderItemId: string) {
     if (!this.pool) return;
+    const rate = supplierShareRate();
     await this.pool.query(
-      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,currency,status)
-       SELECT oi.id, oi.order_id, oi.supplier_id, oi.subtotal, 'NGN', 'available'
+      `INSERT INTO supplier_reimbursement_earnings (order_item_id,order_id,supplier_id,amount,platform_fee_amount,currency,status)
+       SELECT oi.id, oi.order_id, oi.supplier_id,
+         ROUND(oi.subtotal * $3::numeric, 2),
+         oi.subtotal - ROUND(oi.subtotal * $3::numeric, 2),
+         'NGN', 'available'
        FROM order_items oi
        JOIN orders o ON o.id = oi.order_id
        WHERE oi.id = $1 AND oi.supplier_id = $2 AND oi.supplier_order_status = 'delivered'
          AND o.status IN ('paid','processing','shipped','delivered')
        ON CONFLICT (order_item_id) DO NOTHING`,
-      [orderItemId, supplierId],
+      [orderItemId, supplierId, rate],
     );
   }
   async supplierReimbursementSummary(supplierId: string) {
