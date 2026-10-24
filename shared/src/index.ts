@@ -5,7 +5,7 @@ export type FulfillmentType = 'pickup' | 'delivery';
 
 export interface User { id: string; email: string; fullName: string; phoneNumber?: string; whatsappNumber?: string; role: Role; isActive: boolean; emailVerifiedAt?: string; createdAt: string; }
 export interface Category { id: string; name: string; }
-export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; imageUrls?: string[]; unitLabel?: string; isActive: boolean; approvalStatus: SupplierStatus; rejectionReason?: string; }
+export interface Product { id: string; supplierId: string; supplierName: string; name: string; description: string; price: number; stockQuantity: number; categoryId: string; categoryName: string; imageUrl?: string; imageUrls?: string[]; unitLabel?: string; isActive: boolean; /** Legacy in-memory fixtures may omit this; new supplier submissions always set it. */ approvalStatus?: SupplierStatus; rejectionReason?: string; }
 
 export const MAX_PRODUCT_IMAGES = 6;
 
