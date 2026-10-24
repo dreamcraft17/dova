@@ -24,6 +24,8 @@ export class CatalogService {
       (p) =>
         p.isActive &&
         p.stockQuantity > 0 &&
+        p.approvalStatus !== 'pending' &&
+        p.approvalStatus !== 'rejected' &&
         (!search || p.name.toLowerCase().includes(search.toLowerCase())) &&
         (!categoryId || p.categoryId === categoryId),
     );
@@ -34,7 +36,7 @@ export class CatalogService {
   async product(id: string) {
     if (!isUuid(id)) throw new NotFoundException('Product not found');
     const stored = await this.database.findProduct(id);
-    const p = stored ?? this.state.products.find((x) => x.id === id && x.isActive && x.stockQuantity > 0);
+    const p = stored ?? this.state.products.find((x) => x.id === id && x.isActive && x.stockQuantity > 0 && x.approvalStatus !== 'pending' && x.approvalStatus !== 'rejected');
     if (!p) throw new NotFoundException('Product not found');
     return p;
   }

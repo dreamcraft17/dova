@@ -124,6 +124,11 @@ function ProductsContent() {
                   <strong className="text-xs font-black text-[var(--forest)]">{formatNaira(product.price)}</strong>
                   <ProductStatusBadge product={product} />
                 </div>
+                {product.approvalStatus === 'rejected' ? (
+                  <p className="mt-2 rounded-lg bg-destructive/5 px-2 py-1.5 text-[10px] leading-4 text-destructive">
+                    Reason: {product.rejectionReason || 'No reason provided.'}
+                  </p>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {product.isActive ? (
                     <>

@@ -668,6 +668,9 @@ describe('AppService', () => {
       const supplier = service.users.find(user => user.role === 'supplier')!;
       const product = await service.addSupplierProduct(supplier.id, { name: 'Test Greens', description: 'Fresh greens', price: 12000, quantity: 5, categoryId: service.categories[0].id });
       expect(product.stockQuantity).toBe(5);
+      expect(product.approvalStatus).toBe('pending');
+      await expect(service.product(product.id)).rejects.toThrow('Product not found');
+      product.approvalStatus = 'approved';
       await service.adjustSupplierStock(supplier.id, product.id, 3, 'restock');
       expect((await service.product(product.id)).stockQuantity).toBe(8);
       const updated = await service.updateSupplierProduct(supplier.id, product.id, { name: 'Updated Greens', description: 'Better greens', price: 14000, quantity: 8, categoryId: service.categories[0].id });
