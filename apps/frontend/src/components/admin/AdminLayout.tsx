@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   Activity,
   BarChart3,
-  Bell,
   LayoutDashboard,
   Mail,
   Megaphone,
@@ -38,6 +37,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { AdminNotifications } from './AdminNotifications';
 import { inter, unbounded } from '../../lib/fonts';
 
 const NAV_ITEMS: Array<{ href: string; label: string; icon: typeof LayoutDashboard }> = [
@@ -187,15 +187,7 @@ function AdminTopbar({ title, subtitle }: { title: string; subtitle?: string }) 
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Notifications"
-          onClick={() => showToast('Notifications are not wired up yet.', 'info')}
-        >
-          <Bell />
-        </Button>
+        <AdminNotifications />
         <Button
           type="button"
           variant="ghost"
