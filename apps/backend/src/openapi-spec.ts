@@ -63,7 +63,7 @@ export const DOVA_OPENAPI = {
           { name: 'search', in: 'query', schema: { type: 'string' } },
           { name: 'categoryId', in: 'query', schema: { type: 'string' } },
           { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
-          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 50, maximum: 100 } },
         ],
         responses: { '200': { description: '{ data, pagination }' } },
       },
@@ -86,7 +86,7 @@ export const DOVA_OPENAPI = {
           { name: 'search', in: 'query', schema: { type: 'string' } },
           { name: 'categoryId', in: 'query', schema: { type: 'string' } },
           { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
-          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24, maximum: 100 } },
         ],
         responses: { '200': { description: '{ data, pagination }' } },
       },
@@ -105,7 +105,7 @@ export const DOVA_OPENAPI = {
         tags: ['Bundles'],
         summary: 'Add a bundle as one cart line',
         security: [{ bearerAuth: [] }],
-        responses: { '200': { description: 'Updated cart' }, '400': { description: 'Validation, inactive, or out of stock' }, '404': { description: 'Bundle not found' } },
+        responses: { '201': { description: 'Updated cart' }, '400': { description: 'Validation, inactive, or out of stock' }, '404': { description: 'Bundle not found' } },
       },
     },
     '/admin/bundles': {
@@ -118,7 +118,7 @@ export const DOVA_OPENAPI = {
           { name: 'categoryId', in: 'query', schema: { type: 'string' } },
           { name: 'status', in: 'query', schema: { type: 'string', enum: ['active', 'inactive'] } },
           { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
-          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 24, maximum: 100 } },
         ],
         responses: { '200': { description: '{ data, pagination }' } },
       },
@@ -165,7 +165,7 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Auth'],
         summary: 'Email a 6-digit registration OTP',
-        responses: { '200': { description: 'Code sent' }, '400': { description: 'Invalid or duplicate email' } },
+        responses: { '201': { description: 'Code sent' }, '400': { description: 'Invalid or duplicate email' } },
       },
     },
     '/auth/register': {
@@ -179,14 +179,14 @@ export const DOVA_OPENAPI = {
       post: {
         tags: ['Auth'],
         summary: 'Login; returns accessToken and refreshToken',
-        responses: { '200': { description: 'Session' }, '401': { description: 'Invalid credentials' } },
+        responses: { '201': { description: 'Session' }, '401': { description: 'Invalid credentials' } },
       },
     },
     '/auth/refresh': {
       post: {
         tags: ['Auth'],
         summary: 'Rotate access token',
-        responses: { '200': { description: 'New session' }, '401': { description: 'Invalid refresh' } },
+        responses: { '201': { description: 'New session' }, '401': { description: 'Invalid refresh' } },
       },
     },
     '/auth/me': {
@@ -210,7 +210,7 @@ export const DOVA_OPENAPI = {
         tags: ['Cart'],
         summary: 'Add line item',
         security: [{ bearerAuth: [] }],
-        responses: { '200': { description: 'Updated cart' }, '400': { description: 'Validation' } },
+        responses: { '201': { description: 'Updated cart' }, '400': { description: 'Validation' } },
       },
     },
     '/orders': {
@@ -224,7 +224,7 @@ export const DOVA_OPENAPI = {
         tags: ['Orders'],
         summary: 'Create order from cart',
         security: [{ bearerAuth: [] }],
-        responses: { '200': { description: 'Order' }, '400': { description: 'Min order or empty cart' } },
+        responses: { '201': { description: 'Order' }, '400': { description: 'Min order or empty cart' } },
       },
     },
     '/payments/initialize': {
@@ -232,7 +232,7 @@ export const DOVA_OPENAPI = {
         tags: ['Payments'],
         summary: 'Start Paystack (or mock) checkout',
         security: [{ bearerAuth: [] }],
-        responses: { '200': { description: '{ authorization_url, reference, mode }' } },
+        responses: { '201': { description: '{ authorization_url, reference, mode }' } },
       },
     },
     '/payments/verify': {
@@ -249,7 +249,7 @@ export const DOVA_OPENAPI = {
         tags: ['Payments'],
         summary: 'Paystack callback (HMAC signature; no X-Api-Key)',
         security: [],
-        responses: { '200': { description: 'Accepted' }, '401': { description: 'Bad signature' } },
+        responses: { '201': { description: 'Accepted' }, '401': { description: 'Bad signature' } },
       },
     },
   },
