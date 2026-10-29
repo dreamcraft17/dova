@@ -691,6 +691,8 @@ describe('AppService', () => {
       await addToCart(service, customer.id, product.id, 1);
       const order = await service.createOrder(customer.id, { deliveryName: 'Buyer', deliveryAddress: 'Jakarta', deliveryPhone: '0812345678', deliveryState: 'Bayelsa', deliveryZone: 'yenagoa' });
       const item = order.items[0];
+      await expect(service.updateSupplierOrderStatus(supplier.id, item.id, 'processing')).rejects.toThrow('Order has not been paid');
+      order.status = 'paid';
       await expect(service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped')).rejects.toThrow('Invalid status transition');
       await service.updateSupplierOrderStatus(supplier.id, item.id, 'processing');
       await service.updateSupplierOrderStatus(supplier.id, item.id, 'shipped');

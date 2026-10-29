@@ -26,3 +26,7 @@ docs/
 dova-react-ts/
 DOVA_Chain_React_TS_Project/
 .claude
+
+# DB dumps and backups must never be committed
+backup/
+*.dump

@@ -1,3 +1,4 @@
+import { assertMockPaymentsAllowed } from './mock-payments';
 import { Injectable, UnauthorizedException, ForbiddenException, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { access } from 'fs/promises';
 import { JwtService } from '@nestjs/jwt';
@@ -763,6 +764,7 @@ export class AppService {
       }
       if (existing.status === 'pending') {
         if (!this.paystack.enabled()) {
+          assertMockPaymentsAllowed();
           return {
             authorization_url: `/checkout/verify?reference=${encodeURIComponent(order.paymentReference)}`,
             reference: order.paymentReference,
@@ -786,6 +788,7 @@ export class AppService {
     await this.database.logPayment(order.id, reference, order.totalAmount, 'initiated');
 
     if (!this.paystack.enabled()) {
+      assertMockPaymentsAllowed();
       return {
         authorization_url: `/checkout/verify?reference=${encodeURIComponent(reference)}`,
         reference,
@@ -832,6 +835,7 @@ export class AppService {
     };
 
     if (!this.paystack.enabled()) {
+      assertMockPaymentsAllowed();
       return this.fulfillPaidOrder(order, reference, payment, undefined);
     }
 
@@ -1042,7 +1046,7 @@ export class AppService {
   async adjustSupplierStock(userId: string, productId: string, quantity: number, reason: 'restock' | 'damage') { const s = await this.supplierFor(userId); const stored = await this.database.adjustStock(s.id, productId, quantity, reason); if (stored !== undefined) return { stockQuantity: stored }; const product = this.products.find(p => p.id === productId && p.supplierId === s.id && p.isActive); if (!product) throw new NotFoundException('Product not found'); const delta = reason === 'damage' ? -quantity : quantity; if (product.stockQuantity + delta < 0) throw new BadRequestException('Insufficient stock'); product.stockQuantity += delta; const entry = { id: randomUUID(), productId, supplierId: s.id, quantity: delta, reason, stockAfter: product.stockQuantity, createdAt: new Date().toISOString() }; this.stockAdjustments.unshift(entry); return { stockQuantity: product.stockQuantity }; }
   async supplierStockHistory(userId: string, productId: string) { const s = await this.supplierFor(userId); return (await this.database.stockHistory(s.id, productId)) ?? this.stockAdjustments.filter(x => x.supplierId === s.id && x.productId === productId); }
   async supplierOrders(userId: string) { const s = await this.supplierFor(userId); const stored = await this.database.supplierOrders(s.id); if (stored) return stored; return this.orders.filter(order => order.status !== 'pending').flatMap(order => order.items.filter(item => item.product.supplierId === s.id).map(item => ({ orderId: order.id, orderNumber: order.orderNumber, customerName: this.users.find(u => u.id === order.customerId)?.fullName || order.deliveryName, deliveryName: order.deliveryName, deliveryAddress: order.deliveryAddress, createdAt: order.createdAt, itemId: item.id, productName: item.product.name, quantity: item.quantity, unitPrice: item.unitPrice, subtotal: item.subtotal, status: item.supplierOrderStatus }))); }
-  async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); if (status === 'delivered') await this.reimbursement.accrueForDeliveredItem(s.id, itemId); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
+  async updateSupplierOrderStatus(userId: string, itemId: string, status: string) { const s = await this.supplierFor(userId); if (!['processing', 'shipped', 'delivered'].includes(status)) throw new BadRequestException('Invalid status'); const stored = await this.database.updateSupplierOrderStatus(s.id, itemId, status); if (stored !== undefined) { if (!stored) throw new BadRequestException('Invalid status transition'); if (status === 'delivered') await this.reimbursement.accrueForDeliveredItem(s.id, itemId); return { status }; } const order = this.orders.find(o => o.items.some(i => i.id === itemId && i.product.supplierId === s.id)); const item = order?.items.find(i => i.id === itemId); if (!item || !order) throw new NotFoundException('Order item not found'); if (!['paid', 'processing', 'shipped'].includes(order.status)) throw new BadRequestException('Order has not been paid'); const next: Record<string, string> = { pending: 'processing', paid: 'processing', processing: 'shipped', shipped: 'delivered' }; if (next[item.supplierOrderStatus] !== status) throw new BadRequestException('Invalid status transition'); item.supplierOrderStatus = status; if (order.items.every(i => i.supplierOrderStatus === status)) order.status = status as Order['status']; return { status } }
   async adminDashboard() { return (await this.database.adminDashboard()) ?? { users: this.users.length, suppliers: this.suppliers.length, products: this.products.length, orders: this.orders.length, pendingSuppliers: this.suppliers.filter(s => s.status === 'pending').length }; }
 
   async adminSystemHealth() {

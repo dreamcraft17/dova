@@ -141,7 +141,9 @@ export class PaystackService {
   /** https://paystack.com/docs/payments/webhooks/ — x-paystack-signature HMAC SHA512 */
   verifyWebhookSignature(signature: string | undefined, payload: string): boolean {
     const secret = this.secretKey();
-    if (!secret) return true;
+    // Without a secret the signature cannot be checked, so only the local mock
+    // flow may accept unsigned webhooks; production must reject them.
+    if (!secret) return process.env.NODE_ENV !== 'production';
     if (!signature) return false;
     const expected = createHmac('sha512', secret).update(payload).digest('hex');
     if (signature.length !== expected.length) return false;

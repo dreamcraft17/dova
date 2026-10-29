@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, NotFoundException, Param, Patch, Post, Put, Query, Req, Res, UnauthorizedException, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, NotFoundException, Param, Patch, Post, Put, Query, Req, Res, UploadedFile, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -37,6 +37,16 @@ const supplierDocUpload = FileInterceptor('verificationDocs', {
 const promotionImageUpload = FileInterceptor('image', {
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+const MAX_PAGE_SIZE = 100;
+const clampPage = (value: string) => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+};
+const clampLimit = (value: string, fallback: number) => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, MAX_PAGE_SIZE) : fallback;
+};
 
 @Controller()
 export class AppController {
@@ -237,7 +247,7 @@ export class AppController {
   @RequireIntegration()
   @Public()
   @Get('products') products(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '50') {
-    return this.service.listProducts(search, categoryId, Number(page), Number(limit));
+    return this.service.listProducts(search, categoryId, clampPage(page), clampLimit(limit, 50));
   }
 
   @RequireIntegration()
@@ -246,7 +256,7 @@ export class AppController {
 
   @Public()
   @Get('bundles') listBundles(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('page') page = '1', @Query('limit') limit = '24') {
-    return this.bundles.listCustomerBundles(search, categoryId, Number(page), Number(limit));
+    return this.bundles.listCustomerBundles(search, categoryId, clampPage(page), clampLimit(limit, 24));
   }
 
   @Public()
@@ -288,7 +298,7 @@ export class AppController {
   @Roles('customer')
   @Get('orders/:id') async orderDetail(@CurrentUser() user: StoredUser, @Param('id') id: string) {
     const o = (await this.service.databaseOrder(user.id, id)) ?? this.service.orders.find(x => x.id === id && x.customerId === user.id);
-    if (!o) throw new UnauthorizedException();
+    if (!o) throw new NotFoundException('Order not found');
     return o;
   }
 
@@ -456,7 +466,7 @@ export class AppController {
 
   @Roles('admin')
   @Get('admin/bundles') adminBundles(@Query('search') search = '', @Query('categoryId') categoryId = '', @Query('status') status = '', @Query('page') page = '1', @Query('limit') limit = '24') {
-    return this.bundles.listAdminBundles(search, categoryId, status, Number(page), Number(limit));
+    return this.bundles.listAdminBundles(search, categoryId, status, clampPage(page), clampLimit(limit, 24));
   }
 
   @Roles('admin')

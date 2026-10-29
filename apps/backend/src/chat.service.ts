@@ -20,6 +20,12 @@ const PUBLIC_KNOWLEDGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CONTEXT_MESSAGES = 12;
 const MAX_STORED_MESSAGES = 100;
 const MAX_USER_MESSAGE_CHARS = 2000;
+const DEFAULT_MAX_WEB_CALLS_PER_DAY = 300;
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Cached web answers are served to every visitor, so anything that could carry
+// attacker-planted contact or payment details is never cached.
+const UNCACHEABLE_QUESTION = /\b(whatsapp|wa|phone|telepon|telp|nomor|number|account|akun|rekening|bank|transfer|payment|pay|bayar|email|contact|kontak|hubungi|call)\b/i;
+const UNCACHEABLE_ANSWER = /https?:\/\/|www\.|\d[\d\s().+-]{6,}\d|[\w.+-]+@[\w-]+\.[\w.-]+/i;
 const PROGRAMMING_REFUSAL = 'I can only help with DOVA products, bundles, orders, delivery, and general farming questions. I cannot help with coding or programming questions.';
 const INJECTION_REFUSAL = 'I can help with DOVA products, bundles, orders, delivery, and general farming questions. I can’t reveal private instructions, secrets, or internal system details.';
 const PROGRAMMING_PATTERNS = /\b(coding|codingan|programming|pemrograman|source code|javascript|typescript|python|java|c\+\+|html|css|sql|api endpoint|function|syntax|debugging|algorithm)\b/i;
@@ -310,8 +316,40 @@ ${accountContext}
     return createHash('sha256').update(normalizedQuestion).digest('hex');
   }
 
+  private isWebRelevant(text: string) {
+    return /\b(dova|dovachain|farm|farmer|farming|agriculture|agricultural|crop|soil|plant|food supply|nigeria|naira|supplier|marketplace)\b/i.test(text);
+  }
+
+  /** Refused turns stay visible to the user but are never replayed to the model as context. */
+  private withoutRefusedTurns(history: ChatRecord[]): ChatRecord[] {
+    const kept: ChatRecord[] = [];
+    for (let i = 0; i < history.length; i += 1) {
+      const message = history[i];
+      const refused = message.role === 'user' && (this.isPromptInjection(message.text) || this.isProgrammingRequest(message.text));
+      if (refused) {
+        const next = history[i + 1];
+        if (next?.role === 'assistant' && [INJECTION_REFUSAL, PROGRAMMING_REFUSAL].includes(next.text)) i += 1;
+        continue;
+      }
+      kept.push(message);
+    }
+    return kept;
+  }
+
+  private webCallBudget = { day: 0, used: 0 };
+
+  private reserveWebCall(): boolean {
+    const configured = Number(process.env.GEMINI_MAX_WEB_CALLS_PER_DAY);
+    const limit = Number.isInteger(configured) && configured >= 0 ? configured : DEFAULT_MAX_WEB_CALLS_PER_DAY;
+    const day = Math.floor(Date.now() / DAY_MS);
+    if (this.webCallBudget.day !== day) this.webCallBudget = { day, used: 0 };
+    if (this.webCallBudget.used >= limit) return false;
+    this.webCallBudget.used += 1;
+    return true;
+  }
+
   private shouldUseWebSearch(text: string) {
-    const relevant = /\b(dova|dovachain|farm|farmer|farming|agriculture|agricultural|crop|soil|plant|food supply|nigeria|naira|supplier|marketplace)\b/i.test(text);
+    const relevant = this.isWebRelevant(text);
     if (!relevant) return false;
     const liveOrResearch = /\b(latest|current|today|news|who|what is|about|official|website|mission|history|advice|guide|how to|price trend|market trend|weather)\b/i.test(text);
     const liveCatalog = /\b(product|produk|bundle|cart|keranjang|stock|stok|available|tersedia|harga|price|order|pesanan|delivery|deliver|pickup|kirim|antar)\b/i.test(text);
@@ -339,6 +377,7 @@ ${accountContext}
     // sources. This prevents an unverified fallback answer from poisoning the
     // shared knowledge cache for every other visitor.
     if (!answer.sources.length) return;
+    if (UNCACHEABLE_QUESTION.test(question) || UNCACHEABLE_ANSWER.test(answer.text)) return;
     const normalizedQuestion = this.normalizeKnowledgeQuestion(question);
     const entry: AiKnowledgeCache = {
       questionHash: this.knowledgeHash(normalizedQuestion),
@@ -454,7 +493,7 @@ ${accountContext}
       await this.saveMessage(userMessage);
       return this.refusal(user.id, PROGRAMMING_REFUSAL);
     }
-    const recent = history.slice(-MAX_CONTEXT_MESSAGES);
+    const recent = this.withoutRefusedTurns(history).slice(-MAX_CONTEXT_MESSAGES);
     const contents: GeminiContent[] = [
       ...recent.map((message) => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: [{ text: message.text }] } as GeminiContent)),
       { role: 'user', parts: [{ text: normalizedText }] },
@@ -507,6 +546,9 @@ ${accountContext}
     if (this.shouldUseWebSearch(question)) return this.webAnswer(question, catalogContext, languageInstruction);
     const generated = await this.generate(contents, catalogContext, languageInstruction, accountContext, { allowWebFallback: true });
     if (!this.isWebFallback(generated.text)) return generated.text;
+    // A user can ask the model to emit the fallback token just to force a paid
+    // web search; the token only counts when the model chose it on its own.
+    if (question.includes(WEB_FALLBACK_TOKEN) || previousQuestion?.includes(WEB_FALLBACK_TOKEN)) return WEB_NOT_FOUND_REPLY;
     // Short follow-ups ("why?", "since when?") only make sense as a search
     // query together with the question they refer to.
     const searchQuestion = previousQuestion && question.length < 40 ? `${previousQuestion}\n${question}` : question;
@@ -522,6 +564,7 @@ ${accountContext}
   private async webAnswer(question: string, catalogContext: string, languageInstruction: string): Promise<string> {
     const cached = await this.getPublicKnowledge(question);
     if (cached) return cached.answer;
+    if (!this.reserveWebCall()) return WEB_NOT_FOUND_REPLY;
     const generated = await this.generate(
       [{ role: 'user', parts: [{ text: question }] }],
       catalogContext,

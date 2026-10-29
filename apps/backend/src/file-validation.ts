@@ -73,4 +73,24 @@ export function assertExternalImageUrl(url: string): void {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     throw new BadRequestException('Image URL must use http or https');
   }
+  if (isPrivateHost(parsed.hostname)) {
+    throw new BadRequestException('Image URL must point to a public host');
+  }
+}
+
+/** Literal-host check (loopback, RFC1918, link-local incl. cloud metadata, IPv6 local). DNS names are re-checked after resolution by assertPublicHostname. */
+export function isPrivateHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal') || host.endsWith('.local')) return true;
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])];
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  if (host.includes(':')) {
+    const mapped = host.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+    if (mapped) return isPrivateHost(mapped[1]);
+    return host === '::' || host === '::1' || /^f[cd]/.test(host) || /^fe[89ab]/.test(host);
+  }
+  return false;
 }

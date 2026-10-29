@@ -1161,7 +1161,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async setPromotionActive(id: string, active: boolean): Promise<boolean | undefined> { if (!this.pool) return undefined; await this.pool.query('UPDATE promotions SET is_active=$1,updated_at=NOW() WHERE id=$2', [active, id]); return true; }
   async deletePromotion(id: string): Promise<boolean | undefined> { if (!this.pool) return undefined; await this.pool.query('DELETE FROM promotions WHERE id=$1', [id]); return true; }
   async supplierOrders(supplierId: string) { if (!this.pool) return undefined; const result = await this.pool.query("SELECT o.*,u.full_name AS customer_name,oi.id AS item_id,oi.quantity,oi.unit_price,oi.subtotal,oi.supplier_order_status,p.id AS product_id,p.name AS product_name FROM orders o JOIN users u ON u.id=o.customer_id JOIN order_items oi ON oi.order_id=o.id JOIN products p ON p.id=oi.product_id WHERE oi.supplier_id=$1 AND o.status != 'pending' ORDER BY o.created_at DESC", [supplierId]); return result.rows.map(row => ({ orderId: row.id, orderNumber: row.order_number, customerName: row.customer_name, deliveryName: row.delivery_name, deliveryAddress: row.delivery_address, createdAt: new Date(row.created_at).toISOString(), itemId: row.item_id, productName: row.product_name, quantity: Number(row.quantity), unitPrice: Number(row.unit_price), subtotal: Number(row.subtotal), status: row.supplier_order_status })); }
-  async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query('UPDATE order_items SET supplier_order_status=$1,updated_at=NOW() WHERE id=$2 AND supplier_id=$3 AND supplier_order_status = ANY($4::text[]) RETURNING id,order_id', [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query('UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2', [status, orderId]); return true; }
+  async updateSupplierOrderStatus(supplierId: string, itemId: string, status: string) { if (!this.pool) return undefined; const current = status === 'processing' ? ['pending', 'paid'] : status === 'shipped' ? ['processing'] : ['shipped']; const result = await this.pool.query("UPDATE order_items oi SET supplier_order_status=$1,updated_at=NOW() FROM orders o WHERE o.id=oi.order_id AND oi.id=$2 AND oi.supplier_id=$3 AND oi.supplier_order_status = ANY($4::text[]) AND o.payment_verified_at IS NOT NULL AND o.status IN ('paid','processing','shipped') RETURNING oi.id,oi.order_id", [status, itemId, supplierId, current]); if (!result.rowCount) return false; const orderId = result.rows[0].order_id; const statuses = await this.pool.query('SELECT supplier_order_status FROM order_items WHERE order_id=$1', [orderId]); if (statuses.rows.length && statuses.rows.every((row: any) => row.supplier_order_status === status)) await this.pool.query("UPDATE orders SET status=$1,updated_at=NOW() WHERE id=$2 AND payment_verified_at IS NOT NULL AND status IN ('paid','processing','shipped')", [status, orderId]); return true; }
   async adminDashboard() { if (!this.pool) return undefined; const [users, suppliers, products, orders, pending] = await Promise.all([this.pool.query('SELECT COUNT(*)::int AS count FROM users'), this.pool.query('SELECT COUNT(*)::int AS count FROM supplier_profiles'), this.pool.query('SELECT COUNT(*)::int AS count FROM products WHERE is_active=TRUE'), this.pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE created_at >= NOW() - INTERVAL '30 days'"), this.pool.query("SELECT COUNT(*)::int AS count FROM supplier_profiles WHERE verification_status='pending'")]); return { users: users.rows[0].count, suppliers: suppliers.rows[0].count, products: products.rows[0].count, orders: orders.rows[0].count, pendingSuppliers: pending.rows[0].count }; }
   async pendingSuppliers() { if (!this.pool) return undefined; const result = await this.pool.query("SELECT sp.*,u.email,u.full_name FROM supplier_profiles sp JOIN users u ON u.id=sp.user_id WHERE sp.verification_status='pending' ORDER BY sp.created_at"); return result.rows.map(row => ({ id: row.id, userId: row.user_id, businessName: row.business_name, contactName: row.full_name, email: row.email, phone: row.business_phone, status: row.verification_status, documentUrl: row.verification_doc_url, createdAt: new Date(row.created_at).toISOString() })); }
   async adminOrderDetail(orderId: string) {
@@ -1566,35 +1566,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   private async bootstrap() {
     if (!this.pool) return;
-    const adminPassword = bcrypt.hashSync(process.env.ADMIN_PASSWORD ?? 'admin1234', bcryptCost());
-    const supplierPassword = bcrypt.hashSync(process.env.SUPPLIER_PASSWORD ?? 'supplier1234', bcryptCost());
-    await this.pool.query(
-      `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
-       VALUES ('admin@dova.local',$1,'DOVA Admin','admin',TRUE,NOW())
-       ON CONFLICT (email) DO UPDATE SET
-         password_hash = EXCLUDED.password_hash,
-         is_active = TRUE,
-         email_verified_at = COALESCE(users.email_verified_at, NOW()),
-         updated_at = NOW()`,
-      [adminPassword],
-    );
-    const supplierUser = await this.pool.query(
-      `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
-       VALUES ('supplier@dova.local',$1,'Demo Supplier','supplier',TRUE,NOW())
-       ON CONFLICT (email) DO UPDATE SET
-         password_hash = EXCLUDED.password_hash,
-         is_active = TRUE,
-         email_verified_at = COALESCE(users.email_verified_at, NOW()),
-         updated_at = NOW()
-       RETURNING id`,
-      [supplierPassword],
-    );
-    await this.pool.query(
-      `INSERT INTO supplier_profiles (user_id,business_name,business_phone,verification_status)
-       VALUES ($1,'Green Valley Farms','+62000000000','approved')
-       ON CONFLICT (user_id) DO UPDATE SET verification_status='approved', updated_at=NOW()`,
-      [supplierUser.rows[0].id],
-    );
+    // Demo accounts are created once and never overwritten: re-seeding the
+    // password or re-activating the account on every boot would undo admin
+    // password changes and deactivations. In production there is no default
+    // password, so the account is only created when an explicit one is set.
+    const production = process.env.NODE_ENV === 'production';
+    const seedUser = async (email: string, fullName: string, role: 'admin' | 'supplier', configured: string | undefined, devDefault: string) => {
+      const password = configured?.trim() || (production ? undefined : devDefault);
+      if (password) {
+        await this.pool!.query(
+          `INSERT INTO users (email,password_hash,full_name,role,is_active,email_verified_at)
+           VALUES ($1,$2,$3,$4,TRUE,NOW())
+           ON CONFLICT (email) DO NOTHING`,
+          [email, bcrypt.hashSync(password, bcryptCost()), fullName, role],
+        );
+      } else {
+        console.warn(`[Database] ${email} not seeded: set ${role.toUpperCase()}_PASSWORD to create it in production.`);
+      }
+      const existing = await this.pool!.query('SELECT id FROM users WHERE email=$1', [email]);
+      return existing.rows[0]?.id as string | undefined;
+    };
+    await seedUser('admin@dova.local', 'DOVA Admin', 'admin', process.env.ADMIN_PASSWORD, 'admin1234');
+    const supplierUserId = await seedUser('supplier@dova.local', 'Demo Supplier', 'supplier', process.env.SUPPLIER_PASSWORD, 'supplier1234');
+    if (supplierUserId) {
+      await this.pool.query(
+        `INSERT INTO supplier_profiles (user_id,business_name,business_phone,verification_status)
+         VALUES ($1,'Green Valley Farms','+62000000000','approved')
+         ON CONFLICT (user_id) DO NOTHING`,
+        [supplierUserId],
+      );
+    }
     try {
       await this.syncMissingCatalogProducts();
     } catch (error) {

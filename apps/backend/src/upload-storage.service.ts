@@ -2,9 +2,11 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { assertExternalImageUrl, assertProductImage, assertSupplierDocument, extensionForMime, sniffImageMime } from './file-validation';
+import { lookup } from 'dns/promises';
+import { assertExternalImageUrl, isPrivateHost, assertProductImage, assertSupplierDocument, extensionForMime, sniffImageMime } from './file-validation';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_REDIRECTS = 3;
 
 export type UploadedFilePayload = { mimetype: string; buffer: Buffer; originalname?: string };
 
@@ -43,19 +45,40 @@ export class UploadStorageService {
     }
   }
 
+  /** One fetch hop that refuses private/internal targets; redirects are followed by the caller so every hop is re-checked. */
+  private async fetchPublic(url: string, signal: AbortSignal): Promise<Response> {
+    assertExternalImageUrl(url);
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    try {
+      const addresses = await lookup(host, { all: true });
+      if (addresses.some((entry) => isPrivateHost(entry.address))) {
+        throw new BadRequestException('Image URL must point to a public host');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      // Unresolvable host: fetch below fails on its own with the generic message.
+    }
+    return fetch(url, {
+      signal,
+      redirect: 'manual',
+      headers: {
+        Accept: 'image/jpeg,image/png,image/webp,*/*',
+        'User-Agent': 'DOVA-ProductImageImport/1.0',
+      },
+    });
+  }
+
   async importProductImageFromUrl(url: string): Promise<string> {
     assertExternalImageUrl(url);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20_000);
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: {
-          Accept: 'image/jpeg,image/png,image/webp,*/*',
-          'User-Agent': 'DOVA-ProductImageImport/1.0',
-        },
-      });
+      let response = await this.fetchPublic(url, controller.signal);
+      for (let hop = 0; hop < MAX_REDIRECTS && response.status >= 300 && response.status < 400; hop += 1) {
+        const location = response.headers.get('location');
+        if (!location) break;
+        response = await this.fetchPublic(new URL(location, url).toString(), controller.signal);
+      }
       if (!response.ok) {
         throw new BadRequestException(`Could not download image (HTTP ${response.status}). Try “Add images” from your phone instead.`);
       }

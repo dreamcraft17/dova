@@ -1,3 +1,4 @@
+import { assertMockPaymentsAllowed } from './mock-payments';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from './database.service';
 import { PaystackService } from './paystack.service';
@@ -98,6 +99,7 @@ export class ReimbursementService {
   private async sendPaystackTransfer(input: { reimbursementId: string; supplierId: string; amount: number; reference: string }) {
     const recipientCode = await this.recipientForSupplier(input.supplierId);
     if (!this.paystack.enabled()) {
+      assertMockPaymentsAllowed();
       await this.database.markReimbursementSuccess(input.reference, { mode: 'mock', note: 'Paystack disabled' });
       return { status: 'success', amount: input.amount, reference: input.reference, mode: 'mock' as const };
     }
