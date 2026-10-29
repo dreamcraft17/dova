@@ -1369,7 +1369,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.pool.query(
       `UPDATE products SET approval_status=$1::varchar, rejection_reason=$2,
          approved_at = CASE WHEN $1::varchar='approved' THEN NOW() ELSE NULL END,
-         approved_by = CASE WHEN $1::varchar='approved' THEN $3 ELSE NULL END,
+         approved_by = CASE WHEN $1::varchar='approved' THEN $3::uuid ELSE NULL END,
          updated_at=NOW() WHERE id=$4`,
       [status, reason ?? null, adminId ?? null, productId],
     );
